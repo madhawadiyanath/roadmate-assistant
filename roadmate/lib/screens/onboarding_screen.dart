@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../widgets/roadside_illustration.dart';
+import 'sign_in_screen.dart';
 
 class OnboardingScreen extends StatelessWidget {
   const OnboardingScreen({super.key});
@@ -22,7 +23,7 @@ class OnboardingScreen extends StatelessWidget {
                 child: Align(
                   alignment: Alignment.topRight,
                   child: TextButton(
-                    onPressed: () {},
+                    onPressed: () => _goSignIn(context),
                     child: const Text(
                       'Skip',
                       style: TextStyle(
@@ -181,7 +182,7 @@ class OnboardingScreen extends StatelessWidget {
                 width: double.infinity,
                 height: 56,
                 child: ElevatedButton(
-                  onPressed: () {},
+                  onPressed: () => _goSignIn(context),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: navy,
                     foregroundColor: Colors.white,
@@ -220,7 +221,7 @@ class OnboardingScreen extends StatelessWidget {
                   ),
                 ),
                 GestureDetector(
-                  onTap: () {},
+                  onTap: () => _goSignIn(context),
                   child: const Text(
                     'Sign In',
                     style: TextStyle(
@@ -260,6 +261,12 @@ class OnboardingScreen extends StatelessWidget {
         color: const Color(0xFFD9DEE8),
         borderRadius: BorderRadius.circular(10),
       ),
+    );
+  }
+
+  void _goSignIn(BuildContext context) {
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => const SignInScreen()),
     );
   }
 }
