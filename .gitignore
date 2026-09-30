@@ -1,0 +1,57 @@
+# ================= Root gitignore for roadmate-assistant =================
+# Env / secrets - NEVER commit real values
+.env
+.env.*
+!.env.example
+*.env
+*.keystore
+*.jks
+*.p8
+*.p12
+*.pem
+google-services.json
+GoogleService-Info.plist
+firebase_options.dart
+key.properties
+local.properties
+
+# Flutter / Dart
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.pub-cache/
+.pub/
+build/
+coverage/
+doc/api/
+*.g.dart
+*.freezed.dart
+*.mocks.dart
+
+# Per-OS build outputs (belt & braces, inner .gitignores also cover these)
+roadmate/build/
+roadmate/android/app/debug/
+roadmate/android/app/profile/
+roadmate/android/app/release/
+roadmate/android/.gradle/
+roadmate/ios/Pods/
+roadmate/ios/.symlinks/
+roadmate/macos/Pods/
+roadmate/windows/flutter/ephemeral/
+
+# IDE
+.idea/
+.vscode/*
+!.vscode/extensions.json
+*.iml
+*.ipr
+*.iws
+
+# OS
+.DS_Store
+Thumbs.db
+*.log
+
+# Temp
+*.tmp
+*.bak
