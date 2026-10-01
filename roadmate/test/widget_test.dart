@@ -203,13 +203,40 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('Hello, Nimal 🔧'), findsOneWidget);
-    expect(find.text('New Requests'), findsOneWidget);
-    expect(find.text('My Jobs'), findsOneWidget);
+    expect(find.text('Hello,'), findsOneWidget);
+    expect(find.text('Nimal'), findsWidgets);
+    expect(find.text('RoadMate'), findsOneWidget);
+    expect(find.text('Online'), findsOneWidget);
+    expect(find.text("Let's keep\nSri Lanka moving!"), findsOneWidget);
+    expect(find.text('New Requests'), findsWidgets);
+    expect(find.text("Today's Earnings"), findsOneWidget);
+    expect(find.text('Rs. 12,500'), findsOneWidget);
+    expect(find.text('View New Requests'), findsOneWidget);
+
+    // CTA jumps to the Jobs tab, opened on fresh (new) jobs.
+    await tester.ensureVisible(find.text('View New Requests'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('View New Requests'));
+    await tester.pumpAndSettle();
+    expect(find.text('Jobs'), findsWidgets);
+    expect(find.text('New'), findsOneWidget);
+    expect(find.text('Active'), findsOneWidget);
+    expect(find.text('Done'), findsOneWidget);
     expect(find.textContaining('Kasun Perera'), findsOneWidget);
     expect(find.text('Flat Tyre'), findsWidgets);
     expect(find.text('Accept Job'), findsWidgets);
     expect(find.text('No. 25, Galle Road, Colombo 06'), findsOneWidget);
+
+    // Active filter shows in-progress jobs with advance action.
+    await tester.tap(find.text('Active'));
+    await tester.pumpAndSettle();
+    expect(find.text('Start — On the way'), findsOneWidget);
+
+    // Done filter shows finished jobs, read-only.
+    await tester.tap(find.text('Done'));
+    await tester.pumpAndSettle();
+    expect(find.text('Completed'), findsWidgets);
+    expect(find.text('Mark Completed'), findsNothing);
   });
 
   testWidgets('RoleHome routes driver to dashboard, mechanic to jobs', (
@@ -237,6 +264,11 @@ void main() {
     );
     await tester.pumpWidget(const MaterialApp(home: RoleHome(user: mech)));
     await tester.pumpAndSettle();
-    expect(find.text('My Jobs'), findsOneWidget);
+    // Jobs tab content is offstage until its nav item is tapped.
+    // It opens on fresh (new) jobs.
+    await tester.tap(find.text('Jobs'));
+    await tester.pumpAndSettle();
+    expect(find.text('New'), findsOneWidget);
+    expect(find.text('Accept Job'), findsWidgets);
   });
 }
