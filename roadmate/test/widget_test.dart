@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:roadmate/main.dart';
+import 'package:roadmate/models/app_user.dart';
+import 'package:roadmate/screens/driver_dashboard_screen.dart';
+import 'package:roadmate/screens/role_home.dart';
 
 void main() {
   testWidgets('Onboarding screen shows on app start', (WidgetTester tester) async {
@@ -46,5 +49,61 @@ void main() {
     await tester.tap(find.byIcon(Icons.arrow_back_rounded));
     await tester.pumpAndSettle();
     expect(find.text('Welcome Back!'), findsOneWidget);
+  });
+
+  testWidgets('Driver dashboard shows all sections', (
+    WidgetTester tester,
+  ) async {
+    const user = AppUser(
+      uid: 'u1',
+      name: 'Kasun Perera',
+      email: 'kasun@example.com',
+      phone: '+94771234567',
+      role: AppRole.driver,
+    );
+    await tester.pumpWidget(
+      const MaterialApp(home: DriverDashboardScreen(user: user)),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Hello, Kasun'), findsOneWidget);
+    expect(find.text('24/7 Priority Dispatch Active'), findsOneWidget);
+    expect(find.text("Stuck on the road? We're here!"), findsOneWidget);
+    expect(find.text('Request Assistance'), findsOneWidget);
+    expect(find.text('Quick Services'), findsOneWidget);
+    expect(find.text('Flat Tyre'), findsOneWidget);
+    expect(find.text('Jump Start'), findsOneWidget);
+    expect(find.text('Fuel Drop'), findsOneWidget);
+    expect(find.text('Toyota Prius • CAB-8492'), findsOneWidget);
+    expect(find.text('Recent Requests'), findsOneWidget);
+    expect(find.text('Towing Service'), findsOneWidget);
+  });
+
+  testWidgets('RoleHome routes driver to dashboard, mechanic to jobs', (
+    WidgetTester tester,
+  ) async {
+    const driver = AppUser(
+      uid: 'u1',
+      name: 'Kasun',
+      email: 'k@e.com',
+      phone: '',
+      role: AppRole.driver,
+    );
+    await tester.pumpWidget(
+      const MaterialApp(home: RoleHome(user: driver)),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Quick Services'), findsOneWidget);
+
+    const mech = AppUser(
+      uid: 'u2',
+      name: 'Nimal',
+      email: 'n@e.com',
+      phone: '',
+      role: AppRole.mechanic,
+    );
+    await tester.pumpWidget(const MaterialApp(home: RoleHome(user: mech)));
+    await tester.pumpAndSettle();
+    expect(find.text('My Jobs'), findsOneWidget);
   });
 }

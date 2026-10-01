@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../models/app_user.dart';
 import '../services/auth_service.dart';
 import '../theme/app_colors.dart';
+import 'driver_dashboard_screen.dart';
 import 'onboarding_screen.dart';
 
 /// Landing page after login / sign-up. Shows driver or mechanic UI
@@ -10,6 +11,20 @@ class RoleHome extends StatelessWidget {
   final AppUser user;
   final AuthService? authService;
   const RoleHome({super.key, required this.user, this.authService});
+
+  @override
+  Widget build(BuildContext context) {
+    if (user.role == AppRole.driver) {
+      return DriverDashboardScreen(user: user, authService: authService);
+    }
+    return _MechanicHome(user: user, authService: authService);
+  }
+}
+
+class _MechanicHome extends StatelessWidget {
+  final AppUser user;
+  final AuthService? authService;
+  const _MechanicHome({required this.user, this.authService});
 
   Future<void> _logout(BuildContext context) async {
     try {
@@ -26,13 +41,12 @@ class RoleHome extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isDriver = user.role == AppRole.driver;
     return Scaffold(
       backgroundColor: AppColors.pageBg,
       appBar: AppBar(
         backgroundColor: AppColors.navy,
         foregroundColor: Colors.white,
-        title: Text(isDriver ? 'RoadMate Driver' : 'RoadMate Mechanic'),
+        title: const Text('RoadMate Mechanic'),
         actions: [
           IconButton(
             tooltip: 'Logout',
@@ -47,9 +61,7 @@ class RoleHome extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              isDriver
-                  ? 'Hi ${user.name.isEmpty ? 'Driver' : user.name}! 👋'
-                  : 'Hi ${user.name.isEmpty ? 'Mechanic' : user.name}! 🔧',
+              'Hi ${user.name.isEmpty ? 'Mechanic' : user.name}! 🔧',
               style: const TextStyle(
                 fontSize: 22,
                 fontWeight: FontWeight.w800,
@@ -57,11 +69,9 @@ class RoleHome extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 4),
-            Text(
-              isDriver
-                  ? 'Need help on the road? Request rescue in seconds.'
-                  : 'Jobs near you will appear here. Stay ready!',
-              style: const TextStyle(
+            const Text(
+              'Jobs near you will appear here. Stay ready!',
+              style: TextStyle(
                 fontSize: 13.5,
                 color: AppColors.greyText,
               ),
@@ -83,24 +93,16 @@ class RoleHome extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 18),
-            _ActionCard(
-              icon: isDriver
-                  ? Icons.emergency_rounded
-                  : Icons.work_history_rounded,
-              title: isDriver ? 'Request Rescue' : 'My Jobs',
-              subtitle: isDriver
-                  ? 'Flat tire, towing, jump start…'
-                  : 'Accept and track rescue jobs',
+            const _ActionCard(
+              icon: Icons.work_history_rounded,
+              title: 'My Jobs',
+              subtitle: 'Accept and track rescue jobs',
             ),
             const SizedBox(height: 12),
-            _ActionCard(
-              icon: isDriver
-                  ? Icons.history_rounded
-                  : Icons.payments_outlined,
-              title: isDriver ? 'My Requests' : 'Earnings',
-              subtitle: isDriver
-                  ? 'Track your active & past rescues'
-                  : 'Completed jobs & payouts',
+            const _ActionCard(
+              icon: Icons.payments_outlined,
+              title: 'Earnings',
+              subtitle: 'Completed jobs & payouts',
             ),
           ],
         ),
