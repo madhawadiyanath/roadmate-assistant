@@ -224,10 +224,33 @@ void main() {
     expect(find.text('Done'), findsOneWidget);
     expect(find.textContaining('Kasun Perera'), findsOneWidget);
     expect(find.text('Flat Tyre'), findsWidgets);
-    expect(find.text('Accept Job'), findsWidgets);
-    expect(find.text('No. 25, Galle Road, Colombo 06'), findsOneWidget);
+    // No inline Accept button — tapping a card opens Request Details.
+    expect(find.text('Accept Job'), findsNothing);
 
-    // Active filter shows in-progress jobs with advance action.
+    await tester.tap(find.textContaining('Kasun Perera').first);
+    await tester.pumpAndSettle();
+    expect(find.text('Request Details'), findsOneWidget);
+    expect(find.text('Customer Details'), findsOneWidget);
+    expect(find.text('Flat Tyre Assistance'), findsOneWidget);
+    expect(find.text('No. 25, Galle Road, Colombo 06'), findsOneWidget);
+    expect(find.text('Estimated Service Fee'), findsOneWidget);
+    expect(find.text('Rs. 3,500'), findsOneWidget);
+    expect(find.text('Accept'), findsOneWidget);
+    expect(find.text('Reject'), findsOneWidget);
+
+    // Accept without Firebase shows the setup hint.
+    await tester.ensureVisible(find.text('Accept'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Accept'));
+    await tester.pump();
+    expect(find.textContaining('Firebase not connected'), findsOneWidget);
+    await tester.pumpAndSettle();
+
+    // Back to Jobs: Active filter shows in-progress jobs.
+    await tester.ensureVisible(find.byIcon(Icons.arrow_back_rounded));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byIcon(Icons.arrow_back_rounded));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Active'));
     await tester.pumpAndSettle();
     expect(find.text('Start — On the way'), findsOneWidget);
@@ -269,6 +292,8 @@ void main() {
     await tester.tap(find.text('Jobs'));
     await tester.pumpAndSettle();
     expect(find.text('New'), findsOneWidget);
-    expect(find.text('Accept Job'), findsWidgets);
+    // Cards open Request Details instead of inline accept.
+    expect(find.text('Accept Job'), findsNothing);
+    expect(find.textContaining('Kasun Perera'), findsOneWidget);
   });
 }

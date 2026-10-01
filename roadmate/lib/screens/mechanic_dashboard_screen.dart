@@ -6,6 +6,7 @@ import '../models/service_request.dart';
 import '../services/assistance_service.dart';
 import '../services/auth_service.dart';
 import '../theme/app_colors.dart';
+import 'job_details_screen.dart';
 import 'onboarding_screen.dart';
 
 /// Mechanic home matching the RoadMate design:
@@ -136,10 +137,12 @@ class _MechanicDashboardScreenState extends State<MechanicDashboardScreen> {
             _MechJobsTab(
               assistance: _assist,
               mechanicUid: widget.user.uid,
+              mechanicName: widget.user.name,
               available: _available,
               busy: _busy,
               onAccept: _accept,
               onAdvance: _advance,
+              onTabSelect: (i) => setState(() => _tab = i),
             ),
             const _EarningsTab(),
             const _MechChatTab(),
@@ -758,18 +761,22 @@ enum _JobFilter { fresh, active, done }
 class _MechJobsTab extends StatefulWidget {
   final AssistanceService assistance;
   final String mechanicUid;
+  final String mechanicName;
   final bool available;
   final bool busy;
   final ValueChanged<ServiceRequest> onAccept;
   final ValueChanged<ServiceRequest> onAdvance;
+  final ValueChanged<int> onTabSelect;
 
   const _MechJobsTab({
     required this.assistance,
     required this.mechanicUid,
+    required this.mechanicName,
     required this.available,
     required this.busy,
     required this.onAccept,
     required this.onAdvance,
+    required this.onTabSelect,
   });
 
   @override
@@ -778,6 +785,24 @@ class _MechJobsTab extends StatefulWidget {
 
 class _MechJobsTabState extends State<_MechJobsTab> {
   _JobFilter _filter = _JobFilter.fresh;
+
+  /// Open the details page. `true` = accepted/rejected (streams refresh),
+  /// int = bottom-nav tab switch.
+  Future<void> _openDetails(ServiceRequest r) async {
+    final res = await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => JobDetailsScreen(
+          request: r,
+          mechanicUid: widget.mechanicUid,
+          mechanicName: widget.mechanicName,
+          assistanceService: widget.assistance,
+        ),
+      ),
+    );
+    if (!mounted) return;
+    if (res is int) widget.onTabSelect(res);
+  }
 
   static const _demoFresh = [
     ServiceRequest(
@@ -844,6 +869,7 @@ class _MechJobsTabState extends State<_MechJobsTab> {
               filter: _filter,
               parent: widget,
               onChanged: (f) => setState(() => _filter = f),
+              onTap: _openDetails,
             )
           else
             StreamBuilder<List<ServiceRequest>>(
@@ -901,6 +927,7 @@ class _MechJobsTabState extends State<_MechJobsTab> {
                         active: active,
                         done: done,
                         parent: widget,
+                        onTap: _openDetails,
                       ),
                     ],
                   );
@@ -919,10 +946,12 @@ class _DemoBody extends StatelessWidget {
   final _JobFilter filter;
   final _MechJobsTab parent;
   final ValueChanged<_JobFilter> onChanged;
+  final ValueChanged<ServiceRequest> onTap;
   const _DemoBody({
     required this.filter,
     required this.parent,
     required this.onChanged,
+    required this.onTap,
   });
 
   @override
@@ -944,8 +973,7 @@ class _DemoBody extends StatelessWidget {
                 for (final r in _MechJobsTabState._demoFresh) ...[
                   _IncomingCard(
                     request: r,
-                    busy: parent.busy,
-                    onAccept: parent.onAccept,
+                    onTap: () => onTap(r),
                   ),
                   const SizedBox(height: 10),
                 ],
@@ -990,6 +1018,7 @@ class _LiveBody extends StatelessWidget {
   final List<ServiceRequest> active;
   final List<ServiceRequest> done;
   final _MechJobsTab parent;
+  final ValueChanged<ServiceRequest> onTap;
   const _LiveBody({
     required this.filter,
     required this.available,
@@ -997,6 +1026,7 @@ class _LiveBody extends StatelessWidget {
     required this.active,
     required this.done,
     required this.parent,
+    required this.onTap,
   });
 
   @override
@@ -1013,8 +1043,7 @@ class _LiveBody extends StatelessWidget {
                 for (final r in fresh) ...[
                   _IncomingCard(
                     request: r,
-                    busy: parent.busy,
-                    onAccept: parent.onAccept,
+                    onTap: () => onTap(r),
                   ),
                   const SizedBox(height: 10),
                 ],
@@ -1276,127 +1305,112 @@ class _MechChatTab extends StatelessWidget {
 
 // ============================== CARDS ==============================
 
+/// Tappable job card — opens the Request Details page (no inline button).
 class _IncomingCard extends StatelessWidget {
   final ServiceRequest request;
-  final bool busy;
-  final ValueChanged<ServiceRequest> onAccept;
-  const _IncomingCard({
-    required this.request,
-    required this.busy,
-    required this.onAccept,
-  });
+  final VoidCallback onTap;
+  const _IncomingCard({required this.request, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFFEDF1F7), width: 1.2),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                width: 46,
-                height: 46,
-                decoration: BoxDecoration(
-                  color: AppColors.orange.withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: const Icon(
-                  Icons.emergency_rounded,
-                  color: AppColors.orange,
-                  size: 24,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      request.type.label,
-                      style: const TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w800,
-                        color: AppColors.navyDark,
-                      ),
-                    ),
-                    Text(
-                      '${request.driverName} • ${request.refCode}',
-                      style: const TextStyle(
-                        fontSize: 12,
-                        color: AppColors.greyText,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 10, vertical: 5),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFFFEDE0),
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Text(
-                  request.type.eta,
-                  style: const TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.orange,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          if (request.address.isNotEmpty) ...[
-            const SizedBox(height: 8),
+    return GestureDetector(
+      onTap: onTap,
+      behavior: HitTestBehavior.opaque,
+      child: Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: const Color(0xFFEDF1F7), width: 1.2),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
             Row(
               children: [
-                const Icon(Icons.location_on_outlined,
-                    size: 15, color: AppColors.greyText),
-                const SizedBox(width: 4),
+                Container(
+                  width: 46,
+                  height: 46,
+                  decoration: BoxDecoration(
+                    color: AppColors.orange.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Icon(
+                    Icons.emergency_rounded,
+                    color: AppColors.orange,
+                    size: 24,
+                  ),
+                ),
+                const SizedBox(width: 12),
                 Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        request.type.label,
+                        style: const TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w800,
+                          color: AppColors.navyDark,
+                        ),
+                      ),
+                      Text(
+                        '${request.driverName} • ${request.refCode}',
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: AppColors.greyText,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 10, vertical: 5),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFFEDE0),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
                   child: Text(
-                    request.address,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
+                    request.type.eta,
                     style: const TextStyle(
-                      fontSize: 12.5,
-                      color: AppColors.navyDark,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.orange,
                     ),
                   ),
+                ),
+                const SizedBox(width: 6),
+                const Icon(
+                  Icons.arrow_forward_ios_rounded,
+                  size: 15,
+                  color: AppColors.greyText,
                 ),
               ],
             ),
+            if (request.address.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  const Icon(Icons.location_on_outlined,
+                      size: 15, color: AppColors.greyText),
+                  const SizedBox(width: 4),
+                  Expanded(
+                    child: Text(
+                      request.address,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 12.5,
+                        color: AppColors.navyDark,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
           ],
-          const SizedBox(height: 10),
-          SizedBox(
-            width: double.infinity,
-            height: 46,
-            child: ElevatedButton(
-              onPressed: busy ? null : () => onAccept(request),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.navy,
-                foregroundColor: Colors.white,
-                elevation: 0,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(11),
-                ),
-              ),
-              child: const Text(
-                'Accept Job',
-                style:
-                    TextStyle(fontSize: 14.5, fontWeight: FontWeight.w700),
-              ),
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }
