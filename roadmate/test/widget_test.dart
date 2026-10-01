@@ -79,6 +79,31 @@ void main() {
     expect(find.text('Towing Service'), findsOneWidget);
   });
 
+  testWidgets('Select Service opens emergency picker', (
+    WidgetTester tester,
+  ) async {
+    const user = AppUser(
+      uid: 'u1',
+      name: 'Kasun Perera',
+      email: 'kasun@example.com',
+      phone: '',
+      role: AppRole.driver,
+    );
+    await tester.pumpWidget(
+      const MaterialApp(home: DriverDashboardScreen(user: user)),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.ensureVisible(find.text('Select Service'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Select Service'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('What do you need right now?'), findsOneWidget);
+    expect(find.text('Towing Service'), findsWidgets);
+    expect(find.text('Other / Not sure — send help'), findsOneWidget);
+  });
+
   testWidgets('RoleHome routes driver to dashboard, mechanic to jobs', (
     WidgetTester tester,
   ) async {

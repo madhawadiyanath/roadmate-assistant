@@ -46,6 +46,21 @@ class _DriverDashboardScreenState extends State<DriverDashboardScreen> {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
   }
 
+  /// Emergency-friendly service picker: big clear options.
+  Future<void> _openServicePicker() async {
+    final picked = await showModalBottomSheet<AssistanceType>(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
+      ),
+      builder: (_) => const _ServicePickerSheet(),
+    );
+    if (picked != null && mounted) {
+      await _requestAssistance(picked);
+    }
+  }
+
   Future<void> _requestAssistance(AssistanceType type) async {
     if (!firebaseReady) {
       _snack('Firebase not connected yet. Add google-services files first.');
@@ -120,6 +135,7 @@ class _DriverDashboardScreenState extends State<DriverDashboardScreen> {
               firstName: _firstName,
               requesting: _requesting,
               onSOS: () => _requestAssistance(AssistanceType.general),
+              onSelectService: _openServicePicker,
               onQuick: _requestAssistance,
               onViewAll: () => setState(() => _tab = 1),
               onLogout: _logout,
@@ -146,6 +162,7 @@ class _HomeTab extends StatelessWidget {
   final String firstName;
   final bool requesting;
   final VoidCallback onSOS;
+  final VoidCallback onSelectService;
   final ValueChanged<AssistanceType> onQuick;
   final VoidCallback onViewAll;
   final VoidCallback onLogout;
@@ -156,6 +173,7 @@ class _HomeTab extends StatelessWidget {
     required this.firstName,
     required this.requesting,
     required this.onSOS,
+    required this.onSelectService,
     required this.onQuick,
     required this.onViewAll,
     required this.onLogout,
@@ -347,6 +365,39 @@ class _HomeTab extends StatelessWidget {
                         Icon(Icons.arrow_forward, size: 19),
                       ],
                     ),
+            ),
+          ),
+          const SizedBox(height: 10),
+
+          // Select Service — big clear entry for emergencies
+          SizedBox(
+            width: double.infinity,
+            height: 56,
+            child: OutlinedButton(
+              onPressed: requesting ? null : onSelectService,
+              style: OutlinedButton.styleFrom(
+                foregroundColor: AppColors.navy,
+                side: const BorderSide(color: AppColors.navy, width: 1.8),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14),
+                ),
+              ),
+              child: const Row(
+                children: [
+                  Icon(Icons.grid_view_rounded, size: 22),
+                  SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      'Select Service',
+                      style: TextStyle(
+                        fontSize: 16.5,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ),
+                  Icon(Icons.arrow_forward, size: 19),
+                ],
+              ),
             ),
           ),
           const SizedBox(height: 18),
@@ -1118,6 +1169,151 @@ class _ChatTab extends StatelessWidget {
           SizedBox(height: 12),
           _DetailRow(label: 'Live chat', value: 'Coming soon'),
         ],
+      ),
+    );
+  }
+}
+
+// ============================== SERVICE PICKER ==============================
+
+/// Emergency-friendly picker: large touch targets, clear labels + ETAs.
+class _ServicePickerSheet extends StatelessWidget {
+  const _ServicePickerSheet();
+
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.fromLTRB(22, 12, 22, 24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 44,
+              height: 5,
+              decoration: BoxDecoration(
+                color: const Color(0xFFD9DEE8),
+                borderRadius: BorderRadius.circular(10),
+              ),
+            ),
+            const SizedBox(height: 16),
+            const Text(
+              'Select Service',
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.w800,
+                color: AppColors.navy,
+              ),
+            ),
+            const SizedBox(height: 4),
+            const Text(
+              'What do you need right now?',
+              style: TextStyle(fontSize: 13.5, color: AppColors.greyText),
+            ),
+            const SizedBox(height: 16),
+            GridView.count(
+              crossAxisCount: 2,
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              mainAxisSpacing: 12,
+              crossAxisSpacing: 12,
+              childAspectRatio: 1.15,
+              children: const [
+                _PickerCard(
+                  type: AssistanceType.flatTyre,
+                  icon: Icons.tire_repair_rounded,
+                ),
+                _PickerCard(
+                  type: AssistanceType.jumpStart,
+                  icon: Icons.bolt_rounded,
+                ),
+                _PickerCard(
+                  type: AssistanceType.fuelDrop,
+                  icon: Icons.local_gas_station_rounded,
+                ),
+                _PickerCard(
+                  type: AssistanceType.towing,
+                  icon: Icons.local_shipping_rounded,
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            SizedBox(
+              width: double.infinity,
+              height: 56,
+              child: OutlinedButton(
+                onPressed: () =>
+                    Navigator.pop(context, AssistanceType.general),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: AppColors.navy,
+                  side: const BorderSide(color: AppColors.navy, width: 1.5),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                ),
+                child: const Text(
+                  'Other / Not sure — send help',
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _PickerCard extends StatelessWidget {
+  final AssistanceType type;
+  final IconData icon;
+  const _PickerCard({required this.type, required this.icon});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: () => Navigator.pop(context, type),
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 8),
+        decoration: BoxDecoration(
+          color: AppColors.navy,
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              width: 52,
+              height: 52,
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.15),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(icon, color: Colors.white, size: 28),
+            ),
+            const SizedBox(height: 10),
+            Text(
+              type.label,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                fontSize: 15,
+                fontWeight: FontWeight.w800,
+                color: Colors.white,
+              ),
+            ),
+            const SizedBox(height: 2),
+            Text(
+              'ETA ${type.eta}',
+              style: TextStyle(
+                fontSize: 12,
+                color: Colors.white.withValues(alpha: 0.75),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
