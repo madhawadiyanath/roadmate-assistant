@@ -1,5 +1,8 @@
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'config/firebase_state.dart';
+import 'firebase_options.dart';
 import 'screens/onboarding_screen.dart';
 
 Future<void> main() async {
@@ -9,6 +12,18 @@ Future<void> main() async {
     await dotenv.load(fileName: '.env');
   } catch (_) {
     // AppEnv falls back to safe defaults.
+  }
+  // Firebase needs google-services.json / GoogleService-Info.plist from the
+  // Firebase console (see FIREBASE_SETUP below). Missing config must not
+  // crash the app or widget tests.
+  try {
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
+    firebaseReady = true;
+  } catch (e) {
+    debugPrint('Firebase not initialised (add config files): $e');
+    firebaseReady = false;
   }
   runApp(const MyApp());
 }

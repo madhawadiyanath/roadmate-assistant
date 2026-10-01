@@ -1,0 +1,78 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+
+/// Types of roadside assistance a driver can request.
+enum AssistanceType {
+  flatTyre('Flat Tyre', '~12 min'),
+  jumpStart('Jump Start', '~10 min'),
+  fuelDrop('Fuel Drop', '~15 min'),
+  towing('Towing Service', '~20 min'),
+  general('Request Assistance', '~14 min');
+
+  const AssistanceType(this.label, this.eta);
+  final String label;
+  final String eta;
+
+  static AssistanceType fromString(String? v) => AssistanceType.values
+      .firstWhere((t) => t.name == v, orElse: () => AssistanceType.general);
+}
+
+/// Request lifecycle.
+enum RequestStatus {
+  pending('Pending'),
+  accepted('Accepted'),
+  onTheWay('On the way'),
+  completed('Completed'),
+  cancelled('Cancelled');
+
+  const RequestStatus(this.label);
+  final String label;
+
+  static RequestStatus fromString(String? v) => RequestStatus.values
+      .firstWhere((s) => s.name == v, orElse: () => RequestStatus.pending);
+}
+
+/// A driver assistance request — Firestore doc in `requests/{id}`.
+class ServiceRequest {
+  final String id;
+  final String driverUid;
+  final String driverName;
+  final AssistanceType type;
+  final RequestStatus status;
+  final DateTime? createdAt;
+
+  const ServiceRequest({
+    required this.id,
+    required this.driverUid,
+    required this.driverName,
+    required this.type,
+    required this.status,
+    this.createdAt,
+  });
+
+  Map<String, dynamic> toMap() => {
+        'driverUid': driverUid,
+        'driverName': driverName,
+        'type': type.name,
+        'status': status.name,
+        'createdAt': FieldValue.serverTimestamp(),
+      };
+
+  factory ServiceRequest.fromDoc(
+      DocumentSnapshot<Map<String, dynamic>> doc) {
+    final m = doc.data() ?? {};
+    return ServiceRequest(
+      id: doc.id,
+      driverUid: (m['driverUid'] ?? '') as String,
+      driverName: (m['driverName'] ?? '') as String,
+      type: AssistanceType.fromString(m['type'] as String?),
+      status: RequestStatus.fromString(m['status'] as String?),
+      createdAt: (m['createdAt'] as Timestamp?)?.toDate(),
+    );
+  }
+
+  /// Short reference code like #RM1024 shown in the UI.
+  String get refCode {
+    final h = id.hashCode.abs() % 9000 + 1000;
+    return '#RM$h';
+  }
+}
