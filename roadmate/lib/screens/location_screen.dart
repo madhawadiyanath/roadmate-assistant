@@ -1,14 +1,12 @@
 import 'package:flutter/material.dart';
 
-import '../config/firebase_state.dart';
 import '../models/app_user.dart';
 import '../models/service_request.dart';
 import '../services/assistance_service.dart';
-import '../services/auth_service.dart';
 import '../theme/app_colors.dart';
 import '../widgets/auth_widgets.dart';
-import '../widgets/confirm_request_sheet.dart';
 import '../widgets/mini_map_illustration.dart';
+import 'confirm_request_screen.dart';
 
 /// Step 2 of the driver flow: confirm pickup location for [serviceType].
 /// Pops `true` when the request was created, or a tab index from bottom nav.
@@ -34,9 +32,6 @@ class _LocationScreenState extends State<LocationScreen> {
   bool _locating = false;
   bool _creating = false;
 
-  AssistanceService get _assist =>
-      widget.assistanceService ?? AssistanceService();
-
   @override
   void dispose() {
     _search.dispose();
@@ -61,40 +56,31 @@ class _LocationScreenState extends State<LocationScreen> {
     _snack('GPS locked • High precision (±3m)');
   }
 
+  /// Step 3: review everything on the Confirm page.
+  /// It creates the request and pops `true` — forwarded to the dashboard.
   Future<void> _next() async {
     final address = _search.text.trim();
     if (address.isEmpty) {
       _snack('Please enter or pick your location.');
       return;
     }
-    if (!firebaseReady) {
-      _snack('Firebase not connected yet. Add google-services files first.');
-      return;
-    }
-    final confirm = await showModalBottomSheet<bool>(
-      context: context,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (_) => ConfirmRequestSheet(
-        type: widget.serviceType,
-        address: address,
-      ),
-    );
-    if (confirm != true || !mounted) return;
     setState(() => _creating = true);
     try {
-      await _assist.createRequest(
-        driverUid: widget.user.uid,
-        driverName: widget.user.name,
-        type: widget.serviceType,
-        address: address,
+      final result = await Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => ConfirmRequestScreen(
+            user: widget.user,
+            serviceType: widget.serviceType,
+            address: address,
+            assistanceService: widget.assistanceService,
+          ),
+        ),
       );
       if (!mounted) return;
-      _snack('${widget.serviceType.label} requested — help is on the way!');
-      Navigator.pop(context, true);
-    } catch (e) {
-      _snack(AuthService.friendlyMessage(e));
+      if (result == true || result is int) {
+        Navigator.pop(context, result);
+      }
     } finally {
       if (mounted) setState(() => _creating = false);
     }

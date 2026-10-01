@@ -800,6 +800,9 @@ class _RecentPreview extends StatelessWidget {
             child: Center(child: CircularProgressIndicator()),
           );
         }
+        if (snap.hasError) {
+          return _StreamErrorBox(error: snap.error);
+        }
         final items = snap.data ?? [];
         if (items.isEmpty) {
           return Container(
@@ -822,6 +825,8 @@ class _RecentPreview extends StatelessWidget {
           refCode: items.first.refCode,
           status: items.first.status,
           dateText: formatDate(items.first.createdAt),
+          address: items.first.address,
+          mechanicName: items.first.mechanicName,
         );
       },
     );
@@ -883,6 +888,9 @@ class _RequestsTab extends StatelessWidget {
                     child: Center(child: CircularProgressIndicator()),
                   );
                 }
+                if (snap.hasError) {
+                  return _StreamErrorBox(error: snap.error);
+                }
                 final items = snap.data ?? [];
                 if (items.isEmpty) {
                   return const Padding(
@@ -902,6 +910,8 @@ class _RequestsTab extends StatelessWidget {
                         refCode: r.refCode,
                         status: r.status,
                         dateText: formatDate(r.createdAt),
+                        address: r.address,
+                        mechanicName: r.mechanicName,
                       ),
                       const SizedBox(height: 10),
                     ],
@@ -921,11 +931,15 @@ class _RequestRow extends StatelessWidget {
   final String refCode;
   final RequestStatus status;
   final String dateText;
+  final String address;
+  final String mechanicName;
   const _RequestRow({
     required this.title,
     required this.refCode,
     required this.status,
     required this.dateText,
+    this.address = '',
+    this.mechanicName = '',
   });
 
   Color get _statusColor {
@@ -1015,21 +1029,75 @@ class _RequestRow extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(width: 8),
-                    Text(
-                      '•  $dateText',
-                      style: const TextStyle(
-                        fontSize: 12.5,
-                        color: AppColors.greyText,
+                    Expanded(
+                      child: Text(
+                        '•  $dateText${mechanicName.isNotEmpty ? ' • $mechanicName' : ''}',
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 12.5,
+                          color: AppColors.greyText,
+                        ),
                       ),
                     ),
                   ],
                 ),
+                if (address.isNotEmpty) ...[
+                  const SizedBox(height: 3),
+                  Row(
+                    children: [
+                      const Icon(Icons.location_on_outlined,
+                          size: 13, color: AppColors.greyText),
+                      const SizedBox(width: 4),
+                      Expanded(
+                        child: Text(
+                          address,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: AppColors.greyText,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
               ],
             ),
           ),
         ],
       ),
     );
+  }
+}
+
+/// Shown when a Firestore stream fails (rules / network / index),
+/// so problems are visible instead of an empty list.
+class _StreamErrorBox extends StatelessWidget {
+  final Object? error;
+  const _StreamErrorBox({this.error});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFEDEE),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFFF5C2C7), width: 1.2),
+      ),
+      child: Text(
+        'Could not load requests.\n${_short(error)}',
+        textAlign: TextAlign.center,
+        style: const TextStyle(color: Color(0xFFB02A37), fontSize: 12.5),
+      ),
+    );
+  }
+
+  static String _short(Object? e) {
+    final s = '$e';
+    return s.length > 140 ? '${s.substring(0, 140)}…' : s;
   }
 }
 
