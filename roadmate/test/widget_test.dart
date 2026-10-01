@@ -3,7 +3,9 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:roadmate/main.dart';
 import 'package:roadmate/models/app_user.dart';
+import 'package:roadmate/models/service_request.dart';
 import 'package:roadmate/screens/driver_dashboard_screen.dart';
+import 'package:roadmate/screens/location_screen.dart';
 import 'package:roadmate/screens/role_home.dart';
 
 void main() {
@@ -107,6 +109,41 @@ void main() {
     expect(find.text('Puncture repair or tyre change'), findsOneWidget);
     expect(find.text('Immediate Dispatch?'), findsOneWidget);
     expect(find.text('LIVE DISPATCH'), findsOneWidget);
+  });
+
+  testWidgets('Location page shows map, GPS and address tools', (
+    WidgetTester tester,
+  ) async {
+    const user = AppUser(
+      uid: 'u1',
+      name: 'Kasun Perera',
+      email: 'kasun@example.com',
+      phone: '',
+      role: AppRole.driver,
+    );
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: LocationScreen(
+          user: user,
+          serviceType: AssistanceType.flatTyre,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Your Location'), findsOneWidget);
+    expect(find.text('Confirm your current location'), findsOneWidget);
+    expect(find.text('Use Current Location'), findsOneWidget);
+    expect(find.text('RECENT:'), findsOneWidget);
+    expect(find.text('Outer Circular Hwy'), findsOneWidget);
+    expect(find.text('Next'), findsOneWidget);
+
+    // Tapping Next without Firebase shows the setup hint.
+    await tester.ensureVisible(find.text('Next'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Next'));
+    await tester.pump();
+    expect(find.textContaining('Firebase not connected'), findsOneWidget);
   });
 
   testWidgets('RoleHome routes driver to dashboard, mechanic to jobs', (

@@ -8,6 +8,7 @@ import '../services/auth_service.dart';
 import '../theme/app_colors.dart';
 import '../widgets/auth_widgets.dart';
 import '../widgets/tow_truck_illustration.dart';
+import 'location_screen.dart';
 import 'onboarding_screen.dart';
 import 'select_service_screen.dart';
 
@@ -32,7 +33,6 @@ class DriverDashboardScreen extends StatefulWidget {
 
 class _DriverDashboardScreenState extends State<DriverDashboardScreen> {
   int _tab = 0;
-  bool _requesting = false;
 
   AssistanceService get _assist =>
       widget.assistanceService ?? AssistanceService();
@@ -41,10 +41,6 @@ class _DriverDashboardScreenState extends State<DriverDashboardScreen> {
     final n = widget.user.name.trim();
     if (n.isEmpty) return 'Driver';
     return n.split(' ').first;
-  }
-
-  void _snack(String msg) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
   }
 
   /// Full Select Service page. Returns the picked type (→ confirm flow)
@@ -64,33 +60,23 @@ class _DriverDashboardScreenState extends State<DriverDashboardScreen> {
     }
   }
 
+  /// Every request goes through the location step first.
+  /// LocationScreen creates the Firestore request and pops `true`.
   Future<void> _requestAssistance(AssistanceType type) async {
-    if (!firebaseReady) {
-      _snack('Firebase not connected yet. Add google-services files first.');
-      return;
-    }
-    final confirm = await showModalBottomSheet<bool>(
-      context: context,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+    final done = await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => LocationScreen(
+          user: widget.user,
+          serviceType: type,
+        ),
       ),
-      builder: (_) => _ConfirmSheet(type: type),
     );
-    if (confirm != true || !mounted) return;
-    setState(() => _requesting = true);
-    try {
-      await _assist.createRequest(
-        driverUid: widget.user.uid,
-        driverName: widget.user.name,
-        type: type,
-      );
-      if (!mounted) return;
-      _snack('${type.label} requested — help is on the way!');
+    if (!mounted) return;
+    if (done == true) {
       setState(() => _tab = 1);
-    } catch (e) {
-      _snack(AuthService.friendlyMessage(e));
-    } finally {
-      if (mounted) setState(() => _requesting = false);
+    } else if (done is int) {
+      setState(() => _tab = done);
     }
   }
 
@@ -136,7 +122,7 @@ class _DriverDashboardScreenState extends State<DriverDashboardScreen> {
             _HomeTab(
               user: widget.user,
               firstName: _firstName,
-              requesting: _requesting,
+              requesting: false,
               onSOS: () => _requestAssistance(AssistanceType.general),
               onSelectService: _openServicePicker,
               onQuick: _requestAssistance,
@@ -1178,86 +1164,6 @@ class _ChatTab extends StatelessWidget {
 }
 
 // ============================== CONFIRM SHEET / NAV ==============================
-
-class _ConfirmSheet extends StatelessWidget {
-  final AssistanceType type;
-  const _ConfirmSheet({required this.type});
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.all(22),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            width: 56,
-            height: 56,
-            decoration: BoxDecoration(
-              color: AppColors.orange.withValues(alpha: 0.15),
-              shape: BoxShape.circle,
-            ),
-            child: const Icon(
-              Icons.emergency_rounded,
-              color: AppColors.orange,
-              size: 30,
-            ),
-          ),
-          const SizedBox(height: 12),
-          Text(
-            'Confirm ${type.label}?',
-            style: const TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.w800,
-              color: AppColors.navy,
-            ),
-          ),
-          const SizedBox(height: 6),
-          Text(
-            'ETA ${type.eta} • GPS location will be shared with the mechanic.',
-            textAlign: TextAlign.center,
-            style:
-                const TextStyle(fontSize: 13, color: AppColors.greyText),
-          ),
-          const SizedBox(height: 18),
-          Row(
-            children: [
-              Expanded(
-                child: OutlinedButton(
-                  onPressed: () => Navigator.pop(context, false),
-                  style: OutlinedButton.styleFrom(
-                    minimumSize: const Size(0, 50),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                  child: const Text('Cancel'),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: ElevatedButton(
-                  onPressed: () => Navigator.pop(context, true),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.orange,
-                    foregroundColor: Colors.white,
-                    minimumSize: const Size(0, 50),
-                    elevation: 0,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                  child: const Text('Confirm',
-                      style: TextStyle(fontWeight: FontWeight.w700)),
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-}
 
 class _BottomNav extends StatelessWidget {
   final int index;

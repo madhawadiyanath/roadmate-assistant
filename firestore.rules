@@ -13,5 +13,20 @@ service cloud.firestore {
         && request.resource.data.role in ['driver', 'mechanic'];
       allow delete: if false;
     }
+
+    // Assistance requests. Drivers create their own; the assigned
+    // mechanic can read/update them (assignment fields added later).
+    match /requests/{requestId} {
+      allow create: if request.auth != null
+        && request.resource.data.driverUid == request.auth.uid
+        && request.resource.data.status == 'pending';
+      allow read: if request.auth != null
+        && (resource.data.driverUid == request.auth.uid
+          || resource.data.mechanicUid == request.auth.uid);
+      allow update: if request.auth != null
+        && (resource.data.driverUid == request.auth.uid
+          || resource.data.mechanicUid == request.auth.uid);
+      allow delete: if false;
+    }
   }
 }

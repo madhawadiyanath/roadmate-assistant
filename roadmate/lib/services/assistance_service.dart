@@ -17,6 +17,9 @@ class AssistanceService {
     required String driverUid,
     required String driverName,
     required AssistanceType type,
+    String address = '',
+    double? latitude,
+    double? longitude,
   }) async {
     final doc = await _requests.add(ServiceRequest(
       id: '',
@@ -24,6 +27,9 @@ class AssistanceService {
       driverName: driverName,
       type: type,
       status: RequestStatus.pending,
+      address: address,
+      latitude: latitude,
+      longitude: longitude,
     ).toMap());
     return doc.id;
   }

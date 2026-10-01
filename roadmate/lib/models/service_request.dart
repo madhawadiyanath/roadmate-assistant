@@ -38,6 +38,9 @@ class ServiceRequest {
   final String driverName;
   final AssistanceType type;
   final RequestStatus status;
+  final String address;
+  final double? latitude;
+  final double? longitude;
   final DateTime? createdAt;
 
   const ServiceRequest({
@@ -46,6 +49,9 @@ class ServiceRequest {
     required this.driverName,
     required this.type,
     required this.status,
+    this.address = '',
+    this.latitude,
+    this.longitude,
     this.createdAt,
   });
 
@@ -54,6 +60,9 @@ class ServiceRequest {
         'driverName': driverName,
         'type': type.name,
         'status': status.name,
+        'address': address,
+        if (latitude != null) 'latitude': latitude,
+        if (longitude != null) 'longitude': longitude,
         'createdAt': FieldValue.serverTimestamp(),
       };
 
@@ -66,6 +75,9 @@ class ServiceRequest {
       driverName: (m['driverName'] ?? '') as String,
       type: AssistanceType.fromString(m['type'] as String?),
       status: RequestStatus.fromString(m['status'] as String?),
+      address: (m['address'] ?? '') as String,
+      latitude: (m['latitude'] as num?)?.toDouble(),
+      longitude: (m['longitude'] as num?)?.toDouble(),
       createdAt: (m['createdAt'] as Timestamp?)?.toDate(),
     );
   }
