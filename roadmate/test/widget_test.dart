@@ -38,6 +38,9 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Create Account!'), findsOneWidget);
     expect(find.text('Full Name'), findsOneWidget);
+    expect(find.text('I am a'), findsOneWidget);
+    expect(find.text('Driver'), findsOneWidget);
+    expect(find.text('Mechanic'), findsOneWidget);
 
     // Back to Sign In via AppBar back
     await tester.tap(find.byIcon(Icons.arrow_back_rounded));

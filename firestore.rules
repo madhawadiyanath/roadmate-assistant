@@ -1,0 +1,17 @@
+rules_version = '2';
+// RoadMate Firestore rules — role is stored at users/{uid}.role
+// ("driver" or "mechanic"). Deploy: firebase deploy --only firestore:rules
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /users/{uid} {
+      allow create: if request.auth != null
+        && request.auth.uid == uid
+        && request.resource.data.role in ['driver', 'mechanic'];
+      allow read: if request.auth != null && request.auth.uid == uid;
+      allow update: if request.auth != null
+        && request.auth.uid == uid
+        && request.resource.data.role in ['driver', 'mechanic'];
+      allow delete: if false;
+    }
+  }
+}

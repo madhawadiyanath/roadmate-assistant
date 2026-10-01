@@ -1,10 +1,16 @@
 import 'package:flutter/material.dart';
+import '../config/firebase_state.dart';
+import '../models/app_user.dart';
+import '../services/auth_service.dart';
 import '../theme/app_colors.dart';
 import '../widgets/auth_widgets.dart';
+import '../widgets/role_selector.dart';
+import 'role_home.dart';
 import 'sign_in_screen.dart';
 
 class SignUpScreen extends StatefulWidget {
-  const SignUpScreen({super.key});
+  final AuthService? authService;
+  const SignUpScreen({super.key, this.authService});
 
   @override
   State<SignUpScreen> createState() => _SignUpScreenState();
@@ -15,6 +21,11 @@ class _SignUpScreenState extends State<SignUpScreen> {
   final _email = TextEditingController();
   final _phone = TextEditingController();
   final _password = TextEditingController();
+
+  AppRole _role = AppRole.driver;
+  bool _loading = false;
+
+  AuthService get _auth => widget.authService ?? AuthService();
 
   @override
   void dispose() {
@@ -40,6 +51,53 @@ class _SignUpScreenState extends State<SignUpScreen> {
         MaterialPageRoute(builder: (_) => const SignInScreen()),
       );
     }
+  }
+
+  String? _validate() {
+    if (_name.text.trim().isEmpty) return 'Please enter your full name.';
+    if (_email.text.trim().isEmpty || !_email.text.contains('@')) {
+      return 'Please enter a valid email address.';
+    }
+    if (_phone.text.trim().isEmpty) return 'Please enter your phone number.';
+    if (_password.text.length < 6) {
+      return 'Password should be at least 6 characters.';
+    }
+    return null;
+  }
+
+  Future<void> _signUp() async {
+    if (!firebaseReady) {
+      _show('Firebase not connected yet. Add google-services files first.');
+      return;
+    }
+    final error = _validate();
+    if (error != null) {
+      _show(error);
+      return;
+    }
+    setState(() => _loading = true);
+    try {
+      final user = await _auth.signUp(
+        name: _name.text,
+        email: _email.text,
+        phone: _phone.text,
+        password: _password.text,
+        role: _role,
+      );
+      if (!mounted) return;
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (_) => RoleHome(user: user)),
+        (_) => false,
+      );
+    } catch (e) {
+      _show(AuthService.friendlyMessage(e));
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  void _show(String msg) {
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
   }
 
   @override
@@ -88,6 +146,12 @@ class _SignUpScreenState extends State<SignUpScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    const AuthLabel(text: 'I am a'),
+                    RoleSelector(
+                      selected: _role,
+                      onChanged: (r) => setState(() => _role = r),
+                    ),
+                    const SizedBox(height: 14),
                     const AuthLabel(text: 'Full Name'),
                     AuthTextField(
                       hint: 'Alex Driver',
@@ -121,7 +185,11 @@ class _SignUpScreenState extends State<SignUpScreen> {
                       controller: _password,
                     ),
                     const SizedBox(height: 16),
-                    const PrimaryAuthButton(text: 'Sign Up'),
+                    PrimaryAuthButton(
+                      text: 'Sign Up',
+                      isLoading: _loading,
+                      onPressed: _signUp,
+                    ),
                     const OrDivider(),
                     const SocialAuthButton(
                       text: 'Continue with Google',

@@ -1,10 +1,14 @@
 import 'package:flutter/material.dart';
+import '../config/firebase_state.dart';
+import '../services/auth_service.dart';
 import '../theme/app_colors.dart';
 import '../widgets/auth_widgets.dart';
+import 'role_home.dart';
 import 'sign_up_screen.dart';
 
 class SignInScreen extends StatefulWidget {
-  const SignInScreen({super.key});
+  final AuthService? authService;
+  const SignInScreen({super.key, this.authService});
 
   @override
   State<SignInScreen> createState() => _SignInScreenState();
@@ -13,6 +17,9 @@ class SignInScreen extends StatefulWidget {
 class _SignInScreenState extends State<SignInScreen> {
   final _email = TextEditingController(text: 'alex.driver@example.com');
   final _password = TextEditingController(text: 'password123');
+  bool _loading = false;
+
+  AuthService get _auth => widget.authService ?? AuthService();
 
   @override
   void dispose() {
@@ -25,6 +32,41 @@ class _SignInScreenState extends State<SignInScreen> {
     Navigator.of(context).push(
       MaterialPageRoute(builder: (_) => const SignUpScreen()),
     );
+  }
+
+  Future<void> _login() async {
+    if (!firebaseReady) {
+      _show('Firebase not connected yet. Add google-services files first.');
+      return;
+    }
+    if (_email.text.trim().isEmpty || !_email.text.contains('@')) {
+      _show('Please enter a valid email address.');
+      return;
+    }
+    if (_password.text.isEmpty) {
+      _show('Please enter your password.');
+      return;
+    }
+    setState(() => _loading = true);
+    try {
+      final user = await _auth.signIn(
+        email: _email.text,
+        password: _password.text,
+      );
+      if (!mounted) return;
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (_) => RoleHome(user: user)),
+        (_) => false,
+      );
+    } catch (e) {
+      _show(AuthService.friendlyMessage(e));
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  void _show(String msg) {
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
   }
 
   @override
@@ -94,7 +136,11 @@ class _SignInScreenState extends State<SignInScreen> {
                       controller: _password,
                     ),
                     const SizedBox(height: 16),
-                    const PrimaryAuthButton(text: 'Login'),
+                    PrimaryAuthButton(
+                      text: 'Login',
+                      isLoading: _loading,
+                      onPressed: _login,
+                    ),
                     const OrDivider(),
                     const SocialAuthButton(
                       text: 'Continue with Google',

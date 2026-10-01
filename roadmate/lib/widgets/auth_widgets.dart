@@ -104,7 +104,13 @@ class AuthLabel extends StatelessWidget {
 class PrimaryAuthButton extends StatelessWidget {
   final String text;
   final VoidCallback? onPressed;
-  const PrimaryAuthButton({super.key, required this.text, this.onPressed});
+  final bool isLoading;
+  const PrimaryAuthButton({
+    super.key,
+    required this.text,
+    this.onPressed,
+    this.isLoading = false,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -112,7 +118,7 @@ class PrimaryAuthButton extends StatelessWidget {
       width: double.infinity,
       height: 50,
       child: ElevatedButton(
-        onPressed: onPressed ?? () {},
+        onPressed: isLoading ? null : (onPressed ?? () {}),
         style: ElevatedButton.styleFrom(
           backgroundColor: AppColors.navy,
           foregroundColor: Colors.white,
@@ -125,14 +131,23 @@ class PrimaryAuthButton extends StatelessWidget {
             fontWeight: FontWeight.w600,
           ),
         ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Text(text),
-            const SizedBox(width: 8),
-            const Icon(Icons.arrow_forward, size: 19),
-          ],
-        ),
+        child: isLoading
+            ? const SizedBox(
+                width: 22,
+                height: 22,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2.5,
+                  color: Colors.white,
+                ),
+              )
+            : Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(text),
+                  const SizedBox(width: 8),
+                  const Icon(Icons.arrow_forward, size: 19),
+                ],
+              ),
       ),
     );
   }
