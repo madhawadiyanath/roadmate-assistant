@@ -14,18 +14,34 @@ service cloud.firestore {
       allow delete: if false;
     }
 
-    // Assistance requests. Drivers create their own; the assigned
-    // mechanic can read/update them (assignment fields added later).
+    // Assistance requests.
+    // - Driver creates own request as pending.
+    // - Any logged-in mechanic sees pending requests (new jobs feed).
+    // - Mechanic claims a pending job (accept), then advances its status.
+    // - Driver reads own requests and may cancel them.
     match /requests/{requestId} {
       allow create: if request.auth != null
         && request.resource.data.driverUid == request.auth.uid
         && request.resource.data.status == 'pending';
       allow read: if request.auth != null
         && (resource.data.driverUid == request.auth.uid
-          || resource.data.mechanicUid == request.auth.uid);
+          || resource.data.mechanicUid == request.auth.uid
+          || resource.data.status == 'pending');
       allow update: if request.auth != null
-        && (resource.data.driverUid == request.auth.uid
-          || resource.data.mechanicUid == request.auth.uid);
+        && (
+          // Driver cancels own request.
+          (resource.data.driverUid == request.auth.uid
+            && request.resource.data.status == 'cancelled')
+          // Mechanic claims a pending job.
+          || (resource.data.status == 'pending'
+            && request.resource.data.status == 'accepted'
+            && request.resource.data.mechanicUid == request.auth.uid)
+          // Assigned mechanic advances the job.
+          || (resource.data.mechanicUid == request.auth.uid
+            && request.resource.data.mechanicUid == request.auth.uid
+            && request.resource.data.status
+              in ['accepted', 'onTheWay', 'completed'])
+        );
       allow delete: if false;
     }
   }

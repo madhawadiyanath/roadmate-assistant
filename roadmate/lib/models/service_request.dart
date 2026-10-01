@@ -41,6 +41,8 @@ class ServiceRequest {
   final String address;
   final double? latitude;
   final double? longitude;
+  final String mechanicUid;
+  final String mechanicName;
   final DateTime? createdAt;
 
   const ServiceRequest({
@@ -52,6 +54,8 @@ class ServiceRequest {
     this.address = '',
     this.latitude,
     this.longitude,
+    this.mechanicUid = '',
+    this.mechanicName = '',
     this.createdAt,
   });
 
@@ -63,6 +67,8 @@ class ServiceRequest {
         'address': address,
         if (latitude != null) 'latitude': latitude,
         if (longitude != null) 'longitude': longitude,
+        'mechanicUid': mechanicUid,
+        'mechanicName': mechanicName,
         'createdAt': FieldValue.serverTimestamp(),
       };
 
@@ -78,6 +84,8 @@ class ServiceRequest {
       address: (m['address'] ?? '') as String,
       latitude: (m['latitude'] as num?)?.toDouble(),
       longitude: (m['longitude'] as num?)?.toDouble(),
+      mechanicUid: (m['mechanicUid'] ?? '') as String,
+      mechanicName: (m['mechanicName'] ?? '') as String,
       createdAt: (m['createdAt'] as Timestamp?)?.toDate(),
     );
   }

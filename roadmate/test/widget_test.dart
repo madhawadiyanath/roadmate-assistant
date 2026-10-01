@@ -4,8 +4,10 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:roadmate/main.dart';
 import 'package:roadmate/models/app_user.dart';
 import 'package:roadmate/models/service_request.dart';
+import 'package:roadmate/screens/confirm_request_screen.dart';
 import 'package:roadmate/screens/driver_dashboard_screen.dart';
 import 'package:roadmate/screens/location_screen.dart';
+import 'package:roadmate/screens/mechanic_dashboard_screen.dart';
 import 'package:roadmate/screens/role_home.dart';
 
 void main() {
@@ -138,12 +140,103 @@ void main() {
     expect(find.text('Outer Circular Hwy'), findsOneWidget);
     expect(find.text('Next'), findsOneWidget);
 
-    // Tapping Next without Firebase shows the setup hint.
+    // Tapping Next goes to the Confirm Request page.
     await tester.ensureVisible(find.text('Next'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Next'));
+    await tester.pumpAndSettle();
+    expect(find.text('Confirm Request'), findsOneWidget);
+    expect(find.text('Please review your details'), findsOneWidget);
+    expect(find.text('SERVICE TYPE'), findsOneWidget);
+    expect(find.text('LOCATION'), findsOneWidget);
+    expect(find.text('VEHICLE'), findsOneWidget);
+    expect(find.text('CONTACT NUMBER'), findsOneWidget);
+    expect(find.text('Submit Request'), findsOneWidget);
+  });
+
+  testWidgets('Confirm page submits only with Firebase', (
+    WidgetTester tester,
+  ) async {
+    const user = AppUser(
+      uid: 'u1',
+      name: 'Kasun Perera',
+      email: 'kasun@example.com',
+      phone: '+94771234567',
+      role: AppRole.driver,
+    );
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: ConfirmRequestScreen(
+          user: user,
+          serviceType: AssistanceType.flatTyre,
+          address: 'No. 25, Galle Road, Colombo 06',
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Flat Tyre'), findsOneWidget);
+    expect(find.text('No. 25, Galle Road, Colombo 06'), findsOneWidget);
+    expect(find.text('Selected'), findsOneWidget);
+    expect(find.text('ESTIMATED PATROL ARRIVAL'), findsOneWidget);
+
+    // Tapping Submit without Firebase shows the setup hint.
+    await tester.ensureVisible(find.text('Submit Request'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Submit Request'));
     await tester.pump();
     expect(find.textContaining('Firebase not connected'), findsOneWidget);
+  });
+
+  testWidgets('Mechanic dashboard shows incoming requests', (
+    WidgetTester tester,
+  ) async {
+    const mech = AppUser(
+      uid: 'mech1',
+      name: 'Nimal',
+      email: 'nimal@example.com',
+      phone: '',
+      role: AppRole.mechanic,
+    );
+    await tester.pumpWidget(
+      const MaterialApp(home: MechanicDashboardScreen(user: mech)),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Hello,'), findsOneWidget);
+    expect(find.text('Nimal'), findsWidgets);
+    expect(find.text('RoadMate'), findsOneWidget);
+    expect(find.text('Online'), findsOneWidget);
+    expect(find.text("Let's keep\nSri Lanka moving!"), findsOneWidget);
+    expect(find.text('New Requests'), findsWidgets);
+    expect(find.text("Today's Earnings"), findsOneWidget);
+    expect(find.text('Rs. 12,500'), findsOneWidget);
+    expect(find.text('View New Requests'), findsOneWidget);
+
+    // CTA jumps to the Jobs tab, opened on fresh (new) jobs.
+    await tester.ensureVisible(find.text('View New Requests'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('View New Requests'));
+    await tester.pumpAndSettle();
+    expect(find.text('Jobs'), findsWidgets);
+    expect(find.text('New'), findsOneWidget);
+    expect(find.text('Active'), findsOneWidget);
+    expect(find.text('Done'), findsOneWidget);
+    expect(find.textContaining('Kasun Perera'), findsOneWidget);
+    expect(find.text('Flat Tyre'), findsWidgets);
+    expect(find.text('Accept Job'), findsWidgets);
+    expect(find.text('No. 25, Galle Road, Colombo 06'), findsOneWidget);
+
+    // Active filter shows in-progress jobs with advance action.
+    await tester.tap(find.text('Active'));
+    await tester.pumpAndSettle();
+    expect(find.text('Start — On the way'), findsOneWidget);
+
+    // Done filter shows finished jobs, read-only.
+    await tester.tap(find.text('Done'));
+    await tester.pumpAndSettle();
+    expect(find.text('Completed'), findsWidgets);
+    expect(find.text('Mark Completed'), findsNothing);
   });
 
   testWidgets('RoleHome routes driver to dashboard, mechanic to jobs', (
@@ -171,6 +264,11 @@ void main() {
     );
     await tester.pumpWidget(const MaterialApp(home: RoleHome(user: mech)));
     await tester.pumpAndSettle();
-    expect(find.text('My Jobs'), findsOneWidget);
+    // Jobs tab content is offstage until its nav item is tapped.
+    // It opens on fresh (new) jobs.
+    await tester.tap(find.text('Jobs'));
+    await tester.pumpAndSettle();
+    expect(find.text('New'), findsOneWidget);
+    expect(find.text('Accept Job'), findsWidgets);
   });
 }
