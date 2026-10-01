@@ -79,7 +79,7 @@ void main() {
     expect(find.text('Towing Service'), findsOneWidget);
   });
 
-  testWidgets('Select Service opens emergency picker', (
+  testWidgets('Select Service opens full service page', (
     WidgetTester tester,
   ) async {
     const user = AppUser(
@@ -99,9 +99,14 @@ void main() {
     await tester.tap(find.text('Select Service'));
     await tester.pumpAndSettle();
 
-    expect(find.text('What do you need right now?'), findsOneWidget);
+    expect(find.text('What do you need help with?'), findsOneWidget);
+    expect(find.text('Flat Tyre'), findsWidgets);
+    expect(find.text('Battery Jump Start'), findsOneWidget);
+    expect(find.text('Fuel Delivery'), findsOneWidget);
     expect(find.text('Towing Service'), findsWidgets);
-    expect(find.text('Other / Not sure — send help'), findsOneWidget);
+    expect(find.text('Puncture repair or tyre change'), findsOneWidget);
+    expect(find.text('Immediate Dispatch?'), findsOneWidget);
+    expect(find.text('LIVE DISPATCH'), findsOneWidget);
   });
 
   testWidgets('RoleHome routes driver to dashboard, mechanic to jobs', (

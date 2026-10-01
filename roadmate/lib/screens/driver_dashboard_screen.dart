@@ -9,6 +9,7 @@ import '../theme/app_colors.dart';
 import '../widgets/auth_widgets.dart';
 import '../widgets/tow_truck_illustration.dart';
 import 'onboarding_screen.dart';
+import 'select_service_screen.dart';
 
 /// Driver home after login — matches the RoadMate dashboard design:
 /// header, dispatch banner, rapid-assistance hero, SOS button,
@@ -46,18 +47,20 @@ class _DriverDashboardScreenState extends State<DriverDashboardScreen> {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
   }
 
-  /// Emergency-friendly service picker: big clear options.
+  /// Full Select Service page. Returns the picked type (→ confirm flow)
+  /// or a dashboard tab index (bottom nav).
   Future<void> _openServicePicker() async {
-    final picked = await showModalBottomSheet<AssistanceType>(
-      context: context,
-      isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
+    final result = await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => SelectServiceScreen(user: widget.user),
       ),
-      builder: (_) => const _ServicePickerSheet(),
     );
-    if (picked != null && mounted) {
-      await _requestAssistance(picked);
+    if (!mounted) return;
+    if (result is AssistanceType) {
+      await _requestAssistance(result);
+    } else if (result is int) {
+      setState(() => _tab = result);
     }
   }
 
@@ -1169,151 +1172,6 @@ class _ChatTab extends StatelessWidget {
           SizedBox(height: 12),
           _DetailRow(label: 'Live chat', value: 'Coming soon'),
         ],
-      ),
-    );
-  }
-}
-
-// ============================== SERVICE PICKER ==============================
-
-/// Emergency-friendly picker: large touch targets, clear labels + ETAs.
-class _ServicePickerSheet extends StatelessWidget {
-  const _ServicePickerSheet();
-
-  @override
-  Widget build(BuildContext context) {
-    return SafeArea(
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.fromLTRB(22, 12, 22, 24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 44,
-              height: 5,
-              decoration: BoxDecoration(
-                color: const Color(0xFFD9DEE8),
-                borderRadius: BorderRadius.circular(10),
-              ),
-            ),
-            const SizedBox(height: 16),
-            const Text(
-              'Select Service',
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.w800,
-                color: AppColors.navy,
-              ),
-            ),
-            const SizedBox(height: 4),
-            const Text(
-              'What do you need right now?',
-              style: TextStyle(fontSize: 13.5, color: AppColors.greyText),
-            ),
-            const SizedBox(height: 16),
-            GridView.count(
-              crossAxisCount: 2,
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              mainAxisSpacing: 12,
-              crossAxisSpacing: 12,
-              childAspectRatio: 1.15,
-              children: const [
-                _PickerCard(
-                  type: AssistanceType.flatTyre,
-                  icon: Icons.tire_repair_rounded,
-                ),
-                _PickerCard(
-                  type: AssistanceType.jumpStart,
-                  icon: Icons.bolt_rounded,
-                ),
-                _PickerCard(
-                  type: AssistanceType.fuelDrop,
-                  icon: Icons.local_gas_station_rounded,
-                ),
-                _PickerCard(
-                  type: AssistanceType.towing,
-                  icon: Icons.local_shipping_rounded,
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            SizedBox(
-              width: double.infinity,
-              height: 56,
-              child: OutlinedButton(
-                onPressed: () =>
-                    Navigator.pop(context, AssistanceType.general),
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: AppColors.navy,
-                  side: const BorderSide(color: AppColors.navy, width: 1.5),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(14),
-                  ),
-                ),
-                child: const Text(
-                  'Other / Not sure — send help',
-                  style: TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _PickerCard extends StatelessWidget {
-  final AssistanceType type;
-  final IconData icon;
-  const _PickerCard({required this.type, required this.icon});
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: () => Navigator.pop(context, type),
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 8),
-        decoration: BoxDecoration(
-          color: AppColors.navy,
-          borderRadius: BorderRadius.circular(16),
-        ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Container(
-              width: 52,
-              height: 52,
-              decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.15),
-                shape: BoxShape.circle,
-              ),
-              child: Icon(icon, color: Colors.white, size: 28),
-            ),
-            const SizedBox(height: 10),
-            Text(
-              type.label,
-              textAlign: TextAlign.center,
-              style: const TextStyle(
-                fontSize: 15,
-                fontWeight: FontWeight.w800,
-                color: Colors.white,
-              ),
-            ),
-            const SizedBox(height: 2),
-            Text(
-              'ETA ${type.eta}',
-              style: TextStyle(
-                fontSize: 12,
-                color: Colors.white.withValues(alpha: 0.75),
-              ),
-            ),
-          ],
-        ),
       ),
     );
   }
