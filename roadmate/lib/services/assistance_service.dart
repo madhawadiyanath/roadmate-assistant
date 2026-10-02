@@ -50,6 +50,12 @@ class AssistanceService {
   Future<void> cancelRequest(String requestId) =>
       _requests.doc(requestId).update({'status': RequestStatus.cancelled.name});
 
+  /// Live view of one request — powers driver tracking.
+  Stream<ServiceRequest?> watchRequest(String requestId) {
+    return _requests.doc(requestId).snapshots().map(
+        (d) => d.exists && d.data() != null ? ServiceRequest.fromDoc(d) : null);
+  }
+
   // ---------------- Mechanic side ----------------
 
   /// Live list of unassigned requests — what mechanics see as "new jobs".

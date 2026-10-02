@@ -7,6 +7,7 @@ import '../services/assistance_service.dart';
 import '../services/auth_service.dart';
 import '../theme/app_colors.dart';
 import '../widgets/auth_widgets.dart';
+import 'request_success_screen.dart';
 
 /// Step 3 of the driver flow: review service, location, vehicle and
 /// contact, then submit. Pops `true` when the request was created,
@@ -51,15 +52,28 @@ class _ConfirmRequestScreenState extends State<ConfirmRequestScreen> {
     }
     setState(() => _submitting = true);
     try {
-      await _assist.createRequest(
+      final requestId = await _assist.createRequest(
         driverUid: widget.user.uid,
         driverName: widget.user.name,
         type: widget.serviceType,
         address: widget.address,
       );
       if (!mounted) return;
-      _snack('${widget.serviceType.label} requested — help is on the way!');
-      Navigator.pop(context, true);
+      // Success receipt replaces this page — back won't return here.
+      final result = await Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (_) => RequestSuccessScreen(
+            requestId: requestId,
+            serviceType: widget.serviceType,
+            address: widget.address,
+          ),
+        ),
+      );
+      if (!mounted) return;
+      // Forward: true = Track (Requests tab), 'home' = dashboard home,
+      // int = bottom-nav tab. Null (system back) = treat as tracked.
+      Navigator.pop(context, result ?? true);
     } catch (e) {
       _snack(AuthService.friendlyMessage(e));
     } finally {

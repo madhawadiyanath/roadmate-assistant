@@ -5,6 +5,8 @@ import 'package:roadmate/main.dart';
 import 'package:roadmate/models/app_user.dart';
 import 'package:roadmate/models/service_request.dart';
 import 'package:roadmate/screens/confirm_request_screen.dart';
+import 'package:roadmate/screens/request_success_screen.dart';
+import 'package:roadmate/screens/track_request_screen.dart';
 import 'package:roadmate/screens/driver_dashboard_screen.dart';
 import 'package:roadmate/screens/location_screen.dart';
 import 'package:roadmate/screens/mechanic_dashboard_screen.dart';
@@ -81,6 +83,46 @@ void main() {
     expect(find.text('Toyota Prius • CAB-8492'), findsOneWidget);
     expect(find.text('Recent Requests'), findsOneWidget);
     expect(find.text('Towing Service'), findsOneWidget);
+
+    // Tapping the recent request opens live tracking.
+    await tester.ensureVisible(find.text('Towing Service'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Towing Service'));
+    await tester.pumpAndSettle();
+    expect(find.text('Sampath Perera'), findsWidgets);
+    expect(find.text('Arriving in 8 minutes'), findsOneWidget);
+    expect(find.text('Cancel Request'), findsOneWidget);
+  });
+
+  testWidgets('Tracking cancel needs Firebase', (
+    WidgetTester tester,
+  ) async {
+    const req = ServiceRequest(
+      id: 'demo-track-1',
+      driverUid: 'd1',
+      driverName: 'Kasun Perera',
+      type: AssistanceType.towing,
+      status: RequestStatus.accepted,
+      address: 'No. 25, Galle Road, Colombo 06',
+      mechanicUid: 'm1',
+      mechanicName: 'Sampath Perera',
+    );
+    await tester.pumpWidget(
+      const MaterialApp(home: TrackRequestScreen(request: req)),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('2.4 km'), findsOneWidget);
+    expect(find.text('Speed 38'), findsOneWidget);
+    expect(find.text('WP CA 5678'), findsOneWidget);
+
+    await tester.ensureVisible(find.text('Cancel Request'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Cancel Request'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Yes, cancel'));
+    await tester.pump();
+    expect(find.textContaining('Firebase not connected'), findsOneWidget);
   });
 
   testWidgets('Select Service opens full service page', (
@@ -260,6 +302,56 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Completed'), findsWidgets);
     expect(find.text('Mark Completed'), findsNothing);
+  });
+
+  testWidgets('Request success page shows receipt and tracks', (
+    WidgetTester tester,
+  ) async {
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: RequestSuccessScreen(
+          requestId: 'abc123',
+          serviceType: AssistanceType.flatTyre,
+          address: 'No. 25, Galle Road, Colombo 06',
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Request Submitted!'), findsOneWidget);
+    expect(find.text('Status: Searching Nearby Patrol'), findsOneWidget);
+    expect(find.textContaining('#RM'), findsOneWidget);
+    expect(find.text('Flat Tyre Assistance'), findsOneWidget);
+    expect(find.text('Track Request'), findsOneWidget);
+    expect(find.text('Back to Home'), findsOneWidget);
+
+    // Track pops the page (result `true` → Requests tab).
+    await tester.ensureVisible(find.text('Track Request'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Track Request'));
+    await tester.pumpAndSettle();
+    expect(find.text('Request Submitted!'), findsNothing);
+  });
+
+  testWidgets('Request success page goes back home', (
+    WidgetTester tester,
+  ) async {
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: RequestSuccessScreen(
+          requestId: 'abc123',
+          serviceType: AssistanceType.flatTyre,
+          address: 'No. 25, Galle Road, Colombo 06',
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.ensureVisible(find.text('Back to Home'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Back to Home'));
+    await tester.pumpAndSettle();
+    expect(find.text('Request Submitted!'), findsNothing);
   });
 
   testWidgets('RoleHome routes driver to dashboard, mechanic to jobs', (
