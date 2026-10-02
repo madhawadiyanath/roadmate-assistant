@@ -20,6 +20,10 @@ class AssistanceService {
     String address = '',
     double? latitude,
     double? longitude,
+    String paymentMethod = '',
+    int rating = 0,
+    String feedback = '',
+    double totalFee = 0,
   }) async {
     final doc = await _requests.add(ServiceRequest(
       id: '',
@@ -30,6 +34,10 @@ class AssistanceService {
       address: address,
       latitude: latitude,
       longitude: longitude,
+      paymentMethod: paymentMethod,
+      rating: rating,
+      feedback: feedback,
+      totalFee: totalFee,
     ).toMap());
     return doc.id;
   }
@@ -49,6 +57,12 @@ class AssistanceService {
 
   Future<void> cancelRequest(String requestId) =>
       _requests.doc(requestId).update({'status': RequestStatus.cancelled.name});
+
+  /// Live view of one request — powers driver tracking.
+  Stream<ServiceRequest?> watchRequest(String requestId) {
+    return _requests.doc(requestId).snapshots().map(
+        (d) => d.exists && d.data() != null ? ServiceRequest.fromDoc(d) : null);
+  }
 
   // ---------------- Mechanic side ----------------
 

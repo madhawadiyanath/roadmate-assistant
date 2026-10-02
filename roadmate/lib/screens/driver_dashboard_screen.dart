@@ -11,6 +11,7 @@ import '../widgets/tow_truck_illustration.dart';
 import 'location_screen.dart';
 import 'onboarding_screen.dart';
 import 'select_service_screen.dart';
+import 'track_request_screen.dart';
 
 /// Driver home after login — matches the RoadMate dashboard design:
 /// header, dispatch banner, rapid-assistance hero, SOS button,
@@ -60,8 +61,9 @@ class _DriverDashboardScreenState extends State<DriverDashboardScreen> {
     }
   }
 
-  /// Every request goes through the location step first.
-  /// LocationScreen creates the Firestore request and pops `true`.
+  /// Every request goes through location → confirm → success.
+  /// Result: `true` = Track (Requests tab), `'home'` = Home tab,
+  /// int = bottom-nav tab.
   Future<void> _requestAssistance(AssistanceType type) async {
     final done = await Navigator.push(
       context,
@@ -75,6 +77,8 @@ class _DriverDashboardScreenState extends State<DriverDashboardScreen> {
     if (!mounted) return;
     if (done == true) {
       setState(() => _tab = 1);
+    } else if (done == 'home') {
+      setState(() => _tab = 0);
     } else if (done is int) {
       setState(() => _tab = done);
     }
@@ -129,8 +133,13 @@ class _DriverDashboardScreenState extends State<DriverDashboardScreen> {
               onViewAll: () => setState(() => _tab = 1),
               onLogout: _logout,
               assistance: _assist,
+              onTab: (i) => setState(() => _tab = i),
             ),
-            _RequestsTab(assistance: _assist, user: widget.user),
+            _RequestsTab(
+              assistance: _assist,
+              user: widget.user,
+              onTab: (i) => setState(() => _tab = i),
+            ),
             _GarageTab(user: widget.user, onLogout: _logout),
             const _ChatTab(),
           ],
@@ -156,6 +165,7 @@ class _HomeTab extends StatelessWidget {
   final VoidCallback onViewAll;
   final VoidCallback onLogout;
   final AssistanceService assistance;
+  final ValueChanged<int> onTab;
 
   const _HomeTab({
     required this.user,
@@ -167,6 +177,7 @@ class _HomeTab extends StatelessWidget {
     required this.onViewAll,
     required this.onLogout,
     required this.assistance,
+    required this.onTab,
   });
 
   @override
@@ -478,7 +489,11 @@ class _HomeTab extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 10),
-          _RecentPreview(assistance: assistance, driverUid: user.uid),
+          _RecentPreview(
+            assistance: assistance,
+            driverUid: user.uid,
+            onTab: onTab,
+          ),
           const SizedBox(height: 16),
         ],
       ),
@@ -775,20 +790,73 @@ class _VehicleCard extends StatelessWidget {
 
 // ============================== REQUESTS ==============================
 
+/// Demo accepted request powering the tappable preview without Firebase.
+const _demoTrackingRequest = ServiceRequest(
+  id: 'demo-track-1',
+  driverUid: 'd1',
+  driverName: 'Kasun Perera',
+  type: AssistanceType.towing,
+  status: RequestStatus.accepted,
+  address: 'No. 25, Galle Road, Colombo 06',
+  mechanicUid: 'm1',
+  mechanicName: 'Sampath Perera',
+);
+
+/// Opens tracking for active jobs; otherwise explains the status.
+Future<void> openTracking(
+  BuildContext context,
+  ServiceRequest r,
+  ValueChanged<int> onTab,
+) async {
+  if (r.status == RequestStatus.accepted ||
+      r.status == RequestStatus.onTheWay) {
+    final res = await Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => TrackRequestScreen(request: r)),
+    );
+    if (!context.mounted) return;
+    if (res is int) {
+      onTab(res);
+    } else if (res == 'cancelled') {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Request cancelled.')),
+      );
+    }
+    return;
+  }
+  ScaffoldMessenger.of(context).showSnackBar(
+    SnackBar(
+      content: Text(
+        r.status == RequestStatus.pending
+            ? 'Searching for a nearby patrol…'
+            : 'Request ${r.status.label.toLowerCase()}.',
+      ),
+    ),
+  );
+}
+
 class _RecentPreview extends StatelessWidget {
   final AssistanceService assistance;
   final String driverUid;
-  const _RecentPreview({required this.assistance, required this.driverUid});
+  final ValueChanged<int> onTab;
+  const _RecentPreview({
+    required this.assistance,
+    required this.driverUid,
+    required this.onTab,
+  });
 
   @override
   Widget build(BuildContext context) {
     if (!firebaseReady) {
-      // Demo row (matches design) until Firebase is connected.
-      return const _RequestRow(
-        title: 'Towing Service',
+      // Demo tappable row (matches design) until Firebase is connected.
+      return _RequestRow(
+        title: _demoTrackingRequest.type.label,
         refCode: '#RM1024',
-        status: RequestStatus.completed,
+        status: RequestStatus.accepted,
         dateText: '12 Jul 2026',
+        address: _demoTrackingRequest.address,
+        mechanicName: _demoTrackingRequest.mechanicName,
+        onTap: () => openTracking(context, _demoTrackingRequest, onTab),
       );
     }
     return StreamBuilder<List<ServiceRequest>>(
@@ -820,13 +888,15 @@ class _RecentPreview extends StatelessWidget {
             ),
           );
         }
+        final first = items.first;
         return _RequestRow(
-          title: items.first.type.label,
-          refCode: items.first.refCode,
-          status: items.first.status,
-          dateText: formatDate(items.first.createdAt),
-          address: items.first.address,
-          mechanicName: items.first.mechanicName,
+          title: first.type.label,
+          refCode: first.refCode,
+          status: first.status,
+          dateText: formatDate(first.createdAt),
+          address: first.address,
+          mechanicName: first.mechanicName,
+          onTap: () => openTracking(context, first, onTab),
         );
       },
     );
@@ -836,7 +906,12 @@ class _RecentPreview extends StatelessWidget {
 class _RequestsTab extends StatelessWidget {
   final AssistanceService assistance;
   final AppUser user;
-  const _RequestsTab({required this.assistance, required this.user});
+  final ValueChanged<int> onTab;
+  const _RequestsTab({
+    required this.assistance,
+    required this.user,
+    required this.onTab,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -912,6 +987,7 @@ class _RequestsTab extends StatelessWidget {
                         dateText: formatDate(r.createdAt),
                         address: r.address,
                         mechanicName: r.mechanicName,
+                        onTap: () => openTracking(context, r, onTab),
                       ),
                       const SizedBox(height: 10),
                     ],
@@ -933,6 +1009,7 @@ class _RequestRow extends StatelessWidget {
   final String dateText;
   final String address;
   final String mechanicName;
+  final VoidCallback? onTap;
   const _RequestRow({
     required this.title,
     required this.refCode,
@@ -940,6 +1017,7 @@ class _RequestRow extends StatelessWidget {
     required this.dateText,
     this.address = '',
     this.mechanicName = '',
+    this.onTap,
   });
 
   Color get _statusColor {
@@ -958,29 +1036,32 @@ class _RequestRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFFEDF1F7), width: 1.2),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 46,
-            height: 46,
-            decoration: BoxDecoration(
-              color: AppColors.navy,
-              borderRadius: BorderRadius.circular(12),
+    return GestureDetector(
+      onTap: onTap,
+      behavior: HitTestBehavior.opaque,
+      child: Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: const Color(0xFFEDF1F7), width: 1.2),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 46,
+              height: 46,
+              decoration: BoxDecoration(
+                color: AppColors.navy,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: const Icon(
+                Icons.directions_car_filled_rounded,
+                color: Colors.white,
+                size: 24,
+              ),
             ),
-            child: const Icon(
-              Icons.directions_car_filled_rounded,
-              color: Colors.white,
-              size: 24,
-            ),
-          ),
-          const SizedBox(width: 12),
+            const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -1065,7 +1146,17 @@ class _RequestRow extends StatelessWidget {
               ],
             ),
           ),
+          if (onTap != null)
+            const Padding(
+              padding: EdgeInsets.only(left: 8),
+              child: Icon(
+                Icons.arrow_forward_ios_rounded,
+                size: 15,
+                color: AppColors.greyText,
+              ),
+            ),
         ],
+      ),
       ),
     );
   }

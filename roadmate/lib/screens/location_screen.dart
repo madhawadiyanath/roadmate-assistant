@@ -78,7 +78,7 @@ class _LocationScreenState extends State<LocationScreen> {
         ),
       );
       if (!mounted) return;
-      if (result == true || result is int) {
+      if (result == true || result == 'home' || result is int) {
         Navigator.pop(context, result);
       }
     } finally {

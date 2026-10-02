@@ -1,12 +1,11 @@
 import 'package:flutter/material.dart';
 
-import '../config/firebase_state.dart';
 import '../models/app_user.dart';
 import '../models/service_request.dart';
 import '../services/assistance_service.dart';
-import '../services/auth_service.dart';
 import '../theme/app_colors.dart';
 import '../widgets/auth_widgets.dart';
+import 'payment_review_screen.dart';
 
 /// Step 3 of the driver flow: review service, location, vehicle and
 /// contact, then submit. Pops `true` when the request was created,
@@ -30,11 +29,6 @@ class ConfirmRequestScreen extends StatefulWidget {
 }
 
 class _ConfirmRequestScreenState extends State<ConfirmRequestScreen> {
-  bool _submitting = false;
-
-  AssistanceService get _assist =>
-      widget.assistanceService ?? AssistanceService();
-
   String get _contact {
     final p = widget.user.phone.trim();
     return p.isEmpty ? '077 123 4567' : p;
@@ -44,26 +38,24 @@ class _ConfirmRequestScreenState extends State<ConfirmRequestScreen> {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
   }
 
+  /// Review payment + rating first. That page creates the request,
+  /// shows the success receipt, and pops the onward result — forwarded up.
   Future<void> _submit() async {
-    if (!firebaseReady) {
-      _snack('Firebase not connected yet. Add google-services files first.');
-      return;
-    }
-    setState(() => _submitting = true);
-    try {
-      await _assist.createRequest(
-        driverUid: widget.user.uid,
-        driverName: widget.user.name,
-        type: widget.serviceType,
-        address: widget.address,
-      );
-      if (!mounted) return;
-      _snack('${widget.serviceType.label} requested — help is on the way!');
-      Navigator.pop(context, true);
-    } catch (e) {
-      _snack(AuthService.friendlyMessage(e));
-    } finally {
-      if (mounted) setState(() => _submitting = false);
+    final result = await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => PaymentReviewScreen(
+          user: widget.user,
+          serviceType: widget.serviceType,
+          address: widget.address,
+          assistanceService: widget.assistanceService,
+        ),
+      ),
+    );
+    if (!mounted) return;
+    // true = Track (Requests tab), 'home' = dashboard home, int = tab.
+    if (result == true || result == 'home' || result is int) {
+      Navigator.pop(context, result);
     }
   }
 
@@ -299,12 +291,12 @@ class _ConfirmRequestScreenState extends State<ConfirmRequestScreen> {
               const EmergencyBanner(),
               const SizedBox(height: 12),
 
-              // Submit
+              // Continue to payment & rating
               SizedBox(
                 width: double.infinity,
                 height: 54,
                 child: ElevatedButton(
-                  onPressed: _submitting ? null : _submit,
+                  onPressed: _submit,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.navy,
                     foregroundColor: Colors.white,
@@ -313,29 +305,20 @@ class _ConfirmRequestScreenState extends State<ConfirmRequestScreen> {
                       borderRadius: BorderRadius.circular(14),
                     ),
                   ),
-                  child: _submitting
-                      ? const SizedBox(
-                          width: 24,
-                          height: 24,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2.5,
-                            color: Colors.white,
-                          ),
-                        )
-                      : const Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Text(
-                              'Submit Request',
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                            SizedBox(width: 8),
-                            Icon(Icons.arrow_forward, size: 20),
-                          ],
+                  child: const Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        'Continue to Payment',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w700,
                         ),
+                      ),
+                      SizedBox(width: 8),
+                      Icon(Icons.arrow_forward, size: 20),
+                    ],
+                  ),
                 ),
               ),
               const SizedBox(height: 16),
