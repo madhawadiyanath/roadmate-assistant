@@ -20,6 +20,10 @@ class AssistanceService {
     String address = '',
     double? latitude,
     double? longitude,
+    String paymentMethod = '',
+    int rating = 0,
+    String feedback = '',
+    double totalFee = 0,
   }) async {
     final doc = await _requests.add(ServiceRequest(
       id: '',
@@ -30,6 +34,10 @@ class AssistanceService {
       address: address,
       latitude: latitude,
       longitude: longitude,
+      paymentMethod: paymentMethod,
+      rating: rating,
+      feedback: feedback,
+      totalFee: totalFee,
     ).toMap());
     return doc.id;
   }

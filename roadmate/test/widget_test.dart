@@ -5,6 +5,7 @@ import 'package:roadmate/main.dart';
 import 'package:roadmate/models/app_user.dart';
 import 'package:roadmate/models/service_request.dart';
 import 'package:roadmate/screens/confirm_request_screen.dart';
+import 'package:roadmate/screens/payment_review_screen.dart';
 import 'package:roadmate/screens/request_success_screen.dart';
 import 'package:roadmate/screens/track_request_screen.dart';
 import 'package:roadmate/screens/driver_dashboard_screen.dart';
@@ -193,10 +194,10 @@ void main() {
     expect(find.text('LOCATION'), findsOneWidget);
     expect(find.text('VEHICLE'), findsOneWidget);
     expect(find.text('CONTACT NUMBER'), findsOneWidget);
-    expect(find.text('Submit Request'), findsOneWidget);
+    expect(find.text('Continue to Payment'), findsOneWidget);
   });
 
-  testWidgets('Confirm page submits only with Firebase', (
+  testWidgets('Confirm continues to payment page', (
     WidgetTester tester,
   ) async {
     const user = AppUser(
@@ -222,10 +223,49 @@ void main() {
     expect(find.text('Selected'), findsOneWidget);
     expect(find.text('ESTIMATED PATROL ARRIVAL'), findsOneWidget);
 
-    // Tapping Submit without Firebase shows the setup hint.
-    await tester.ensureVisible(find.text('Submit Request'));
+    await tester.ensureVisible(find.text('Continue to Payment'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Submit Request'));
+    await tester.tap(find.text('Continue to Payment'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Rate Your Experience'), findsOneWidget);
+    expect(find.text('Payment Summary'), findsOneWidget);
+    expect(find.text('Payment Method'), findsOneWidget);
+    expect(find.text('Rs. 3,500.00'), findsOneWidget);
+    expect(find.text('Complete & Submit'), findsOneWidget);
+  });
+
+  testWidgets('Payment submit needs Firebase; method selects', (
+    WidgetTester tester,
+  ) async {
+    const user = AppUser(
+      uid: 'u1',
+      name: 'Kasun Perera',
+      email: 'kasun@example.com',
+      phone: '',
+      role: AppRole.driver,
+    );
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: PaymentReviewScreen(
+          user: user,
+          serviceType: AssistanceType.flatTyre,
+          address: 'No. 25, Galle Road, Colombo 06',
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    // Switch payment method to cash.
+    await tester.ensureVisible(find.text('Cash on Site'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Cash on Site'));
+    await tester.pumpAndSettle();
+
+    // Complete without Firebase shows the setup hint.
+    await tester.ensureVisible(find.text('Complete & Submit'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Complete & Submit'));
     await tester.pump();
     expect(find.textContaining('Firebase not connected'), findsOneWidget);
   });

@@ -43,6 +43,10 @@ class ServiceRequest {
   final double? longitude;
   final String mechanicUid;
   final String mechanicName;
+  final String paymentMethod;
+  final int rating;
+  final String feedback;
+  final double totalFee;
   final DateTime? createdAt;
 
   const ServiceRequest({
@@ -56,6 +60,10 @@ class ServiceRequest {
     this.longitude,
     this.mechanicUid = '',
     this.mechanicName = '',
+    this.paymentMethod = '',
+    this.rating = 0,
+    this.feedback = '',
+    this.totalFee = 0,
     this.createdAt,
   });
 
@@ -69,6 +77,10 @@ class ServiceRequest {
         if (longitude != null) 'longitude': longitude,
         'mechanicUid': mechanicUid,
         'mechanicName': mechanicName,
+        'paymentMethod': paymentMethod,
+        'rating': rating,
+        'feedback': feedback,
+        'totalFee': totalFee,
         'createdAt': FieldValue.serverTimestamp(),
       };
 
@@ -86,6 +98,10 @@ class ServiceRequest {
       longitude: (m['longitude'] as num?)?.toDouble(),
       mechanicUid: (m['mechanicUid'] ?? '') as String,
       mechanicName: (m['mechanicName'] ?? '') as String,
+      paymentMethod: (m['paymentMethod'] ?? '') as String,
+      rating: (m['rating'] as num?)?.toInt() ?? 0,
+      feedback: (m['feedback'] ?? '') as String,
+      totalFee: (m['totalFee'] as num?)?.toDouble() ?? 0,
       createdAt: (m['createdAt'] as Timestamp?)?.toDate(),
     );
   }
