@@ -454,7 +454,7 @@ class _HomeTab extends StatelessWidget {
           const SizedBox(height: 12),
 
           // Registered vehicle
-          const _VehicleCard(),
+          _VehicleCard(user: user),
           const SizedBox(height: 16),
 
           // Recent requests
@@ -709,7 +709,8 @@ class _QuickCard extends StatelessWidget {
 }
 
 class _VehicleCard extends StatelessWidget {
-  const _VehicleCard();
+  final AppUser user;
+  const _VehicleCard({required this.user});
 
   @override
   Widget build(BuildContext context) {
@@ -736,11 +737,11 @@ class _VehicleCard extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 10),
-          const Expanded(
+          Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
+                const Text(
                   'REGISTERED VEHICLE',
                   style: TextStyle(
                     fontSize: 10,
@@ -749,10 +750,10 @@ class _VehicleCard extends StatelessWidget {
                     color: AppColors.greyText,
                   ),
                 ),
-                SizedBox(height: 2),
+                const SizedBox(height: 2),
                 Text(
-                  'Toyota Prius • CAB-8492',
-                  style: TextStyle(
+                  user.vehicleDisplay,
+                  style: const TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w800,
                     color: AppColors.navy,
@@ -1225,11 +1226,11 @@ class _GarageTab extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 14),
-          const _VehicleCard(),
+          _VehicleCard(user: user),
           const SizedBox(height: 12),
           _DetailRow(label: 'Owner', value: user.name.isEmpty ? '—' : user.name),
-          _DetailRow(label: 'Plate No', value: 'CAB-8492'),
-          _DetailRow(label: 'Make / Model', value: 'Toyota Prius'),
+          _DetailRow(label: 'Plate No', value: user.vehiclePlate),
+          _DetailRow(label: 'Make / Model', value: user.vehicleName),
           _DetailRow(label: 'Phone', value: user.phone.isEmpty ? '—' : user.phone),
           const SizedBox(height: 20),
           SizedBox(

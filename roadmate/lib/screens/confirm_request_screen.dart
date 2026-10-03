@@ -200,7 +200,7 @@ class _ConfirmRequestScreenState extends State<ConfirmRequestScreen> {
                       iconBg: AppColors.fieldFill,
                       iconColor: AppColors.navy,
                       label: 'VEHICLE',
-                      title: 'Toyota Axio (ABC 1234)',
+                      title: widget.user.vehicleParen,
                       chevron: true,
                       onTap: () => _snack('Vehicle editing coming soon.'),
                     ),

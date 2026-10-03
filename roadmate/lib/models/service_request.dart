@@ -1,5 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
+import 'app_user.dart';
+
 /// Types of roadside assistance a driver can request.
 enum AssistanceType {
   flatTyre('Flat Tyre', '~12 min'),
@@ -47,6 +49,15 @@ class ServiceRequest {
   final int rating;
   final String feedback;
   final double totalFee;
+
+  /// Vehicle snapshot at request time (driver may change theirs later).
+  final String vehicle;
+  final String plate;
+
+  /// Stable reference code like #RM1024, generated once at creation and
+  /// stored in the doc (never recomputed — `String.hashCode` is not
+  /// stable across app restarts).
+  final String refCode;
   final DateTime? createdAt;
 
   const ServiceRequest({
@@ -64,8 +75,18 @@ class ServiceRequest {
     this.rating = 0,
     this.feedback = '',
     this.totalFee = 0,
+    this.vehicle = '',
+    this.plate = '',
+    this.refCode = '',
     this.createdAt,
   });
+
+  /// Display for the request's vehicle, with demo fallback.
+  String get vehicleDisplay {
+    final v = vehicle.isEmpty ? demoVehicleName : vehicle;
+    final p = plate.isEmpty ? demoVehiclePlate : plate;
+    return '$v • $p';
+  }
 
   Map<String, dynamic> toMap() => {
         'driverUid': driverUid,
@@ -81,12 +102,16 @@ class ServiceRequest {
         'rating': rating,
         'feedback': feedback,
         'totalFee': totalFee,
+        'vehicle': vehicle,
+        'plate': plate,
+        'refCode': refCode,
         'createdAt': FieldValue.serverTimestamp(),
       };
 
   factory ServiceRequest.fromDoc(
       DocumentSnapshot<Map<String, dynamic>> doc) {
     final m = doc.data() ?? {};
+    final stored = (m['refCode'] ?? '') as String;
     return ServiceRequest(
       id: doc.id,
       driverUid: (m['driverUid'] ?? '') as String,
@@ -102,12 +127,17 @@ class ServiceRequest {
       rating: (m['rating'] as num?)?.toInt() ?? 0,
       feedback: (m['feedback'] ?? '') as String,
       totalFee: (m['totalFee'] as num?)?.toDouble() ?? 0,
+      vehicle: (m['vehicle'] ?? '') as String,
+      plate: (m['plate'] ?? '') as String,
+      // Old docs written before refCode existed fall back to the legacy
+      // id-derived code so they still display something.
+      refCode: stored.isEmpty ? legacyRefCode(doc.id) : stored,
       createdAt: (m['createdAt'] as Timestamp?)?.toDate(),
     );
   }
 
-  /// Short reference code like #RM1024 shown in the UI.
-  String get refCode {
+  /// Legacy id-derived code — only for pre-refCode docs.
+  static String legacyRefCode(String id) {
     final h = id.hashCode.abs() % 9000 + 1000;
     return '#RM$h';
   }

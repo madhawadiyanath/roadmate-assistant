@@ -19,13 +19,16 @@ void main() {
     );
     expect(id, isNotEmpty);
 
-    // 2. Mechanic sees it in the pending feed with all data intact.
+    // 2. Mechanic sees it in the pending feed with all data intact,
+    // including a stable reference code.
     final pending = await service.watchPendingRequests().first;
     expect(pending, hasLength(1));
     expect(pending.first.type, AssistanceType.flatTyre);
     expect(pending.first.address, 'No. 25, Galle Road, Colombo 06');
     expect(pending.first.driverName, 'Kasun');
     expect(pending.first.status, RequestStatus.pending);
+    expect(pending.first.refCode, matches(r'^#RM\d{4}$'));
+    final code = pending.first.refCode;
 
     // 3. Mechanic accepts → job appears in their job list.
     await service.acceptRequest(
@@ -51,5 +54,10 @@ void main() {
     await service.updateStatus(id, RequestStatus.completed);
     final done = await service.watchDriverRequests('driver1').first;
     expect(done.first.status, RequestStatus.completed);
+
+    // 7. Reference code is stable across reads (same doc, same code).
+    expect(done.first.refCode, code);
+    final reread = await service.watchDriverRequests('driver1').first;
+    expect(reread.first.refCode, code);
   });
 }

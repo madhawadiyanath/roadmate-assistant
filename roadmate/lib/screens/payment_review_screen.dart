@@ -56,7 +56,9 @@ class _PaymentReviewScreenState extends State<PaymentReviewScreen> {
     setState(() => _submitting = true);
     try {
       final fee = feeFor(widget.serviceType);
-      final requestId = await _assist.createRequest(
+      // Stable code generated up-front so the receipt shows the same one.
+      final refCode = generateRefCode();
+      await _assist.createRequest(
         driverUid: widget.user.uid,
         driverName: widget.user.name,
         type: widget.serviceType,
@@ -65,15 +67,19 @@ class _PaymentReviewScreenState extends State<PaymentReviewScreen> {
         rating: _rating,
         feedback: _feedback.text.trim(),
         totalFee: fee.total,
+        vehicle: widget.user.vehicleName,
+        plate: widget.user.vehiclePlate,
+        refCode: refCode,
       );
       if (!mounted) return;
       final result = await Navigator.pushReplacement(
         context,
         MaterialPageRoute(
           builder: (_) => RequestSuccessScreen(
-            requestId: requestId,
+            refCode: refCode,
             serviceType: widget.serviceType,
             address: widget.address,
+            vehicleDisplay: widget.user.vehicleDisplay,
           ),
         ),
       );

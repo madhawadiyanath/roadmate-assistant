@@ -314,14 +314,14 @@ class _JobDetailsScreenState extends State<JobDetailsScreen> {
                       ],
                     ),
                     const Divider(height: 24, color: Color(0xFFEDF1F7)),
-                    const Row(
+                    Row(
                       children: [
-                        Icon(Icons.directions_car_outlined,
+                        const Icon(Icons.directions_car_outlined,
                             size: 20, color: AppColors.greyText),
-                        SizedBox(width: 10),
+                        const SizedBox(width: 10),
                         Text(
-                          'Toyota Axio (ABC 1234)',
-                          style: TextStyle(
+                          '${r.vehicle.isEmpty ? 'Toyota Axio' : r.vehicle} (${r.plate.isEmpty ? 'ABC 1234' : r.plate})',
+                          style: const TextStyle(
                             fontSize: 14,
                             fontWeight: FontWeight.w700,
                             color: AppColors.navyDark,

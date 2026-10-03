@@ -19,6 +19,10 @@ class AuthService {
   FirebaseAuth get _auth => _authOverride ?? FirebaseAuth.instance;
   FirebaseFirestore get _db => _dbOverride ?? FirebaseFirestore.instance;
 
+  /// Firebase-Auth session stream. Null = logged out.
+  /// Accessing it needs Firebase, so the gate checks `firebaseReady` first.
+  Stream<User?> authChanges() => _auth.authStateChanges();
+
   CollectionReference<Map<String, dynamic>> get _users =>
       _db.collection('users');
 

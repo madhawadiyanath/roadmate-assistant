@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../models/app_user.dart';
 import '../models/service_request.dart';
 import '../theme/app_colors.dart';
 
@@ -7,21 +8,20 @@ import '../theme/app_colors.dart';
 /// Pops `true` (Track Request → Requests tab), `'home'` (Back to Home),
 /// or a dashboard tab index from the bottom nav / X.
 class RequestSuccessScreen extends StatelessWidget {
-  final String requestId;
+  final String refCode;
   final AssistanceType serviceType;
   final String address;
+  final String vehicleDisplay;
 
   const RequestSuccessScreen({
     super.key,
-    required this.requestId,
+    required this.refCode,
     required this.serviceType,
     required this.address,
+    this.vehicleDisplay = '$demoVehicleName • $demoVehiclePlate',
   });
 
-  String get _refCode {
-    final h = requestId.hashCode.abs() % 9000 + 1000;
-    return '#RM$h';
-  }
+  String get _refCode => refCode;
 
   @override
   Widget build(BuildContext context) {
@@ -320,9 +320,9 @@ class RequestSuccessScreen extends StatelessWidget {
                                   color: AppColors.navyDark,
                                 ),
                               ),
-                              const Text(
-                                'Toyota Axio • ABC 1234',
-                                style: TextStyle(
+                              Text(
+                                vehicleDisplay,
+                                style: const TextStyle(
                                   fontSize: 12.5,
                                   color: AppColors.greyText,
                                 ),
