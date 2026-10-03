@@ -81,7 +81,7 @@ void main() {
     expect(find.text('Flat Tyre'), findsOneWidget);
     expect(find.text('Jump Start'), findsOneWidget);
     expect(find.text('Fuel Drop'), findsOneWidget);
-    expect(find.text('Toyota Prius • CAB-8492'), findsOneWidget);
+    expect(find.text('Toyota Axio • ABC 1234'), findsOneWidget);
     expect(find.text('Recent Requests'), findsOneWidget);
     expect(find.text('Towing Service'), findsOneWidget);
 
@@ -350,7 +350,7 @@ void main() {
     await tester.pumpWidget(
       const MaterialApp(
         home: RequestSuccessScreen(
-          requestId: 'abc123',
+          refCode: '#RM1058',
           serviceType: AssistanceType.flatTyre,
           address: 'No. 25, Galle Road, Colombo 06',
         ),
@@ -379,7 +379,7 @@ void main() {
     await tester.pumpWidget(
       const MaterialApp(
         home: RequestSuccessScreen(
-          requestId: 'abc123',
+          refCode: '#RM1058',
           serviceType: AssistanceType.flatTyre,
           address: 'No. 25, Galle Road, Colombo 06',
         ),
@@ -392,6 +392,15 @@ void main() {
     await tester.tap(find.text('Back to Home'));
     await tester.pumpAndSettle();
     expect(find.text('Request Submitted!'), findsNothing);
+  });
+
+  testWidgets('AuthGate shows onboarding without Firebase', (
+    WidgetTester tester,
+  ) async {
+    await tester.pumpWidget(const MyApp());
+    await tester.pumpAndSettle();
+    // firebaseReady is false in tests → straight to onboarding.
+    expect(find.text('Help on the road, always with you.'), findsOneWidget);
   });
 
   testWidgets('RoleHome routes driver to dashboard, mechanic to jobs', (

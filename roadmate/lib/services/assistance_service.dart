@@ -1,6 +1,14 @@
+import 'dart:math';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../models/service_request.dart';
+
+/// Generates a stable reference code like #RM4821 at creation time.
+String generateRefCode([Random? random]) {
+  final r = random ?? Random();
+  return '#RM${1000 + r.nextInt(9000)}';
+}
 
 /// Firestore CRUD for driver assistance requests (`requests` collection).
 class AssistanceService {
@@ -13,6 +21,8 @@ class AssistanceService {
       _db.collection('requests');
 
   /// Create a new request for [driverUid]. Returns the new doc id.
+  /// Pass a pre-generated [refCode] when the caller must display it
+  /// (e.g. the success receipt) — otherwise one is generated.
   Future<String> createRequest({
     required String driverUid,
     required String driverName,
@@ -24,6 +34,9 @@ class AssistanceService {
     int rating = 0,
     String feedback = '',
     double totalFee = 0,
+    String vehicle = '',
+    String plate = '',
+    String refCode = '',
   }) async {
     final doc = await _requests.add(ServiceRequest(
       id: '',
@@ -38,6 +51,9 @@ class AssistanceService {
       rating: rating,
       feedback: feedback,
       totalFee: totalFee,
+      vehicle: vehicle,
+      plate: plate,
+      refCode: refCode.isEmpty ? generateRefCode() : refCode,
     ).toMap());
     return doc.id;
   }
