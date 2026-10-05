@@ -4,7 +4,10 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:roadmate/main.dart';
 import 'package:roadmate/models/app_user.dart';
 import 'package:roadmate/models/service_request.dart';
+import 'package:fake_cloud_firestore/fake_cloud_firestore.dart';
+import 'package:roadmate/screens/chat_screen.dart';
 import 'package:roadmate/screens/confirm_request_screen.dart';
+import 'package:roadmate/services/chat_service.dart';
 import 'package:roadmate/screens/payment_review_screen.dart';
 import 'package:roadmate/screens/request_success_screen.dart';
 import 'package:roadmate/screens/track_request_screen.dart';
@@ -401,6 +404,58 @@ void main() {
     await tester.pumpAndSettle();
     // firebaseReady is false in tests → straight to onboarding.
     expect(find.text('Help on the road, always with you.'), findsOneWidget);
+  });
+
+  testWidgets('Chat thread shows messages and sends', (
+    WidgetTester tester,
+  ) async {
+    final db = FakeFirebaseFirestore();
+    final chat = ChatService(db: db);
+    const req = ServiceRequest(
+      id: 'req1',
+      driverUid: 'driver1',
+      driverName: 'Kasun',
+      type: AssistanceType.flatTyre,
+      status: RequestStatus.accepted,
+      refCode: '#RM1058',
+      mechanicUid: 'mech1',
+      mechanicName: 'Nimal',
+    );
+    await chat.send(
+      requestId: 'req1',
+      senderUid: 'mech1',
+      senderName: 'Nimal',
+      senderRole: 'mechanic',
+      text: 'On my way, 10 mins',
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: ChatScreen(
+          request: req,
+          senderUid: 'driver1',
+          senderName: 'Kasun',
+          senderRole: 'driver',
+          peerName: 'Nimal',
+          chatService: chat,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Nimal'), findsWidgets);
+    expect(find.text('On my way, 10 mins'), findsOneWidget);
+
+    // Driver replies — bubble appears on the right.
+    await tester.enterText(
+        find.byType(TextField), 'Near Mile Post 42');
+    await tester.pumpAndSettle();
+    await tester.tap(find.byIcon(Icons.send_rounded));
+    await tester.pumpAndSettle();
+    expect(find.text('Near Mile Post 42'), findsOneWidget);
+
+    final all = await chat.watch('req1').first;
+    expect(all, hasLength(2));
   });
 
   testWidgets('RoleHome routes driver to dashboard, mechanic to jobs', (
