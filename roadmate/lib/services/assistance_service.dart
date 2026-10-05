@@ -3,6 +3,7 @@ import 'dart:math';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../models/service_request.dart';
+import 'notification_service.dart';
 
 /// Generates a stable reference code like #RM4821 at creation time.
 String generateRefCode([Random? random]) {
@@ -120,12 +121,27 @@ class AssistanceService {
     required String requestId,
     required String mechanicUid,
     required String mechanicName,
-  }) =>
-      _requests.doc(requestId).update({
-        'mechanicUid': mechanicUid,
-        'mechanicName': mechanicName,
-        'status': RequestStatus.accepted.name,
-      });
+    String driverUid = '',
+  }) async {
+    final snap = await _requests.doc(requestId).get();
+    final resolvedDriverUid = driverUid.isNotEmpty
+        ? driverUid
+        : (snap.data()?['driverUid'] as String? ?? '');
+
+    await _requests.doc(requestId).update({
+      'mechanicUid': mechanicUid,
+      'mechanicName': mechanicName,
+      'status': RequestStatus.accepted.name,
+    });
+
+    if (resolvedDriverUid.isNotEmpty) {
+      await NotificationService(db: _db).createRequestAccepted(
+        driverUid: resolvedDriverUid,
+        mechanicName: mechanicName,
+        requestId: requestId,
+      );
+    }
+  }
 
   /// Advance a job: accepted → onTheWay → completed.
   Future<void> updateStatus(String requestId, RequestStatus status) =>

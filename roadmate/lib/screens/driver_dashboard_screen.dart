@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 
 import '../config/firebase_state.dart';
 import '../models/app_user.dart';
+import '../models/notification_item.dart';
 import '../models/service_request.dart';
 import '../services/assistance_service.dart';
 import '../services/auth_service.dart';
+import '../services/notification_service.dart';
 import '../theme/app_colors.dart';
 import '../widgets/tow_truck_illustration.dart';
 import 'chat_screen.dart';
@@ -180,6 +182,75 @@ class _HomeTab extends StatelessWidget {
     required this.onTab,
   });
 
+  void _showNotifications(BuildContext context) {
+    final service = NotificationService();
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => Container(
+        height: 420,
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        child: StreamBuilder<List<AppNotificationItem>>(
+          stream: service.watchUserNotifications(user.uid),
+          builder: (context, snap) {
+            if (snap.connectionState == ConnectionState.waiting) {
+              return const Center(child: CircularProgressIndicator());
+            }
+            final items = snap.data ?? const <AppNotificationItem>[];
+            if (items.isEmpty) {
+              return const Center(
+                child: Padding(
+                  padding: EdgeInsets.all(24),
+                  child: Text('No notifications yet.'),
+                ),
+              );
+            }
+            return ListView.separated(
+              padding: const EdgeInsets.all(18),
+              itemCount: items.length,
+              separatorBuilder: (_, __) => const SizedBox(height: 10),
+              itemBuilder: (_, i) {
+                final n = items[i];
+                return Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: AppColors.fieldFill,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        n.title,
+                        style: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w800,
+                          color: AppColors.navy,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        n.body,
+                        style: const TextStyle(
+                          fontSize: 12.5,
+                          color: AppColors.greyText,
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              },
+            );
+          },
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return SingleChildScrollView(
@@ -283,9 +354,7 @@ class _HomeTab extends StatelessWidget {
               Stack(
                 children: [
                   IconButton(
-                    onPressed: () => ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('No new alerts.')),
-                    ),
+                    onPressed: () => _showNotifications(context),
                     icon: const Icon(
                       Icons.notifications_outlined,
                       color: AppColors.navy,

@@ -49,6 +49,7 @@ class _JobDetailsScreenState extends State<JobDetailsScreen> {
     try {
       await _assist.acceptRequest(
         requestId: widget.request.id,
+        driverUid: widget.request.driverUid,
         mechanicUid: widget.mechanicUid,
         mechanicName: widget.mechanicName,
       );
