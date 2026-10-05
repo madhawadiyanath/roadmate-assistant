@@ -679,64 +679,95 @@ class _DashedPainter extends CustomPainter {
   bool shouldRepaint(covariant CustomPainter old) => false;
 }
 
+/// Hero banner: photo background (assets/images/roadside_hero.jpg)
+/// with a readability gradient. Falls back to the drawn illustration
+/// when the photo hasn't been added yet.
 class _HeroCard extends StatelessWidget {
   const _HeroCard();
 
+  static const _photo = 'assets/images/roadside_hero.jpg';
+
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: const Color(0xFFEAF1FB),
-        borderRadius: BorderRadius.circular(18),
-      ),
-      child: Row(
-        children: [
-          const Expanded(
-            flex: 5,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'RAPID ASSISTANCE',
-                  style: TextStyle(
-                    fontSize: 10.5,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: 0.8,
-                    color: AppColors.orange,
-                  ),
-                ),
-                SizedBox(height: 4),
-                Text(
-                  "Stuck on the road? We're here!",
-                  style: TextStyle(
-                    fontSize: 17,
-                    fontWeight: FontWeight.w800,
-                    height: 1.25,
-                    color: AppColors.navy,
-                  ),
-                ),
-                SizedBox(height: 6),
-                Text(
-                  'GPS verified dispatch arrives in ~14 mins. Safely hazard-light your vehicle and request below.',
-                  style: TextStyle(
-                    fontSize: 11.5,
-                    height: 1.45,
-                    color: AppColors.greyText,
-                  ),
-                ),
-              ],
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(18),
+      child: SizedBox(
+        height: 152,
+        width: double.infinity,
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            Image.asset(
+              _photo,
+              fit: BoxFit.cover,
+              errorBuilder: (_, _, _) => Container(
+                color: const Color(0xFFEAF1FB),
+                padding: const EdgeInsets.all(12),
+                child: const TowTruckIllustration(),
+              ),
             ),
-          ),
-          const SizedBox(width: 8),
-          const Expanded(
-            flex: 4,
-            child: SizedBox(
-              height: 110,
-              child: TowTruckIllustration(),
+            // Left-side shade so white text stays readable on the photo.
+            Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.centerLeft,
+                  end: Alignment.centerRight,
+                  colors: [
+                    const Color(0xFF0A2A66).withValues(alpha: 0.90),
+                    const Color(0xFF0A2A66).withValues(alpha: 0.45),
+                    Colors.transparent,
+                  ],
+                  stops: const [0.0, 0.55, 1.0],
+                ),
+              ),
             ),
-          ),
-        ],
+            const FractionallySizedBox(
+              widthFactor: 0.68,
+              alignment: Alignment.centerLeft,
+              child: Padding(
+                padding: EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      'RAPID ASSISTANCE',
+                      style: TextStyle(
+                        fontSize: 10.5,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 0.8,
+                        color: AppColors.orange,
+                      ),
+                    ),
+                    SizedBox(height: 4),
+                    Text(
+                      "Stuck on the road? We're here!",
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w800,
+                        height: 1.25,
+                        color: Colors.white,
+                      ),
+                    ),
+                    SizedBox(height: 6),
+                    Text(
+                      'GPS verified dispatch arrives in ~14 mins.',
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 11.5,
+                        height: 1.45,
+                        color: Colors.white70,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
