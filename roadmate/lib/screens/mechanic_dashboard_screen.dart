@@ -10,7 +10,7 @@ import '../services/notification_service.dart';
 import '../theme/app_colors.dart';
 import 'chat_screen.dart';
 import 'job_details_screen.dart';
-import 'onboarding_screen.dart';
+import 'profile_screen.dart';
 
 /// Mechanic home matching the RoadMate design:
 /// greeting + online pill, hero card, live stat grid, earnings,
@@ -36,13 +36,35 @@ class _MechanicDashboardScreenState extends State<MechanicDashboardScreen> {
   int _tab = 0;
   bool _available = true;
   bool _busy = false;
+  late AppUser _user;
+
+  @override
+  void initState() {
+    super.initState();
+    _user = widget.user;
+  }
 
   AssistanceService get _assist =>
       widget.assistanceService ?? AssistanceService();
 
   String get _firstName {
-    final n = widget.user.name.trim();
+    final n = _user.name.trim();
     return n.isEmpty ? 'Mechanic' : n.split(' ').first;
+  }
+
+  /// Avatar → Profile page. Saved edits refresh the dashboard user.
+  Future<void> _openProfile() async {
+    final updated = await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => ProfileScreen(
+          user: _user,
+          authService: widget.authService,
+        ),
+      ),
+    );
+    if (!mounted) return;
+    if (updated is AppUser) setState(() => _user = updated);
   }
 
   void _snack(String msg) {
@@ -62,7 +84,7 @@ class _MechanicDashboardScreenState extends State<MechanicDashboardScreen> {
           borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
         ),
         child: StreamBuilder<List<AppNotificationItem>>(
-          stream: service.watchUserNotifications(widget.user.uid),
+          stream: service.watchUserNotifications(_user.uid),
           builder: (context, snap) {
             if (snap.connectionState == ConnectionState.waiting) {
               return const Center(child: CircularProgressIndicator());
@@ -128,8 +150,8 @@ class _MechanicDashboardScreenState extends State<MechanicDashboardScreen> {
       await _assist.acceptRequest(
         requestId: r.id,
         driverUid: r.driverUid,
-        mechanicUid: widget.user.uid,
-        mechanicName: widget.user.name,
+        mechanicUid: _user.uid,
+        mechanicName: _user.name,
       );
       if (!mounted) return;
       _snack('${r.type.label} accepted — driver notified!');
@@ -158,37 +180,6 @@ class _MechanicDashboardScreenState extends State<MechanicDashboardScreen> {
     }
   }
 
-  Future<void> _logout() async {
-    final yes = await showDialog<bool>(
-      context: context,
-      builder: (_) => AlertDialog(
-        title: const Text('Logout?'),
-        content: const Text('Are you sure you want to logout?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Logout'),
-          ),
-        ],
-      ),
-    );
-    if (yes != true) return;
-    try {
-      await (widget.authService ?? AuthService()).signOut();
-    } catch (_) {
-      // Leave anyway.
-    }
-    if (!mounted) return;
-    Navigator.of(context).pushAndRemoveUntil(
-      MaterialPageRoute(builder: (_) => const OnboardingScreen()),
-      (_) => false,
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -202,16 +193,16 @@ class _MechanicDashboardScreenState extends State<MechanicDashboardScreen> {
               available: _available,
               onToggleAvailable: () =>
                   setState(() => _available = !_available),
-              onLogout: _logout,
+              onAvatarTap: _openProfile,
               onViewRequests: () => setState(() => _tab = 1),
               onShowNotifications: _showNotifications,
               assistance: _assist,
-              mechanicUid: widget.user.uid,
+              mechanicUid: _user.uid,
             ),
             _MechJobsTab(
               assistance: _assist,
-              mechanicUid: widget.user.uid,
-              mechanicName: widget.user.name,
+              mechanicUid: _user.uid,
+              mechanicName: _user.name,
               available: _available,
               busy: _busy,
               onAccept: _accept,
@@ -219,7 +210,7 @@ class _MechanicDashboardScreenState extends State<MechanicDashboardScreen> {
               onTabSelect: (i) => setState(() => _tab = i),
             ),
             const _EarningsTab(),
-            _MechChatTab(user: widget.user, assistance: _assist),
+            _MechChatTab(user: _user, assistance: _assist),
           ],
         ),
       ),
@@ -266,7 +257,7 @@ class _MechHomeTab extends StatelessWidget {
   final String firstName;
   final bool available;
   final VoidCallback onToggleAvailable;
-  final VoidCallback onLogout;
+  final VoidCallback onAvatarTap;
   final VoidCallback onViewRequests;
   final VoidCallback onShowNotifications;
   final AssistanceService assistance;
@@ -276,7 +267,7 @@ class _MechHomeTab extends StatelessWidget {
     required this.firstName,
     required this.available,
     required this.onToggleAvailable,
-    required this.onLogout,
+    required this.onAvatarTap,
     required this.onViewRequests,
     required this.onShowNotifications,
     required this.assistance,
@@ -311,7 +302,7 @@ class _MechHomeTab extends StatelessWidget {
                 ],
               ),
               GestureDetector(
-                onTap: onLogout,
+                onTap: onAvatarTap,
                 child: CircleAvatar(
                   radius: 17,
                   backgroundColor: AppColors.navy,

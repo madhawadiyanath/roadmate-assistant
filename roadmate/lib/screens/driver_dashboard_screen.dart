@@ -12,6 +12,7 @@ import '../widgets/tow_truck_illustration.dart';
 import 'chat_screen.dart';
 import 'location_screen.dart';
 import 'onboarding_screen.dart';
+import 'profile_screen.dart';
 import 'select_service_screen.dart';
 import 'track_request_screen.dart';
 
@@ -36,14 +37,36 @@ class DriverDashboardScreen extends StatefulWidget {
 
 class _DriverDashboardScreenState extends State<DriverDashboardScreen> {
   int _tab = 0;
+  late AppUser _user;
+
+  @override
+  void initState() {
+    super.initState();
+    _user = widget.user;
+  }
 
   AssistanceService get _assist =>
       widget.assistanceService ?? AssistanceService();
 
   String get _firstName {
-    final n = widget.user.name.trim();
+    final n = _user.name.trim();
     if (n.isEmpty) return 'Driver';
     return n.split(' ').first;
+  }
+
+  /// Avatar → Profile page. Saved edits refresh the dashboard user.
+  Future<void> _openProfile() async {
+    final updated = await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => ProfileScreen(
+          user: _user,
+          authService: widget.authService,
+        ),
+      ),
+    );
+    if (!mounted) return;
+    if (updated is AppUser) setState(() => _user = updated);
   }
 
   /// Full Select Service page. Returns the picked type (→ confirm flow)
@@ -52,7 +75,7 @@ class _DriverDashboardScreenState extends State<DriverDashboardScreen> {
     final result = await Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (_) => SelectServiceScreen(user: widget.user),
+        builder: (_) => SelectServiceScreen(user: _user),
       ),
     );
     if (!mounted) return;
@@ -71,7 +94,7 @@ class _DriverDashboardScreenState extends State<DriverDashboardScreen> {
       context,
       MaterialPageRoute(
         builder: (_) => LocationScreen(
-          user: widget.user,
+          user: _user,
           serviceType: type,
         ),
       ),
@@ -126,24 +149,24 @@ class _DriverDashboardScreenState extends State<DriverDashboardScreen> {
           index: _tab,
           children: [
             _HomeTab(
-              user: widget.user,
+              user: _user,
               firstName: _firstName,
               requesting: false,
               onSOS: () => _requestAssistance(AssistanceType.general),
               onSelectService: _openServicePicker,
               onQuick: _requestAssistance,
               onViewAll: () => setState(() => _tab = 1),
-              onLogout: _logout,
+              onAvatarTap: _openProfile,
               assistance: _assist,
               onTab: (i) => setState(() => _tab = i),
             ),
             _RequestsTab(
               assistance: _assist,
-              user: widget.user,
+              user: _user,
               onTab: (i) => setState(() => _tab = i),
             ),
-            _GarageTab(user: widget.user, onLogout: _logout),
-            _ChatTab(user: widget.user, assistance: _assist),
+            _GarageTab(user: _user, onLogout: _logout),
+            _ChatTab(user: _user, assistance: _assist),
           ],
         ),
       ),
@@ -165,7 +188,7 @@ class _HomeTab extends StatelessWidget {
   final VoidCallback onSelectService;
   final ValueChanged<AssistanceType> onQuick;
   final VoidCallback onViewAll;
-  final VoidCallback onLogout;
+  final VoidCallback onAvatarTap;
   final AssistanceService assistance;
   final ValueChanged<int> onTab;
 
@@ -177,7 +200,7 @@ class _HomeTab extends StatelessWidget {
     required this.onSelectService,
     required this.onQuick,
     required this.onViewAll,
-    required this.onLogout,
+    required this.onAvatarTap,
     required this.assistance,
     required this.onTab,
   });
@@ -304,7 +327,7 @@ class _HomeTab extends StatelessWidget {
                   ),
                   const SizedBox(width: 10),
                   GestureDetector(
-                    onTap: onLogout,
+                    onTap: onAvatarTap,
                     child: CircleAvatar(
                       radius: 17,
                       backgroundColor: AppColors.navy,

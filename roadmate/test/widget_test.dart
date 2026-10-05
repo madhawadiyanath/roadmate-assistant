@@ -6,6 +6,7 @@ import 'package:roadmate/models/app_user.dart';
 import 'package:roadmate/models/service_request.dart';
 import 'package:fake_cloud_firestore/fake_cloud_firestore.dart';
 import 'package:roadmate/screens/chat_screen.dart';
+import 'package:roadmate/screens/profile_screen.dart';
 import 'package:roadmate/screens/confirm_request_screen.dart';
 import 'package:roadmate/services/chat_service.dart';
 import 'package:roadmate/screens/payment_review_screen.dart';
@@ -456,6 +457,80 @@ void main() {
 
     final all = await chat.watch('req1').first;
     expect(all, hasLength(2));
+  });
+
+  testWidgets('Profile page shows details, edits, guards save', (
+    WidgetTester tester,
+  ) async {
+    const user = AppUser(
+      uid: 'u1',
+      name: 'Kasun Perera',
+      email: 'kasun@example.com',
+      phone: '+94771234567',
+      role: AppRole.driver,
+      vehicle: 'Toyota Axio',
+      plate: 'ABC 1234',
+    );
+    await tester.pumpWidget(
+      const MaterialApp(home: ProfileScreen(user: user)),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Profile'), findsOneWidget);
+    expect(find.text('Kasun Perera'), findsWidgets);
+    expect(find.text('Personal Details'), findsOneWidget);
+    expect(find.text('Vehicle Details'), findsOneWidget);
+    expect(find.text('Logout'), findsOneWidget);
+
+    // Edit mode enables fields; save without Firebase shows hint.
+    await tester.tap(find.byIcon(Icons.edit_outlined));
+    await tester.pumpAndSettle();
+    expect(find.text('Save Changes'), findsOneWidget);
+    await tester.ensureVisible(find.text('Save Changes'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Save Changes'));
+    await tester.pump();
+    expect(find.textContaining('Firebase not connected'), findsOneWidget);
+  });
+
+  testWidgets('Mechanic profile hides vehicle section', (
+    WidgetTester tester,
+  ) async {
+    const mech = AppUser(
+      uid: 'm1',
+      name: 'Nimal',
+      email: 'n@e.com',
+      phone: '',
+      role: AppRole.mechanic,
+    );
+    await tester.pumpWidget(
+      const MaterialApp(home: ProfileScreen(user: mech)),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('MECHANIC'), findsOneWidget);
+    expect(find.text('Vehicle Details'), findsNothing);
+  });
+
+  testWidgets('Driver avatar opens Profile page', (
+    WidgetTester tester,
+  ) async {
+    const user = AppUser(
+      uid: 'u1',
+      name: 'Kasun Perera',
+      email: 'kasun@example.com',
+      phone: '',
+      role: AppRole.driver,
+    );
+    await tester.pumpWidget(
+      const MaterialApp(home: DriverDashboardScreen(user: user)),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byType(CircleAvatar).first);
+    await tester.pumpAndSettle();
+    expect(find.text('Profile'), findsOneWidget);
+    expect(find.text('Personal Details'), findsOneWidget);
   });
 
   testWidgets('RoleHome routes driver to dashboard, mechanic to jobs', (

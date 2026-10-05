@@ -86,6 +86,33 @@ class AuthService {
     return AppUser.fromMap(uid, doc.data()!);
   }
 
+  /// Update editable profile fields, return the fresh profile.
+  Future<AppUser> updateProfile({
+    required String uid,
+    required String name,
+    required String phone,
+    String vehicle = '',
+    String plate = '',
+  }) async {
+    await _users.doc(uid).update({
+      'name': name.trim(),
+      'phone': phone.trim(),
+      'vehicle': vehicle.trim(),
+      'plate': plate.trim(),
+    });
+    final fresh = await getProfile(uid);
+    return fresh ??
+        AppUser(
+          uid: uid,
+          name: name.trim(),
+          email: '',
+          phone: phone.trim(),
+          role: AppRole.driver,
+          vehicle: vehicle.trim(),
+          plate: plate.trim(),
+        );
+  }
+
   Future<void> signOut() => _auth.signOut();
 
   /// Human-readable message for auth errors shown in SnackBars.
