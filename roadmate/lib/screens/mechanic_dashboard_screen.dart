@@ -6,6 +6,7 @@ import '../models/service_request.dart';
 import '../services/assistance_service.dart';
 import '../services/auth_service.dart';
 import '../theme/app_colors.dart';
+import 'chat_screen.dart';
 import 'job_details_screen.dart';
 import 'onboarding_screen.dart';
 
@@ -145,7 +146,7 @@ class _MechanicDashboardScreenState extends State<MechanicDashboardScreen> {
               onTabSelect: (i) => setState(() => _tab = i),
             ),
             const _EarningsTab(),
-            const _MechChatTab(),
+            _MechChatTab(user: widget.user, assistance: _assist),
           ],
         ),
       ),
@@ -1270,18 +1271,21 @@ class _EarningsCard extends StatelessWidget {
   }
 }
 
+/// Mechanic chat list: active assigned jobs open a driver thread.
 class _MechChatTab extends StatelessWidget {
-  const _MechChatTab();
+  final AppUser user;
+  final AssistanceService assistance;
+  const _MechChatTab({required this.user, required this.assistance});
 
   @override
   Widget build(BuildContext context) {
-    return const SingleChildScrollView(
-      padding: EdgeInsets.symmetric(horizontal: 18),
+    return SingleChildScrollView(
+      padding: const EdgeInsets.symmetric(horizontal: 18),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          SizedBox(height: 14),
-          Text(
+          const SizedBox(height: 14),
+          const Text(
             'Chat',
             style: TextStyle(
               fontSize: 22,
@@ -1289,15 +1293,134 @@ class _MechChatTab extends StatelessWidget {
               color: AppColors.navy,
             ),
           ),
-          SizedBox(height: 4),
-          Text(
-            'Talk to drivers and dispatch.',
+          const SizedBox(height: 4),
+          const Text(
+            'Talk to drivers on your active jobs.',
             style: TextStyle(fontSize: 13, color: AppColors.greyText),
           ),
-          SizedBox(height: 14),
-          _EmptyBox(text: 'Driver chat threads will appear here.'),
-          SizedBox(height: 20),
+          const SizedBox(height: 14),
+          if (!firebaseReady)
+            const _EmptyBox(text: 'Driver chat threads will appear here.')
+          else
+            StreamBuilder<List<ServiceRequest>>(
+              stream: assistance.watchMechanicJobs(user.uid),
+              builder: (context, snap) {
+                if (snap.connectionState == ConnectionState.waiting) {
+                  return const Padding(
+                    padding: EdgeInsets.all(20),
+                    child: Center(child: CircularProgressIndicator()),
+                  );
+                }
+                if (snap.hasError) {
+                  return _ErrorBox(error: snap.error);
+                }
+                final items = (snap.data ?? [])
+                    .where((r) =>
+                        r.status == RequestStatus.accepted ||
+                        r.status == RequestStatus.onTheWay)
+                    .toList();
+                if (items.isEmpty) {
+                  return const _EmptyBox(
+                      text: 'Driver chat threads will appear here.');
+                }
+                return Column(
+                  children: [
+                    for (final r in items) ...[
+                      _ChatThreadRow(
+                        title: r.driverName.isEmpty ? 'Driver' : r.driverName,
+                        subtitle: '${r.type.label} • ${r.refCode}',
+                        onTap: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => ChatScreen(
+                              request: r,
+                              senderUid: user.uid,
+                              senderName: user.name,
+                              senderRole: 'mechanic',
+                              peerName: r.driverName,
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                    ],
+                  ],
+                );
+              },
+            ),
+          const SizedBox(height: 20),
         ],
+      ),
+    );
+  }
+}
+
+class _ChatThreadRow extends StatelessWidget {
+  final String title;
+  final String subtitle;
+  final VoidCallback onTap;
+  const _ChatThreadRow({
+    required this.title,
+    required this.subtitle,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      behavior: HitTestBehavior.opaque,
+      child: Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: const Color(0xFFEDF1F7), width: 1.2),
+        ),
+        child: Row(
+          children: [
+            CircleAvatar(
+              radius: 22,
+              backgroundColor: AppColors.navy.withValues(alpha: 0.1),
+              child: Text(
+                title.isEmpty ? '?' : title[0].toUpperCase(),
+                style: const TextStyle(
+                  color: AppColors.navy,
+                  fontWeight: FontWeight.w800,
+                  fontSize: 18,
+                ),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: const TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w800,
+                      color: AppColors.navyDark,
+                    ),
+                  ),
+                  Text(
+                    subtitle,
+                    style: const TextStyle(
+                      fontSize: 12.5,
+                      color: AppColors.greyText,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const Icon(
+              Icons.arrow_forward_ios_rounded,
+              size: 15,
+              color: AppColors.greyText,
+            ),
+          ],
+        ),
       ),
     );
   }

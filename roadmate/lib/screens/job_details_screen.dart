@@ -6,6 +6,7 @@ import '../services/assistance_service.dart';
 import '../services/auth_service.dart';
 import '../theme/app_colors.dart';
 import '../widgets/mini_map_illustration.dart';
+import 'chat_screen.dart';
 
 /// Full details of one incoming job. Opened by tapping a job card.
 /// Pops `true` after accept/reject (lists refresh via streams),
@@ -294,6 +295,34 @@ class _JobDetailsScreenState extends State<JobDetailsScreen> {
                             ],
                           ),
                         ),
+                        GestureDetector(
+                          onTap: () => Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => ChatScreen(
+                                request: r,
+                                senderUid: widget.mechanicUid,
+                                senderName: widget.mechanicName,
+                                senderRole: 'mechanic',
+                                peerName: r.driverName,
+                              ),
+                            ),
+                          ),
+                          child: Container(
+                            width: 42,
+                            height: 42,
+                            decoration: const BoxDecoration(
+                              color: AppColors.fieldFill,
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(
+                              Icons.chat_bubble_outline_rounded,
+                              color: AppColors.navy,
+                              size: 20,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
                         GestureDetector(
                           onTap: () =>
                               _snack('Calling ${r.driverName}…'),

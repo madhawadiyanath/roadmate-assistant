@@ -6,8 +6,8 @@ import '../models/service_request.dart';
 import '../services/assistance_service.dart';
 import '../services/auth_service.dart';
 import '../theme/app_colors.dart';
-import '../widgets/auth_widgets.dart';
 import '../widgets/tow_truck_illustration.dart';
+import 'chat_screen.dart';
 import 'location_screen.dart';
 import 'onboarding_screen.dart';
 import 'select_service_screen.dart';
@@ -141,7 +141,7 @@ class _DriverDashboardScreenState extends State<DriverDashboardScreen> {
               onTab: (i) => setState(() => _tab = i),
             ),
             _GarageTab(user: widget.user, onLogout: _logout),
-            const _ChatTab(),
+            _ChatTab(user: widget.user, assistance: _assist),
           ],
         ),
       ),
@@ -1289,35 +1289,180 @@ class _DetailRow extends StatelessWidget {
   }
 }
 
+/// Driver chat list: active jobs (mechanic assigned) open a thread.
 class _ChatTab extends StatelessWidget {
-  const _ChatTab();
+  final AppUser user;
+  final AssistanceService assistance;
+  const _ChatTab({required this.user, required this.assistance});
 
   @override
   Widget build(BuildContext context) {
-    return const SingleChildScrollView(
-      padding: EdgeInsets.symmetric(horizontal: 18),
+    return SingleChildScrollView(
+      padding: const EdgeInsets.symmetric(horizontal: 18),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          SizedBox(height: 14),
-          Text(
-            'Support Chat',
+          const SizedBox(height: 14),
+          const Text(
+            'Chats',
             style: TextStyle(
               fontSize: 22,
               fontWeight: FontWeight.w800,
               color: AppColors.navy,
             ),
           ),
-          SizedBox(height: 4),
-          Text(
-            'Talk to our 24/7 dispatch team.',
+          const SizedBox(height: 4),
+          const Text(
+            'Talk to your assigned patrol.',
             style: TextStyle(fontSize: 13, color: AppColors.greyText),
           ),
-          SizedBox(height: 14),
-          EmergencyBanner(),
-          SizedBox(height: 12),
-          _DetailRow(label: 'Live chat', value: 'Coming soon'),
+          const SizedBox(height: 14),
+          if (!firebaseReady)
+            const _EmptyChatBox()
+          else
+            StreamBuilder<List<ServiceRequest>>(
+              stream: assistance.watchDriverRequests(user.uid),
+              builder: (context, snap) {
+                if (snap.connectionState == ConnectionState.waiting) {
+                  return const Padding(
+                    padding: EdgeInsets.all(24),
+                    child: Center(child: CircularProgressIndicator()),
+                  );
+                }
+                if (snap.hasError) {
+                  return _StreamErrorBox(error: snap.error);
+                }
+                final items = (snap.data ?? [])
+                    .where((r) =>
+                        r.status == RequestStatus.accepted ||
+                        r.status == RequestStatus.onTheWay)
+                    .toList();
+                if (items.isEmpty) {
+                  return const _EmptyChatBox();
+                }
+                return Column(
+                  children: [
+                    for (final r in items) ...[
+                      _ThreadRow(
+                        title: r.mechanicName.isEmpty
+                            ? 'Your Patrol'
+                            : r.mechanicName,
+                        subtitle:
+                            '${r.type.label} • ${r.refCode}',
+                        onTap: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => ChatScreen(
+                              request: r,
+                              senderUid: user.uid,
+                              senderName: user.name,
+                              senderRole: 'driver',
+                              peerName: r.mechanicName,
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                    ],
+                  ],
+                );
+              },
+            ),
+          const SizedBox(height: 16),
         ],
+      ),
+    );
+  }
+}
+
+class _EmptyChatBox extends StatelessWidget {
+  const _EmptyChatBox();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFFEDF1F7), width: 1.2),
+      ),
+      child: const Text(
+        'No active chats. Chats appear here once a patrol accepts your request.',
+        textAlign: TextAlign.center,
+        style: TextStyle(color: AppColors.greyText, fontSize: 13),
+      ),
+    );
+  }
+}
+
+class _ThreadRow extends StatelessWidget {
+  final String title;
+  final String subtitle;
+  final VoidCallback onTap;
+  const _ThreadRow({
+    required this.title,
+    required this.subtitle,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      behavior: HitTestBehavior.opaque,
+      child: Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: const Color(0xFFEDF1F7), width: 1.2),
+        ),
+        child: Row(
+          children: [
+            CircleAvatar(
+              radius: 22,
+              backgroundColor: AppColors.navy.withValues(alpha: 0.1),
+              child: Text(
+                title.isEmpty ? '?' : title[0].toUpperCase(),
+                style: const TextStyle(
+                  color: AppColors.navy,
+                  fontWeight: FontWeight.w800,
+                  fontSize: 18,
+                ),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: const TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w800,
+                      color: AppColors.navyDark,
+                    ),
+                  ),
+                  Text(
+                    subtitle,
+                    style: const TextStyle(
+                      fontSize: 12.5,
+                      color: AppColors.greyText,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const Icon(
+              Icons.arrow_forward_ios_rounded,
+              size: 15,
+              color: AppColors.greyText,
+            ),
+          ],
+        ),
       ),
     );
   }
