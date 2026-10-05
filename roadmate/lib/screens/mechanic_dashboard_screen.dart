@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 
 import '../config/firebase_state.dart';
 import '../models/app_user.dart';
+import '../models/notification_item.dart';
 import '../models/service_request.dart';
 import '../services/assistance_service.dart';
 import '../services/auth_service.dart';
+import '../services/notification_service.dart';
 import '../theme/app_colors.dart';
 import 'chat_screen.dart';
 import 'job_details_screen.dart';
@@ -47,6 +49,75 @@ class _MechanicDashboardScreenState extends State<MechanicDashboardScreen> {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
   }
 
+  void _showNotifications() {
+    final service = NotificationService();
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => Container(
+        height: 420,
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        child: StreamBuilder<List<AppNotificationItem>>(
+          stream: service.watchUserNotifications(widget.user.uid),
+          builder: (context, snap) {
+            if (snap.connectionState == ConnectionState.waiting) {
+              return const Center(child: CircularProgressIndicator());
+            }
+            final items = snap.data ?? const <AppNotificationItem>[];
+            if (items.isEmpty) {
+              return const Center(
+                child: Padding(
+                  padding: EdgeInsets.all(24),
+                  child: Text('No notifications yet.'),
+                ),
+              );
+            }
+            return ListView.separated(
+              padding: const EdgeInsets.all(18),
+              itemCount: items.length,
+              separatorBuilder: (_, __) => const SizedBox(height: 10),
+              itemBuilder: (_, i) {
+                final n = items[i];
+                return Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: AppColors.fieldFill,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        n.title,
+                        style: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w800,
+                          color: AppColors.navy,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        n.body,
+                        style: const TextStyle(
+                          fontSize: 12.5,
+                          color: AppColors.greyText,
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              },
+            );
+          },
+        ),
+      ),
+    );
+  }
+
   Future<void> _accept(ServiceRequest r) async {
     if (!firebaseReady) {
       _snack('Firebase not connected yet. Add google-services files first.');
@@ -56,6 +127,7 @@ class _MechanicDashboardScreenState extends State<MechanicDashboardScreen> {
     try {
       await _assist.acceptRequest(
         requestId: r.id,
+        driverUid: r.driverUid,
         mechanicUid: widget.user.uid,
         mechanicName: widget.user.name,
       );
@@ -132,6 +204,7 @@ class _MechanicDashboardScreenState extends State<MechanicDashboardScreen> {
                   setState(() => _available = !_available),
               onLogout: _logout,
               onViewRequests: () => setState(() => _tab = 1),
+              onShowNotifications: _showNotifications,
               assistance: _assist,
               mechanicUid: widget.user.uid,
             ),
@@ -195,6 +268,7 @@ class _MechHomeTab extends StatelessWidget {
   final VoidCallback onToggleAvailable;
   final VoidCallback onLogout;
   final VoidCallback onViewRequests;
+  final VoidCallback onShowNotifications;
   final AssistanceService assistance;
   final String mechanicUid;
 
@@ -204,6 +278,7 @@ class _MechHomeTab extends StatelessWidget {
     required this.onToggleAvailable,
     required this.onLogout,
     required this.onViewRequests,
+    required this.onShowNotifications,
     required this.assistance,
     required this.mechanicUid,
   });
@@ -328,9 +403,7 @@ class _MechHomeTab extends StatelessWidget {
                 ),
               ),
               IconButton(
-                onPressed: () => ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('No new alerts.')),
-                ),
+                onPressed: onShowNotifications,
                 icon: const Icon(Icons.notifications_outlined,
                     color: AppColors.navy, size: 24),
               ),

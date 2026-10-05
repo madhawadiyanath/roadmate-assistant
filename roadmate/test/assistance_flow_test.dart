@@ -2,6 +2,7 @@ import 'package:fake_cloud_firestore/fake_cloud_firestore.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:roadmate/models/service_request.dart';
 import 'package:roadmate/services/assistance_service.dart';
+import 'package:roadmate/services/notification_service.dart';
 
 /// End-to-end database flow: driver sends a request → it appears in the
 /// mechanic's pending feed → mechanic accepts → both sides see updates.
@@ -30,13 +31,20 @@ void main() {
     expect(pending.first.refCode, matches(r'^#RM\d{4}$'));
     final code = pending.first.refCode;
 
-    // 3. Mechanic accepts → job appears in their job list.
+    // 3. Mechanic accepts → job appears in their job list and driver gets
+    // a notification of the accepted request.
     await service.acceptRequest(
       requestId: id,
+      driverUid: 'driver1',
       mechanicUid: 'mech1',
       mechanicName: 'Nimal',
     );
     final jobs = await service.watchMechanicJobs('mech1').first;
+    final notifications = NotificationService(db: db);
+    final driverAlerts = await notifications.watchUserNotifications('driver1').first;
+    expect(driverAlerts, isNotEmpty);
+    expect(driverAlerts.first.title, 'Request accepted');
+    expect(driverAlerts.first.body, contains('Nimal'));
     expect(jobs, hasLength(1));
     expect(jobs.first.status, RequestStatus.accepted);
     expect(jobs.first.mechanicName, 'Nimal');

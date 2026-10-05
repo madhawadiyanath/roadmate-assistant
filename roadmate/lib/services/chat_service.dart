@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../models/chat_message.dart';
+import 'notification_service.dart';
 
 /// Per-request chat between the driver and the assigned mechanic.
 /// Messages live in `requests/{requestId}/messages`.
@@ -24,6 +25,7 @@ class ChatService {
   }) async {
     final msg = text.trim();
     if (msg.isEmpty) return;
+
     await _messages(requestId).add(ChatMessage(
       id: '',
       senderUid: senderUid,
@@ -31,6 +33,25 @@ class ChatService {
       senderRole: senderRole,
       text: msg,
     ).toMap());
+
+    final requestDoc = await _db.collection('requests').doc(requestId).get();
+    final data = requestDoc.data() ?? {};
+    String recipientUid = '';
+    if (senderRole == 'driver') {
+      recipientUid = (data['mechanicUid'] as String? ?? '');
+    } else if (senderRole == 'mechanic') {
+      recipientUid = (data['driverUid'] as String? ?? '');
+    }
+
+    if (recipientUid.isNotEmpty) {
+      await NotificationService(db: _db).createChatMessage(
+        recipientUid: recipientUid,
+        senderName: senderName,
+        text: msg,
+        requestId: requestId,
+        senderUid: senderUid,
+      );
+    }
   }
 
   Stream<List<ChatMessage>> watch(String requestId) {
