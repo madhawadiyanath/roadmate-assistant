@@ -15,8 +15,8 @@ class SignInScreen extends StatefulWidget {
 }
 
 class _SignInScreenState extends State<SignInScreen> {
-  final _email = TextEditingController(text: 'alex.driver@example.com');
-  final _password = TextEditingController(text: 'password123');
+  final _email = TextEditingController(text: 'as@gmail.com');
+  final _password = TextEditingController(text: '123456');
   bool _loading = false;
 
   AuthService get _auth => widget.authService ?? AuthService();
