@@ -12,6 +12,7 @@ import '../widgets/tow_truck_illustration.dart';
 import 'chat_screen.dart';
 import 'location_screen.dart';
 import 'onboarding_screen.dart';
+import 'profile_screen.dart';
 import 'select_service_screen.dart';
 import 'track_request_screen.dart';
 
@@ -36,14 +37,36 @@ class DriverDashboardScreen extends StatefulWidget {
 
 class _DriverDashboardScreenState extends State<DriverDashboardScreen> {
   int _tab = 0;
+  late AppUser _user;
+
+  @override
+  void initState() {
+    super.initState();
+    _user = widget.user;
+  }
 
   AssistanceService get _assist =>
       widget.assistanceService ?? AssistanceService();
 
   String get _firstName {
-    final n = widget.user.name.trim();
+    final n = _user.name.trim();
     if (n.isEmpty) return 'Driver';
     return n.split(' ').first;
+  }
+
+  /// Avatar → Profile page. Saved edits refresh the dashboard user.
+  Future<void> _openProfile() async {
+    final updated = await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => ProfileScreen(
+          user: _user,
+          authService: widget.authService,
+        ),
+      ),
+    );
+    if (!mounted) return;
+    if (updated is AppUser) setState(() => _user = updated);
   }
 
   /// Full Select Service page. Returns the picked type (→ confirm flow)
@@ -52,7 +75,7 @@ class _DriverDashboardScreenState extends State<DriverDashboardScreen> {
     final result = await Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (_) => SelectServiceScreen(user: widget.user),
+        builder: (_) => SelectServiceScreen(user: _user),
       ),
     );
     if (!mounted) return;
@@ -71,7 +94,7 @@ class _DriverDashboardScreenState extends State<DriverDashboardScreen> {
       context,
       MaterialPageRoute(
         builder: (_) => LocationScreen(
-          user: widget.user,
+          user: _user,
           serviceType: type,
         ),
       ),
@@ -126,24 +149,24 @@ class _DriverDashboardScreenState extends State<DriverDashboardScreen> {
           index: _tab,
           children: [
             _HomeTab(
-              user: widget.user,
+              user: _user,
               firstName: _firstName,
               requesting: false,
               onSOS: () => _requestAssistance(AssistanceType.general),
               onSelectService: _openServicePicker,
               onQuick: _requestAssistance,
               onViewAll: () => setState(() => _tab = 1),
-              onLogout: _logout,
+              onAvatarTap: _openProfile,
               assistance: _assist,
               onTab: (i) => setState(() => _tab = i),
             ),
             _RequestsTab(
               assistance: _assist,
-              user: widget.user,
+              user: _user,
               onTab: (i) => setState(() => _tab = i),
             ),
-            _GarageTab(user: widget.user, onLogout: _logout),
-            _ChatTab(user: widget.user, assistance: _assist),
+            _GarageTab(user: _user, onLogout: _logout),
+            _ChatTab(user: _user, assistance: _assist),
           ],
         ),
       ),
@@ -165,7 +188,7 @@ class _HomeTab extends StatelessWidget {
   final VoidCallback onSelectService;
   final ValueChanged<AssistanceType> onQuick;
   final VoidCallback onViewAll;
-  final VoidCallback onLogout;
+  final VoidCallback onAvatarTap;
   final AssistanceService assistance;
   final ValueChanged<int> onTab;
 
@@ -177,7 +200,7 @@ class _HomeTab extends StatelessWidget {
     required this.onSelectService,
     required this.onQuick,
     required this.onViewAll,
-    required this.onLogout,
+    required this.onAvatarTap,
     required this.assistance,
     required this.onTab,
   });
@@ -212,7 +235,7 @@ class _HomeTab extends StatelessWidget {
             return ListView.separated(
               padding: const EdgeInsets.all(18),
               itemCount: items.length,
-              separatorBuilder: (_, __) => const SizedBox(height: 10),
+              separatorBuilder: (_, _) => const SizedBox(height: 10),
               itemBuilder: (_, i) {
                 final n = items[i];
                 return Container(
@@ -304,7 +327,7 @@ class _HomeTab extends StatelessWidget {
                   ),
                   const SizedBox(width: 10),
                   GestureDetector(
-                    onTap: onLogout,
+                    onTap: onAvatarTap,
                     child: CircleAvatar(
                       radius: 17,
                       backgroundColor: AppColors.navy,
@@ -656,64 +679,95 @@ class _DashedPainter extends CustomPainter {
   bool shouldRepaint(covariant CustomPainter old) => false;
 }
 
+/// Hero banner: photo background (assets/images/roadside_hero.jpg)
+/// with a readability gradient. Falls back to the drawn illustration
+/// when the photo hasn't been added yet.
 class _HeroCard extends StatelessWidget {
   const _HeroCard();
 
+  static const _photo = 'assets/images/roadside_hero.jpg';
+
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: const Color(0xFFEAF1FB),
-        borderRadius: BorderRadius.circular(18),
-      ),
-      child: Row(
-        children: [
-          const Expanded(
-            flex: 5,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'RAPID ASSISTANCE',
-                  style: TextStyle(
-                    fontSize: 10.5,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: 0.8,
-                    color: AppColors.orange,
-                  ),
-                ),
-                SizedBox(height: 4),
-                Text(
-                  "Stuck on the road? We're here!",
-                  style: TextStyle(
-                    fontSize: 17,
-                    fontWeight: FontWeight.w800,
-                    height: 1.25,
-                    color: AppColors.navy,
-                  ),
-                ),
-                SizedBox(height: 6),
-                Text(
-                  'GPS verified dispatch arrives in ~14 mins. Safely hazard-light your vehicle and request below.',
-                  style: TextStyle(
-                    fontSize: 11.5,
-                    height: 1.45,
-                    color: AppColors.greyText,
-                  ),
-                ),
-              ],
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(18),
+      child: SizedBox(
+        height: 152,
+        width: double.infinity,
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            Image.asset(
+              _photo,
+              fit: BoxFit.cover,
+              errorBuilder: (_, _, _) => Container(
+                color: const Color(0xFFEAF1FB),
+                padding: const EdgeInsets.all(12),
+                child: const TowTruckIllustration(),
+              ),
             ),
-          ),
-          const SizedBox(width: 8),
-          const Expanded(
-            flex: 4,
-            child: SizedBox(
-              height: 110,
-              child: TowTruckIllustration(),
+            // Left-side shade so white text stays readable on the photo.
+            Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.centerLeft,
+                  end: Alignment.centerRight,
+                  colors: [
+                    const Color(0xFF0A2A66).withValues(alpha: 0.90),
+                    const Color(0xFF0A2A66).withValues(alpha: 0.45),
+                    Colors.transparent,
+                  ],
+                  stops: const [0.0, 0.55, 1.0],
+                ),
+              ),
             ),
-          ),
-        ],
+            const FractionallySizedBox(
+              widthFactor: 0.68,
+              alignment: Alignment.centerLeft,
+              child: Padding(
+                padding: EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      'RAPID ASSISTANCE',
+                      style: TextStyle(
+                        fontSize: 10.5,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 0.8,
+                        color: AppColors.orange,
+                      ),
+                    ),
+                    SizedBox(height: 4),
+                    Text(
+                      "Stuck on the road? We're here!",
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w800,
+                        height: 1.25,
+                        color: Colors.white,
+                      ),
+                    ),
+                    SizedBox(height: 6),
+                    Text(
+                      'GPS verified dispatch arrives in ~14 mins.',
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 11.5,
+                        height: 1.45,
+                        color: Colors.white70,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
