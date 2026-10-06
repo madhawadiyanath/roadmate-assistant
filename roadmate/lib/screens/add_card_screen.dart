@@ -1,12 +1,22 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../models/payment_method.dart';
+import '../services/auth_service.dart';
+import '../services/payment_service.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_typography.dart';
 import '../widgets/payment_widgets.dart';
 
 /// Add Credit / Debit Card screen with live card preview (Stitch design).
 class AddCardScreen extends StatefulWidget {
-  const AddCardScreen({super.key});
+  final PaymentService? paymentService;
+  final String? userUid;
+
+  const AddCardScreen({
+    super.key,
+    this.paymentService,
+    this.userUid,
+  });
 
   @override
   State<AddCardScreen> createState() => _AddCardScreenState();
@@ -20,6 +30,11 @@ class _AddCardScreenState extends State<AddCardScreen> {
   bool _saveCard = true;
   bool _setDefault = true;
   bool _saving = false;
+  String? _expiryError;
+
+  PaymentService get _service => widget.paymentService ?? PaymentService();
+  String get _uid =>
+      widget.userUid ?? (AuthService().currentUser?.uid ?? 'driver_demo');
 
   @override
   void dispose() {
@@ -46,24 +61,19 @@ class _AddCardScreenState extends State<AddCardScreen> {
     setState(() {});
   }
 
-  void _formatExpiry(String val) {
-    final digits = val.replaceAll(RegExp(r'\D'), '');
-    String formatted = digits;
-    if (digits.length >= 2) {
-      formatted = '${digits.substring(0, 2)}/${digits.substring(2, digits.length.clamp(2, 4))}';
-    }
-    if (formatted != _expiryCtrl.text) {
-      _expiryCtrl.value = TextEditingValue(
-        text: formatted,
-        selection: TextSelection.collapsed(offset: formatted.length),
-      );
-    }
-    setState(() {});
-  }
 
   Future<void> _submit() async {
     final digits = _numberCtrl.text.replaceAll(RegExp(r'\D'), '');
-    if (digits.length < 16 || _nameCtrl.text.trim().isEmpty || _expiryCtrl.text.length < 5) {
+    final expiryError = validateCardExpiry(_expiryCtrl.text);
+    setState(() {
+      _expiryError = expiryError;
+    });
+
+    if (expiryError != null) {
+      return;
+    }
+
+    if (digits.length < 16 || _nameCtrl.text.trim().isEmpty || _cvvCtrl.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please fill in all card details')),
       );
@@ -75,16 +85,31 @@ class _AddCardScreenState extends State<AddCardScreen> {
     if (!mounted) return;
     setState(() => _saving = false);
 
+    final brand = digits.startsWith('4') ? 'Visa' : 'Mastercard';
     final card = PaymentMethod(
       id: 'card_${DateTime.now().millisecondsSinceEpoch}',
       type: PaymentMethodType.card,
+      label: '$brand •••• ${digits.substring(12)}',
       last4: digits.substring(12),
-      brand: digits.startsWith('4') ? 'Visa' : 'Mastercard',
+      brand: brand,
       expiryMonth: _expiryCtrl.text.split('/').first,
       expiryYear: _expiryCtrl.text.split('/').last,
       holderName: _nameCtrl.text.trim(),
       isDefault: _setDefault,
     );
+
+    if (_setDefault) {
+      for (var i = 0; i < mockPaymentMethods.length; i++) {
+        mockPaymentMethods[i] =
+            mockPaymentMethods[i].copyWith(isDefault: false);
+      }
+    }
+    if (_saveCard) {
+      if (!mockPaymentMethods.any((m) => m.id == card.id)) {
+        mockPaymentMethods.add(card);
+      }
+      await _service.addPaymentMethod(uid: _uid, method: card);
+    }
 
     if (!mounted) return;
     // Show success modal
@@ -360,7 +385,18 @@ class _AddCardScreenState extends State<AddCardScreen> {
                             controller: _expiryCtrl,
                             keyboardType: TextInputType.number,
                             maxLength: 5,
-                            onChanged: _formatExpiry,
+                            inputFormatters: [
+                              FilteringTextInputFormatter.allow(RegExp(r'[0-9/]')),
+                              CardExpiryInputFormatter(),
+                            ],
+                            errorText: _expiryError,
+                            onChanged: (val) {
+                              if (_expiryError != null) {
+                                setState(() => _expiryError = null);
+                              } else {
+                                setState(() {});
+                              }
+                            },
                           ),
                         ),
                         const SizedBox(width: 16),
