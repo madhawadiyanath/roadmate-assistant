@@ -2,13 +2,16 @@ import 'package:flutter/material.dart';
 
 import '../config/firebase_state.dart';
 import '../models/app_user.dart';
+import '../models/notification_item.dart';
 import '../models/service_request.dart';
 import '../services/assistance_service.dart';
 import '../services/auth_service.dart';
+import '../services/notification_service.dart';
 import '../theme/app_colors.dart';
-import 'job_details_screen.dart';
-import 'onboarding_screen.dart';
+import 'chat_screen.dart';
 import 'earnings_dashboard_screen.dart';
+import 'job_details_screen.dart';
+import 'profile_screen.dart';
 
 /// Mechanic home matching the RoadMate design:
 /// greeting + online pill, hero card, live stat grid, earnings,
@@ -34,17 +37,108 @@ class _MechanicDashboardScreenState extends State<MechanicDashboardScreen> {
   int _tab = 0;
   bool _available = true;
   bool _busy = false;
+  late AppUser _user;
+
+  @override
+  void initState() {
+    super.initState();
+    _user = widget.user;
+  }
 
   AssistanceService get _assist =>
       widget.assistanceService ?? AssistanceService();
 
   String get _firstName {
-    final n = widget.user.name.trim();
+    final n = _user.name.trim();
     return n.isEmpty ? 'Mechanic' : n.split(' ').first;
+  }
+
+  /// Avatar → Profile page. Saved edits refresh the dashboard user.
+  Future<void> _openProfile() async {
+    final updated = await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => ProfileScreen(
+          user: _user,
+          authService: widget.authService,
+        ),
+      ),
+    );
+    if (!mounted) return;
+    if (updated is AppUser) setState(() => _user = updated);
   }
 
   void _snack(String msg) {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+  }
+
+  void _showNotifications() {
+    final service = NotificationService();
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => Container(
+        height: 420,
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        child: StreamBuilder<List<AppNotificationItem>>(
+          stream: service.watchUserNotifications(_user.uid),
+          builder: (context, snap) {
+            if (snap.connectionState == ConnectionState.waiting) {
+              return const Center(child: CircularProgressIndicator());
+            }
+            final items = snap.data ?? const <AppNotificationItem>[];
+            if (items.isEmpty) {
+              return const Center(
+                child: Padding(
+                  padding: EdgeInsets.all(24),
+                  child: Text('No notifications yet.'),
+                ),
+              );
+            }
+            return ListView.separated(
+              padding: const EdgeInsets.all(18),
+              itemCount: items.length,
+              separatorBuilder: (_, _) => const SizedBox(height: 10),
+              itemBuilder: (_, i) {
+                final n = items[i];
+                return Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: AppColors.fieldFill,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        n.title,
+                        style: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w800,
+                          color: AppColors.navy,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        n.body,
+                        style: const TextStyle(
+                          fontSize: 12.5,
+                          color: AppColors.greyText,
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              },
+            );
+          },
+        ),
+      ),
+    );
   }
 
   Future<void> _accept(ServiceRequest r) async {
@@ -56,8 +150,9 @@ class _MechanicDashboardScreenState extends State<MechanicDashboardScreen> {
     try {
       await _assist.acceptRequest(
         requestId: r.id,
-        mechanicUid: widget.user.uid,
-        mechanicName: widget.user.name,
+        driverUid: r.driverUid,
+        mechanicUid: _user.uid,
+        mechanicName: _user.name,
       );
       if (!mounted) return;
       _snack('${r.type.label} accepted — driver notified!');
@@ -86,37 +181,6 @@ class _MechanicDashboardScreenState extends State<MechanicDashboardScreen> {
     }
   }
 
-  Future<void> _logout() async {
-    final yes = await showDialog<bool>(
-      context: context,
-      builder: (_) => AlertDialog(
-        title: const Text('Logout?'),
-        content: const Text('Are you sure you want to logout?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Logout'),
-          ),
-        ],
-      ),
-    );
-    if (yes != true) return;
-    try {
-      await (widget.authService ?? AuthService()).signOut();
-    } catch (_) {
-      // Leave anyway.
-    }
-    if (!mounted) return;
-    Navigator.of(context).pushAndRemoveUntil(
-      MaterialPageRoute(builder: (_) => const OnboardingScreen()),
-      (_) => false,
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -130,15 +194,16 @@ class _MechanicDashboardScreenState extends State<MechanicDashboardScreen> {
               available: _available,
               onToggleAvailable: () =>
                   setState(() => _available = !_available),
-              onLogout: _logout,
+              onAvatarTap: _openProfile,
               onViewRequests: () => setState(() => _tab = 1),
+              onShowNotifications: _showNotifications,
               assistance: _assist,
-              mechanicUid: widget.user.uid,
+              mechanicUid: _user.uid,
             ),
             _MechJobsTab(
               assistance: _assist,
-              mechanicUid: widget.user.uid,
-              mechanicName: widget.user.name,
+              mechanicUid: _user.uid,
+              mechanicName: _user.name,
               available: _available,
               busy: _busy,
               onAccept: _accept,
@@ -146,7 +211,7 @@ class _MechanicDashboardScreenState extends State<MechanicDashboardScreen> {
               onTabSelect: (i) => setState(() => _tab = i),
             ),
             const _EarningsTab(),
-            const _MechChatTab(),
+            _MechChatTab(user: _user, assistance: _assist),
           ],
         ),
       ),
@@ -193,8 +258,9 @@ class _MechHomeTab extends StatelessWidget {
   final String firstName;
   final bool available;
   final VoidCallback onToggleAvailable;
-  final VoidCallback onLogout;
+  final VoidCallback onAvatarTap;
   final VoidCallback onViewRequests;
+  final VoidCallback onShowNotifications;
   final AssistanceService assistance;
   final String mechanicUid;
 
@@ -202,8 +268,9 @@ class _MechHomeTab extends StatelessWidget {
     required this.firstName,
     required this.available,
     required this.onToggleAvailable,
-    required this.onLogout,
+    required this.onAvatarTap,
     required this.onViewRequests,
+    required this.onShowNotifications,
     required this.assistance,
     required this.mechanicUid,
   });
@@ -236,7 +303,7 @@ class _MechHomeTab extends StatelessWidget {
                 ],
               ),
               GestureDetector(
-                onTap: onLogout,
+                onTap: onAvatarTap,
                 child: CircleAvatar(
                   radius: 17,
                   backgroundColor: AppColors.navy,
@@ -328,9 +395,7 @@ class _MechHomeTab extends StatelessWidget {
                 ),
               ),
               IconButton(
-                onPressed: () => ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('No new alerts.')),
-                ),
+                onPressed: onShowNotifications,
                 icon: const Icon(Icons.notifications_outlined,
                     color: AppColors.navy, size: 24),
               ),
@@ -1206,18 +1271,21 @@ class _EarningsTab extends StatelessWidget {
   }
 }
 
+/// Mechanic chat list: active assigned jobs open a driver thread.
 class _MechChatTab extends StatelessWidget {
-  const _MechChatTab();
+  final AppUser user;
+  final AssistanceService assistance;
+  const _MechChatTab({required this.user, required this.assistance});
 
   @override
   Widget build(BuildContext context) {
-    return const SingleChildScrollView(
-      padding: EdgeInsets.symmetric(horizontal: 18),
+    return SingleChildScrollView(
+      padding: const EdgeInsets.symmetric(horizontal: 18),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          SizedBox(height: 14),
-          Text(
+          const SizedBox(height: 14),
+          const Text(
             'Chat',
             style: TextStyle(
               fontSize: 22,
@@ -1225,15 +1293,134 @@ class _MechChatTab extends StatelessWidget {
               color: AppColors.navy,
             ),
           ),
-          SizedBox(height: 4),
-          Text(
-            'Talk to drivers and dispatch.',
+          const SizedBox(height: 4),
+          const Text(
+            'Talk to drivers on your active jobs.',
             style: TextStyle(fontSize: 13, color: AppColors.greyText),
           ),
-          SizedBox(height: 14),
-          _EmptyBox(text: 'Driver chat threads will appear here.'),
-          SizedBox(height: 20),
+          const SizedBox(height: 14),
+          if (!firebaseReady)
+            const _EmptyBox(text: 'Driver chat threads will appear here.')
+          else
+            StreamBuilder<List<ServiceRequest>>(
+              stream: assistance.watchMechanicJobs(user.uid),
+              builder: (context, snap) {
+                if (snap.connectionState == ConnectionState.waiting) {
+                  return const Padding(
+                    padding: EdgeInsets.all(20),
+                    child: Center(child: CircularProgressIndicator()),
+                  );
+                }
+                if (snap.hasError) {
+                  return _ErrorBox(error: snap.error);
+                }
+                final items = (snap.data ?? [])
+                    .where((r) =>
+                        r.status == RequestStatus.accepted ||
+                        r.status == RequestStatus.onTheWay)
+                    .toList();
+                if (items.isEmpty) {
+                  return const _EmptyBox(
+                      text: 'Driver chat threads will appear here.');
+                }
+                return Column(
+                  children: [
+                    for (final r in items) ...[
+                      _ChatThreadRow(
+                        title: r.driverName.isEmpty ? 'Driver' : r.driverName,
+                        subtitle: '${r.type.label} • ${r.refCode}',
+                        onTap: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => ChatScreen(
+                              request: r,
+                              senderUid: user.uid,
+                              senderName: user.name,
+                              senderRole: 'mechanic',
+                              peerName: r.driverName,
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                    ],
+                  ],
+                );
+              },
+            ),
+          const SizedBox(height: 20),
         ],
+      ),
+    );
+  }
+}
+
+class _ChatThreadRow extends StatelessWidget {
+  final String title;
+  final String subtitle;
+  final VoidCallback onTap;
+  const _ChatThreadRow({
+    required this.title,
+    required this.subtitle,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      behavior: HitTestBehavior.opaque,
+      child: Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: const Color(0xFFEDF1F7), width: 1.2),
+        ),
+        child: Row(
+          children: [
+            CircleAvatar(
+              radius: 22,
+              backgroundColor: AppColors.navy.withValues(alpha: 0.1),
+              child: Text(
+                title.isEmpty ? '?' : title[0].toUpperCase(),
+                style: const TextStyle(
+                  color: AppColors.navy,
+                  fontWeight: FontWeight.w800,
+                  fontSize: 18,
+                ),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: const TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w800,
+                      color: AppColors.navyDark,
+                    ),
+                  ),
+                  Text(
+                    subtitle,
+                    style: const TextStyle(
+                      fontSize: 12.5,
+                      color: AppColors.greyText,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const Icon(
+              Icons.arrow_forward_ios_rounded,
+              size: 15,
+              color: AppColors.greyText,
+            ),
+          ],
+        ),
       ),
     );
   }

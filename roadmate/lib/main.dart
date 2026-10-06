@@ -4,7 +4,7 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'config/firebase_state.dart';
 import 'firebase_options.dart';
-import 'screens/onboarding_screen.dart';
+import 'screens/auth_gate.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -50,7 +50,7 @@ class MyApp extends StatelessWidget {
           seedColor: const Color(0xFF0A2A66),
         ),
       ),
-      home: const OnboardingScreen(),
+      home: const AuthGate(),
     );
   }
 }

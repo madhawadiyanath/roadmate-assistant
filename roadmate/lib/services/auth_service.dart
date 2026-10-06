@@ -22,6 +22,10 @@ class AuthService {
   FirebaseAuth get _auth => _authOverride ?? FirebaseAuth.instance;
   FirebaseFirestore get _db => _dbOverride ?? FirebaseFirestore.instance;
 
+  /// Firebase-Auth session stream. Null = logged out.
+  /// Accessing it needs Firebase, so the gate checks `firebaseReady` first.
+  Stream<User?> authChanges() => _auth.authStateChanges();
+
   CollectionReference<Map<String, dynamic>> get _users =>
       _db.collection('users');
 
@@ -46,7 +50,8 @@ class AuthService {
   AppUser? get currentUser => _currentUser;
 
   bool get _isLiveFirebase =>
-      (_authOverride != null && _dbOverride != null) ||
+      _authOverride != null ||
+      _dbOverride != null ||
       (firebaseReady && !DefaultFirebaseOptions.isPlaceholder);
 
   /// Create Auth account + `users/{uid}` profile doc with the chosen role.
@@ -203,6 +208,55 @@ class AuthService {
       if (u.uid == uid) return u;
     }
     return _currentUser?.uid == uid ? _currentUser : null;
+  }
+
+  /// Update editable profile fields, return the fresh profile.
+  Future<AppUser> updateProfile({
+    required String uid,
+    required String name,
+    required String phone,
+    String vehicle = '',
+    String plate = '',
+  }) async {
+    if (_isLiveFirebase) {
+      try {
+        await _users.doc(uid).update({
+          'name': name.trim(),
+          'phone': phone.trim(),
+          'vehicle': vehicle.trim(),
+          'plate': plate.trim(),
+        });
+      } catch (_) {}
+    }
+
+    final fresh = await getProfile(uid);
+    final updated = fresh?.copyWith(
+          name: name.trim(),
+          phone: phone.trim(),
+          vehicle: vehicle.trim(),
+          plate: plate.trim(),
+        ) ??
+        AppUser(
+          uid: uid,
+          name: name.trim(),
+          email: _currentUser?.email ?? '',
+          phone: phone.trim(),
+          role: _currentUser?.role ?? AppRole.driver,
+          vehicle: vehicle.trim(),
+          plate: plate.trim(),
+        );
+
+    // Update in mock memory if present
+    for (final entry in _mockUsers.entries) {
+      if (entry.value.uid == uid) {
+        _mockUsers[entry.key] = updated;
+        break;
+      }
+    }
+    if (_currentUser?.uid == uid) {
+      _currentUser = updated;
+    }
+    return updated;
   }
 
   Future<void> signOut() async {

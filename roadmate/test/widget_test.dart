@@ -4,7 +4,11 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:roadmate/main.dart';
 import 'package:roadmate/models/app_user.dart';
 import 'package:roadmate/models/service_request.dart';
+import 'package:fake_cloud_firestore/fake_cloud_firestore.dart';
+import 'package:roadmate/screens/chat_screen.dart';
+import 'package:roadmate/screens/profile_screen.dart';
 import 'package:roadmate/screens/confirm_request_screen.dart';
+import 'package:roadmate/services/chat_service.dart';
 import 'package:roadmate/screens/payment_review_screen.dart';
 import 'package:roadmate/screens/request_success_screen.dart';
 import 'package:roadmate/screens/track_request_screen.dart';
@@ -81,7 +85,7 @@ void main() {
     expect(find.text('Flat Tyre'), findsOneWidget);
     expect(find.text('Jump Start'), findsOneWidget);
     expect(find.text('Fuel Drop'), findsOneWidget);
-    expect(find.text('Toyota Prius • CAB-8492'), findsOneWidget);
+    expect(find.text('Toyota Axio • ABC 1234'), findsOneWidget);
     expect(find.text('Recent Requests'), findsOneWidget);
     expect(find.text('Towing Service'), findsOneWidget);
 
@@ -350,7 +354,7 @@ void main() {
     await tester.pumpWidget(
       const MaterialApp(
         home: RequestSuccessScreen(
-          requestId: 'abc123',
+          refCode: '#RM1058',
           serviceType: AssistanceType.flatTyre,
           address: 'No. 25, Galle Road, Colombo 06',
         ),
@@ -379,7 +383,7 @@ void main() {
     await tester.pumpWidget(
       const MaterialApp(
         home: RequestSuccessScreen(
-          requestId: 'abc123',
+          refCode: '#RM1058',
           serviceType: AssistanceType.flatTyre,
           address: 'No. 25, Galle Road, Colombo 06',
         ),
@@ -392,6 +396,141 @@ void main() {
     await tester.tap(find.text('Back to Home'));
     await tester.pumpAndSettle();
     expect(find.text('Request Submitted!'), findsNothing);
+  });
+
+  testWidgets('AuthGate shows onboarding without Firebase', (
+    WidgetTester tester,
+  ) async {
+    await tester.pumpWidget(const MyApp());
+    await tester.pumpAndSettle();
+    // firebaseReady is false in tests → straight to onboarding.
+    expect(find.text('Help on the road, always with you.'), findsOneWidget);
+  });
+
+  testWidgets('Chat thread shows messages and sends', (
+    WidgetTester tester,
+  ) async {
+    final db = FakeFirebaseFirestore();
+    final chat = ChatService(db: db);
+    const req = ServiceRequest(
+      id: 'req1',
+      driverUid: 'driver1',
+      driverName: 'Kasun',
+      type: AssistanceType.flatTyre,
+      status: RequestStatus.accepted,
+      refCode: '#RM1058',
+      mechanicUid: 'mech1',
+      mechanicName: 'Nimal',
+    );
+    await chat.send(
+      requestId: 'req1',
+      senderUid: 'mech1',
+      senderName: 'Nimal',
+      senderRole: 'mechanic',
+      text: 'On my way, 10 mins',
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: ChatScreen(
+          request: req,
+          senderUid: 'driver1',
+          senderName: 'Kasun',
+          senderRole: 'driver',
+          peerName: 'Nimal',
+          chatService: chat,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Nimal'), findsWidgets);
+    expect(find.text('On my way, 10 mins'), findsOneWidget);
+
+    // Driver replies — bubble appears on the right.
+    await tester.enterText(
+        find.byType(TextField), 'Near Mile Post 42');
+    await tester.pumpAndSettle();
+    await tester.tap(find.byIcon(Icons.send_rounded));
+    await tester.pumpAndSettle();
+    expect(find.text('Near Mile Post 42'), findsOneWidget);
+
+    final all = await chat.watch('req1').first;
+    expect(all, hasLength(2));
+  });
+
+  testWidgets('Profile page shows details, edits, guards save', (
+    WidgetTester tester,
+  ) async {
+    const user = AppUser(
+      uid: 'u1',
+      name: 'Kasun Perera',
+      email: 'kasun@example.com',
+      phone: '+94771234567',
+      role: AppRole.driver,
+      vehicle: 'Toyota Axio',
+      plate: 'ABC 1234',
+    );
+    await tester.pumpWidget(
+      const MaterialApp(home: ProfileScreen(user: user)),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Profile'), findsOneWidget);
+    expect(find.text('Kasun Perera'), findsWidgets);
+    expect(find.text('Personal Details'), findsOneWidget);
+    expect(find.text('Vehicle Details'), findsOneWidget);
+    expect(find.text('Logout'), findsOneWidget);
+
+    // Edit mode enables fields; save without Firebase shows hint.
+    await tester.tap(find.byIcon(Icons.edit_outlined));
+    await tester.pumpAndSettle();
+    expect(find.text('Save Changes'), findsOneWidget);
+    await tester.ensureVisible(find.text('Save Changes'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Save Changes'));
+    await tester.pump();
+    expect(find.textContaining('Firebase not connected'), findsOneWidget);
+  });
+
+  testWidgets('Mechanic profile hides vehicle section', (
+    WidgetTester tester,
+  ) async {
+    const mech = AppUser(
+      uid: 'm1',
+      name: 'Nimal',
+      email: 'n@e.com',
+      phone: '',
+      role: AppRole.mechanic,
+    );
+    await tester.pumpWidget(
+      const MaterialApp(home: ProfileScreen(user: mech)),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('MECHANIC'), findsOneWidget);
+    expect(find.text('Vehicle Details'), findsNothing);
+  });
+
+  testWidgets('Driver avatar opens Profile page', (
+    WidgetTester tester,
+  ) async {
+    const user = AppUser(
+      uid: 'u1',
+      name: 'Kasun Perera',
+      email: 'kasun@example.com',
+      phone: '',
+      role: AppRole.driver,
+    );
+    await tester.pumpWidget(
+      const MaterialApp(home: DriverDashboardScreen(user: user)),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byType(CircleAvatar).first);
+    await tester.pumpAndSettle();
+    expect(find.text('Profile'), findsOneWidget);
+    expect(find.text('Personal Details'), findsOneWidget);
   });
 
   testWidgets('RoleHome routes driver to dashboard, mechanic to jobs', (

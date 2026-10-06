@@ -43,6 +43,24 @@ service cloud.firestore {
               in ['accepted', 'onTheWay', 'completed'])
         );
       allow delete: if false;
+
+      // Per-request chat. Only the driver and the assigned mechanic
+      // of the parent request may read; each writes as themselves.
+      match /messages/{messageId} {
+        function isParty() {
+          return request.auth != null && (
+            get(/databases/$(database)/documents/requests/$(requestId)).data.driverUid == request.auth.uid ||
+            get(/databases/$(database)/documents/requests/$(requestId)).data.mechanicUid == request.auth.uid
+          );
+        }
+        allow read: if isParty();
+        allow create: if isParty()
+          && request.resource.data.senderUid == request.auth.uid
+          && request.resource.data.text is string
+          && request.resource.data.text.size() > 0
+          && request.resource.data.text.size() <= 1000;
+        allow update, delete: if false;
+      }
     }
   }
 }
