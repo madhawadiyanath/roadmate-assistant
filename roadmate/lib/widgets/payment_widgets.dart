@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_typography.dart';
 
@@ -527,6 +528,191 @@ class TransactionListItem extends StatelessWidget {
   }
 }
 
+/// Validates an expiration date string in MM/YY format.
+/// Returns null if valid, or a descriptive error message if invalid.
+String? validateCardExpiry(String? value, {DateTime? now}) {
+  if (value == null || value.trim().isEmpty) {
+    return 'Enter a valid expiration date (MM/YY)';
+  }
+
+  final trimmed = value.trim();
+  final parts = trimmed.split('/');
+  if (parts.length != 2 || parts[0].length != 2 || parts[1].length != 2) {
+    return 'Enter a valid expiration date (MM/YY)';
+  }
+
+  final month = int.tryParse(parts[0]);
+  final year = int.tryParse(parts[1]);
+
+  if (month == null || month < 1 || month > 12) {
+    return 'Enter a valid expiration date (MM/YY)';
+  }
+
+  if (year == null) {
+    return 'Enter a valid expiration date (MM/YY)';
+  }
+
+  final currentDate = now ?? DateTime.now();
+  final fullYear = 2000 + year;
+  final currentYear = currentDate.year;
+  final currentMonth = currentDate.month;
+
+  if (fullYear < currentYear || (fullYear == currentYear && month < currentMonth)) {
+    return 'Card has expired';
+  }
+
+  return null;
+}
+
+/// Custom formatter for card expiration date enforcing strict MM/YY format:
+/// - Only digits allowed.
+/// - Month strictly 01-12 (typing 2-9 auto-prefixes with 0; month 00 or >12 is blocked).
+/// - Automatically places '/' after the 2-digit month.
+/// - Year is strictly 2 digits. Maximum 5 characters total (MM/YY).
+class CardExpiryInputFormatter extends TextInputFormatter {
+  @override
+  TextEditingValue formatEditUpdate(
+    TextEditingValue oldValue,
+    TextEditingValue newValue,
+  ) {
+    final oldText = oldValue.text;
+    final newText = newValue.text;
+
+    // 1. If empty, allow clearing
+    if (newText.isEmpty) {
+      return newValue;
+    }
+
+    // 2. Handle deletion across slash:
+    // If the slash was deleted by the user
+    if (oldText.contains('/') && !newText.contains('/')) {
+      final oldSlashIdx = oldText.indexOf('/');
+      final beforeSlash = oldText.substring(0, oldSlashIdx);
+      final afterSlash = oldText.substring(oldSlashIdx + 1);
+      final shortenedBefore = beforeSlash.isNotEmpty
+          ? beforeSlash.substring(0, beforeSlash.length - 1)
+          : '';
+      if (shortenedBefore.isEmpty && afterSlash.isEmpty) {
+        return const TextEditingValue(text: '');
+      }
+      final newFormatted = afterSlash.isNotEmpty
+          ? '$shortenedBefore/$afterSlash'
+          : shortenedBefore;
+      return TextEditingValue(
+        text: newFormatted,
+        selection: TextSelection.collapsed(offset: shortenedBefore.length),
+      );
+    }
+
+    // 3. User is deleting characters (backspace) within month or year
+    if (newText.length < oldText.length) {
+      return newValue;
+    }
+
+    // 4. User typed '/' or pasted with '/'
+    if (newText.contains('/')) {
+      final parts = newText.split('/');
+      final monthDigits = parts[0].replaceAll(RegExp(r'\D'), '');
+      final yearDigits = parts.length > 1
+          ? parts[1].replaceAll(RegExp(r'\D'), '')
+          : '';
+
+      // If month was a single digit (e.g. typing 1 then / -> 01/)
+      if (monthDigits.length == 1) {
+        final mNum = int.tryParse(monthDigits) ?? 0;
+        if (mNum >= 1 && mNum <= 9) {
+          final padded = '0$monthDigits';
+          final clampedYear = yearDigits.length > 2
+              ? yearDigits.substring(0, 2)
+              : yearDigits;
+          final formatted = '$padded/$clampedYear';
+          return TextEditingValue(
+            text: formatted,
+            selection: TextSelection.collapsed(
+              offset: yearDigits.isEmpty ? 3 : formatted.length,
+            ),
+          );
+        } else {
+          return oldValue;
+        }
+      }
+
+      if (monthDigits.length == 2) {
+        final mNum = int.tryParse(monthDigits) ?? 0;
+        if (mNum < 1 || mNum > 12) {
+          return oldValue;
+        }
+        if (yearDigits.length > 2) {
+          return oldValue;
+        }
+        final formatted = '$monthDigits/$yearDigits';
+        return TextEditingValue(
+          text: formatted,
+          selection: TextSelection.collapsed(offset: formatted.length),
+        );
+      }
+    }
+
+    // 5. User typing numbers without slash
+    final digits = newText.replaceAll(RegExp(r'\D'), '');
+    if (digits.isEmpty) {
+      return const TextEditingValue(text: '');
+    }
+
+    if (digits.length > 4) {
+      return oldValue;
+    }
+
+    final buffer = StringBuffer();
+    final firstChar = digits[0];
+    final firstNum = int.parse(firstChar);
+
+    if (digits.length == 1) {
+      if (firstNum >= 2 && firstNum <= 9) {
+        // Digits 2-9 cannot have another month digit -> auto prefix with 0 and add /
+        buffer.write('0$firstChar/');
+      } else {
+        // 0 or 1
+        buffer.write(firstChar);
+      }
+    } else {
+      // 2 or more digits
+      final monthStr = digits.substring(0, 2);
+      final monthNum = int.parse(monthStr);
+
+      if (monthNum == 0 || monthNum > 12) {
+        return oldValue;
+      }
+
+      buffer.write(monthStr);
+      buffer.write('/');
+
+      if (digits.length > 2) {
+        buffer.write(digits.substring(2));
+      }
+    }
+
+    final formatted = buffer.toString();
+    int cursorPosition = formatted.length;
+    if (newValue.selection.end < newText.length) {
+      cursorPosition = newValue.selection.end;
+      if (formatted.length > newText.length) {
+        cursorPosition += (formatted.length - newText.length);
+      }
+      cursorPosition = cursorPosition.clamp(0, formatted.length);
+    }
+
+    if (cursorPosition == 2 && formatted.length >= 3 && formatted[2] == '/') {
+      cursorPosition = 3;
+    }
+
+    return TextEditingValue(
+      text: formatted,
+      selection: TextSelection.collapsed(offset: cursorPosition),
+    );
+  }
+}
+
 /// Reusable styled text field matching Stitch form inputs.
 class RoadMateTextField extends StatelessWidget {
   final String label;
@@ -537,6 +723,8 @@ class RoadMateTextField extends StatelessWidget {
   final bool obscureText;
   final int? maxLength;
   final String? helperText;
+  final String? errorText;
+  final List<TextInputFormatter>? inputFormatters;
   final Widget? suffix;
   final ValueChanged<String>? onChanged;
 
@@ -550,6 +738,8 @@ class RoadMateTextField extends StatelessWidget {
     this.obscureText = false,
     this.maxLength,
     this.helperText,
+    this.errorText,
+    this.inputFormatters,
     this.suffix,
     this.onChanged,
   });
@@ -566,6 +756,7 @@ class RoadMateTextField extends StatelessWidget {
           keyboardType: keyboardType,
           obscureText: obscureText,
           maxLength: maxLength,
+          inputFormatters: inputFormatters?.cast(),
           onChanged: onChanged,
           style: AppTypography.titleMd(color: AppColors.onSurface),
           decoration: InputDecoration(
@@ -587,16 +778,26 @@ class RoadMateTextField extends StatelessWidget {
             ),
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide.none,
+              borderSide: errorText != null
+                  ? const BorderSide(color: AppColors.error, width: 1.2)
+                  : BorderSide.none,
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
-              borderSide:
-                  const BorderSide(color: AppColors.primary, width: 1.5),
+              borderSide: BorderSide(
+                color: errorText != null ? AppColors.error : AppColors.primary,
+                width: 1.5,
+              ),
             ),
           ),
         ),
-        if (helperText != null) ...[
+        if (errorText != null) ...[
+          const SizedBox(height: 4),
+          Text(
+            errorText!,
+            style: AppTypography.bodySm(color: AppColors.error),
+          ),
+        ] else if (helperText != null) ...[
           const SizedBox(height: 4),
           Text(
             helperText!,
