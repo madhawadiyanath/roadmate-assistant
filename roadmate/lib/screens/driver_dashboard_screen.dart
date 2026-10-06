@@ -1376,7 +1376,7 @@ class _GarageTab extends StatelessWidget {
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (_) => const PaymentMethodsScreen(),
+                  builder: (_) => PaymentMethodsScreen(userUid: user.uid),
                 ),
               );
             },
@@ -1390,7 +1390,7 @@ class _GarageTab extends StatelessWidget {
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (_) => const PaymentHistoryScreen(),
+                  builder: (_) => PaymentHistoryScreen(driverUid: user.uid),
                 ),
               );
             },
