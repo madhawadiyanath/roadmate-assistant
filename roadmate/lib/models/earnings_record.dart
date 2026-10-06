@@ -1,3 +1,5 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+
 /// Earnings record for the service provider (mechanic) side.
 class EarningsRecord {
   final String jobId;
@@ -9,6 +11,7 @@ class EarningsRecord {
   final double netEarnings;
   final String paymentStatus;
   final DateTime completedDate;
+  final String mechanicUid;
 
   const EarningsRecord({
     required this.jobId,
@@ -20,7 +23,49 @@ class EarningsRecord {
     required this.netEarnings,
     this.paymentStatus = 'Completed',
     required this.completedDate,
+    this.mechanicUid = '',
   });
+
+  Map<String, dynamic> toMap() => {
+        'jobId': jobId,
+        'transactionId': transactionId,
+        'serviceType': serviceType,
+        'customerName': customerName,
+        'serviceCharge': serviceCharge,
+        'platformFee': platformFee,
+        'netEarnings': netEarnings,
+        'paymentStatus': paymentStatus,
+        'completedDate': Timestamp.fromDate(completedDate),
+        'mechanicUid': mechanicUid,
+      };
+
+  factory EarningsRecord.fromMap(Map<String, dynamic> data, String id) {
+    DateTime parsedDate = DateTime.now();
+    final cdVal = data['completedDate'];
+    if (cdVal is Timestamp) {
+      parsedDate = cdVal.toDate();
+    } else if (cdVal is String) {
+      parsedDate = DateTime.tryParse(cdVal) ?? DateTime.now();
+    }
+
+    return EarningsRecord(
+      jobId: data['jobId'] as String? ?? id,
+      transactionId: data['transactionId'] as String? ?? '',
+      serviceType: data['serviceType'] as String? ?? '',
+      customerName: data['customerName'] as String? ?? '',
+      serviceCharge: (data['serviceCharge'] as num?)?.toDouble() ?? 0.0,
+      platformFee: (data['platformFee'] as num?)?.toDouble() ?? 0.0,
+      netEarnings: (data['netEarnings'] as num?)?.toDouble() ?? 0.0,
+      paymentStatus: data['paymentStatus'] as String? ?? 'Completed',
+      completedDate: parsedDate,
+      mechanicUid: data['mechanicUid'] as String? ?? '',
+    );
+  }
+
+  factory EarningsRecord.fromDoc(DocumentSnapshot<Map<String, dynamic>> doc) {
+    final data = doc.data() ?? {};
+    return EarningsRecord.fromMap(data, doc.id);
+  }
 }
 
 /// Mock earnings data.
