@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import '../config/firebase_state.dart';
 import '../models/app_user.dart';
 import '../services/auth_service.dart';
 import '../theme/app_colors.dart';
@@ -66,10 +65,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
   }
 
   Future<void> _signUp() async {
-    if (!firebaseReady) {
-      _show('Firebase not connected yet. Add google-services files first.');
-      return;
-    }
+    FocusScope.of(context).unfocus();
     final error = _validate();
     if (error != null) {
       _show(error);
@@ -86,7 +82,9 @@ class _SignUpScreenState extends State<SignUpScreen> {
       );
       if (!mounted) return;
       Navigator.of(context).pushAndRemoveUntil(
-        MaterialPageRoute(builder: (_) => RoleHome(user: user)),
+        MaterialPageRoute(
+          builder: (_) => RoleHome(user: user, authService: _auth),
+        ),
         (_) => false,
       );
     } catch (e) {
