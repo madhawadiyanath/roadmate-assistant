@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../models/earnings_record.dart';
+import '../services/auth_service.dart';
+import '../services/earnings_service.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_typography.dart';
 import '../widgets/payment_widgets.dart';
@@ -8,7 +10,14 @@ import 'earnings_details_screen.dart';
 
 /// Transaction History screen for service providers matching the Stitch design.
 class MechanicTransactionHistoryScreen extends StatefulWidget {
-  const MechanicTransactionHistoryScreen({super.key});
+  final EarningsService? earningsService;
+  final String? mechanicUid;
+
+  const MechanicTransactionHistoryScreen({
+    super.key,
+    this.earningsService,
+    this.mechanicUid,
+  });
 
   @override
   State<MechanicTransactionHistoryScreen> createState() =>
@@ -20,6 +29,27 @@ class _MechanicTransactionHistoryScreenState
   final TextEditingController _searchCtrl = TextEditingController();
   String _selectedType = 'All';
   final List<String> _types = ['All', 'Job Payouts', 'Tips', 'Adjustments'];
+  late List<EarningsRecord> _earningsList;
+
+  EarningsService get _service => widget.earningsService ?? EarningsService();
+  String get _uid =>
+      widget.mechanicUid ?? (AuthService().currentUser?.uid ?? '');
+
+  @override
+  void initState() {
+    super.initState();
+    _earningsList = List.of(mockEarnings);
+    _loadEarnings();
+  }
+
+  Future<void> _loadEarnings() async {
+    try {
+      final list = await _service.getEarnings(mechanicUid: _uid);
+      if (mounted && list.isNotEmpty) {
+        setState(() => _earningsList = list);
+      }
+    } catch (_) {}
+  }
 
   @override
   void dispose() {
@@ -29,7 +59,7 @@ class _MechanicTransactionHistoryScreenState
 
   List<EarningsRecord> get _filteredList {
     final query = _searchCtrl.text.toLowerCase().trim();
-    return mockEarnings.where((e) {
+    return _earningsList.where((e) {
       final matchesQuery = query.isEmpty ||
           e.jobId.toLowerCase().contains(query) ||
           e.transactionId.toLowerCase().contains(query) ||

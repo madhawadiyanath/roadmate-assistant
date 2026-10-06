@@ -210,7 +210,7 @@ class _MechanicDashboardScreenState extends State<MechanicDashboardScreen> {
               onAdvance: _advance,
               onTabSelect: (i) => setState(() => _tab = i),
             ),
-            const _EarningsTab(),
+            _EarningsTab(mechanicUid: _user.uid),
             _MechChatTab(user: _user, assistance: _assist),
           ],
         ),
@@ -1263,11 +1263,15 @@ class _FilterChip extends StatelessWidget {
 // ============================== EARNINGS / CHAT ==============================
 
 class _EarningsTab extends StatelessWidget {
-  const _EarningsTab();
+  final String mechanicUid;
+  const _EarningsTab({this.mechanicUid = ''});
 
   @override
   Widget build(BuildContext context) {
-    return const EarningsDashboardScreen(showBack: false);
+    return EarningsDashboardScreen(
+      showBack: false,
+      mechanicUid: mechanicUid,
+    );
   }
 }
 
