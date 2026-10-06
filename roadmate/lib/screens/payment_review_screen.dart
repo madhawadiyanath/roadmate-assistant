@@ -2,9 +2,13 @@ import 'package:flutter/material.dart';
 
 import '../config/firebase_state.dart';
 import '../models/app_user.dart';
+import '../models/earnings_record.dart';
+import '../models/payment_transaction.dart';
 import '../models/service_request.dart';
 import '../services/assistance_service.dart';
 import '../services/auth_service.dart';
+import '../services/earnings_service.dart';
+import '../services/payment_service.dart';
 import '../theme/app_colors.dart';
 import 'request_success_screen.dart';
 import 'payment_methods_screen.dart';
@@ -73,6 +77,41 @@ class _PaymentReviewScreenState extends State<PaymentReviewScreen> {
         plate: widget.user.vehiclePlate,
         refCode: refCode,
       );
+
+      final txnId =
+          'TXN-${10000000 + DateTime.now().millisecondsSinceEpoch % 90000000}';
+      final tx = PaymentTransaction(
+        transactionId: txnId,
+        jobId: refCode,
+        serviceType: widget.serviceType.label,
+        serviceProvider: 'RoadMate Patrol Specialist',
+        dateTime: DateTime.now(),
+        serviceCharge: fee.fee1,
+        additionalCharges: fee.fee2,
+        totalAmount: fee.total,
+        paymentMethod: _method == 'card'
+            ? 'Mastercard •••• 4242'
+            : (_method == 'wallet' ? 'RoadMate Wallet' : 'Cash on Service'),
+        status: TransactionStatus.completed,
+        driverUid: widget.user.uid,
+        customerName: widget.user.name,
+        vehicleInfo: widget.user.vehicleDisplay,
+      );
+      await PaymentService().recordTransaction(tx);
+
+      final earning = EarningsRecord(
+        jobId: refCode,
+        transactionId: txnId,
+        serviceType: widget.serviceType.label,
+        customerName: widget.user.name,
+        serviceCharge: fee.fee1,
+        platformFee: fee.fee2 > 0 ? (fee.fee2 * 0.2) : 200,
+        netEarnings: fee.fee1,
+        paymentStatus: 'Completed',
+        completedDate: DateTime.now(),
+      );
+      await EarningsService().recordEarning(earning);
+
       if (!mounted) return;
       final result = await Navigator.pushReplacement(
         context,

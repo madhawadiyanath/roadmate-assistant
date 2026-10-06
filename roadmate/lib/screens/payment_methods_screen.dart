@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import '../models/payment_method.dart';
+import '../services/auth_service.dart';
+import '../services/payment_service.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_typography.dart';
 import '../widgets/payment_widgets.dart';
@@ -8,7 +10,14 @@ import 'edit_card_screen.dart';
 
 /// Payment Methods: view saved cards, add new, set default, remove.
 class PaymentMethodsScreen extends StatefulWidget {
-  const PaymentMethodsScreen({super.key});
+  final PaymentService? paymentService;
+  final String? userUid;
+
+  const PaymentMethodsScreen({
+    super.key,
+    this.paymentService,
+    this.userUid,
+  });
 
   @override
   State<PaymentMethodsScreen> createState() => _PaymentMethodsScreenState();
@@ -17,10 +26,26 @@ class PaymentMethodsScreen extends StatefulWidget {
 class _PaymentMethodsScreenState extends State<PaymentMethodsScreen> {
   late List<PaymentMethod> _methods;
 
+  PaymentService get _service => widget.paymentService ?? PaymentService();
+  String get _uid =>
+      widget.userUid ?? (AuthService().currentUser?.uid ?? 'driver_demo');
+
   @override
   void initState() {
     super.initState();
     _methods = List.of(mockPaymentMethods);
+    _loadMethods();
+  }
+
+  Future<void> _loadMethods() async {
+    try {
+      final loaded = await _service.getPaymentMethods(_uid);
+      if (mounted && loaded.isNotEmpty) {
+        setState(() {
+          _methods = loaded;
+        });
+      }
+    } catch (_) {}
   }
 
   void _setDefault(String id) {
@@ -32,6 +57,7 @@ class _PaymentMethodsScreenState extends State<PaymentMethodsScreen> {
         );
       }
     });
+    _service.setDefaultPaymentMethod(uid: _uid, methodId: id);
 
     final selected = _methods.firstWhere((m) => m.id == id, orElse: () => _methods.first);
     if (!mounted) return;
@@ -268,7 +294,11 @@ class _PaymentMethodsScreenState extends State<PaymentMethodsScreen> {
             ),
             onPressed: () {
               Navigator.pop(ctx);
-              setState(() => _methods.removeWhere((m) => m.id == id));
+              setState(() {
+                _methods.removeWhere((m) => m.id == id);
+                mockPaymentMethods.removeWhere((m) => m.id == id);
+              });
+              _service.deletePaymentMethod(uid: _uid, methodId: id);
             },
             child: Text('Yes, Remove',
                 style: AppTypography.labelLg(color: Colors.white)),
@@ -278,27 +308,103 @@ class _PaymentMethodsScreenState extends State<PaymentMethodsScreen> {
     );
   }
 
+  void _syncWithSourceOfTruth() {
+    final mockIds = mockPaymentMethods.map((m) => m.id).toSet();
+    _methods.removeWhere((m) => !mockIds.contains(m.id));
+
+    for (int i = 0; i < _methods.length; i++) {
+      final mock = mockPaymentMethods.firstWhere(
+        (m) => m.id == _methods[i].id,
+        orElse: () => _methods[i],
+      );
+      _methods[i] = mock;
+    }
+
+    for (final mock in mockPaymentMethods) {
+      if (!_methods.any((m) => m.id == mock.id)) {
+        _methods.add(mock);
+      }
+    }
+  }
+
   Future<void> _addCard() async {
     final result = await Navigator.push<PaymentMethod>(
       context,
-      MaterialPageRoute(builder: (_) => const AddCardScreen()),
+      MaterialPageRoute(
+        builder: (_) => AddCardScreen(
+          paymentService: _service,
+          userUid: _uid,
+        ),
+      ),
     );
     if (result != null && mounted) {
-      setState(() => _methods.add(result));
+      _service.addPaymentMethod(uid: _uid, method: result);
+      setState(() {
+        if (result.isDefault) {
+          _methods = _methods.map((m) => m.copyWith(isDefault: false)).toList();
+          for (var i = 0; i < mockPaymentMethods.length; i++) {
+            mockPaymentMethods[i] =
+                mockPaymentMethods[i].copyWith(isDefault: false);
+          }
+        }
+        if (!_methods.any((m) => m.id == result.id)) {
+          _methods.add(result);
+        }
+        if (!mockPaymentMethods.any((m) => m.id == result.id)) {
+          mockPaymentMethods.add(result);
+        }
+      });
     }
   }
 
   Future<void> _editCard(PaymentMethod card) async {
-    final result = await Navigator.push<PaymentMethod>(
+    final result = await Navigator.push<CardActionResult>(
       context,
-      MaterialPageRoute(builder: (_) => EditCardScreen(card: card)),
+      MaterialPageRoute(
+        builder: (_) => EditCardScreen(
+          card: card,
+          paymentService: _service,
+          userUid: _uid,
+        ),
+      ),
     );
-    if (result != null && mounted) {
-      setState(() {
-        final idx = _methods.indexWhere((m) => m.id == card.id);
-        if (idx != -1) _methods[idx] = result;
-      });
+    if (!mounted) return;
+
+    if (result != null) {
+      if (result.type == CardActionType.removed) {
+        _service.deletePaymentMethod(uid: _uid, methodId: result.cardId);
+      } else if (result.type == CardActionType.updated && result.card != null) {
+        _service.updatePaymentMethod(uid: _uid, method: result.card!);
+      }
     }
+
+    setState(() {
+      if (result != null) {
+        if (result.type == CardActionType.removed) {
+          _methods.removeWhere((m) => m.id == result.cardId);
+          mockPaymentMethods.removeWhere((m) => m.id == result.cardId);
+        } else if (result.type == CardActionType.updated && result.card != null) {
+          final updated = result.card!;
+          final idx = _methods.indexWhere((m) => m.id == updated.id);
+          if (idx != -1) {
+            _methods[idx] = updated;
+          }
+          final mockIdx = mockPaymentMethods.indexWhere((m) => m.id == updated.id);
+          if (mockIdx != -1) {
+            mockPaymentMethods[mockIdx] = updated;
+          }
+          if (updated.isDefault) {
+            _methods = _methods.map((m) => m.copyWith(isDefault: m.id == updated.id)).toList();
+            for (var i = 0; i < mockPaymentMethods.length; i++) {
+              mockPaymentMethods[i] = mockPaymentMethods[i].copyWith(
+                isDefault: mockPaymentMethods[i].id == updated.id,
+              );
+            }
+          }
+        }
+      }
+      _syncWithSourceOfTruth();
+    });
   }
 
   @override

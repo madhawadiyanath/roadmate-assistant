@@ -105,9 +105,11 @@ class PaymentConfirmationScreen extends StatelessWidget {
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              Text('Transaction ID',
-                                  style: AppTypography.bodySm(
-                                      color: AppColors.onSurfaceVariant)),
+                              Expanded(
+                                child: Text('Transaction ID',
+                                    style: AppTypography.bodySm(
+                                        color: AppColors.onSurfaceVariant)),
+                              ),
                               Row(
                                 children: [
                                   Text(

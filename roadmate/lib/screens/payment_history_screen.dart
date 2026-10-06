@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import '../models/payment_transaction.dart';
+import '../services/auth_service.dart';
+import '../services/payment_service.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_typography.dart';
 import '../widgets/payment_widgets.dart';
@@ -7,7 +9,14 @@ import 'payment_details_screen.dart';
 
 /// Payment History screen matching the Stitch design.
 class PaymentHistoryScreen extends StatefulWidget {
-  const PaymentHistoryScreen({super.key});
+  final PaymentService? paymentService;
+  final String? driverUid;
+
+  const PaymentHistoryScreen({
+    super.key,
+    this.paymentService,
+    this.driverUid,
+  });
 
   @override
   State<PaymentHistoryScreen> createState() => _PaymentHistoryScreenState();
@@ -17,9 +26,30 @@ class _PaymentHistoryScreenState extends State<PaymentHistoryScreen> {
   final TextEditingController _searchCtrl = TextEditingController();
   String _selectedFilter = 'All';
   String _statusFilter = 'All';
+  late List<PaymentTransaction> _transactions;
+
+  PaymentService get _service => widget.paymentService ?? PaymentService();
+  String get _uid =>
+      widget.driverUid ?? (AuthService().currentUser?.uid ?? '');
 
   final List<String> _dateFilters = ['All', 'This Month', 'Previous'];
   final List<String> _statusFilters = ['All', 'Completed', 'Pending'];
+
+  @override
+  void initState() {
+    super.initState();
+    _transactions = List.of(mockTransactions);
+    _loadTransactions();
+  }
+
+  Future<void> _loadTransactions() async {
+    try {
+      final list = await _service.getTransactions(driverUid: _uid);
+      if (mounted && list.isNotEmpty) {
+        setState(() => _transactions = list);
+      }
+    } catch (_) {}
+  }
 
   @override
   void dispose() {
@@ -28,7 +58,7 @@ class _PaymentHistoryScreenState extends State<PaymentHistoryScreen> {
   }
 
   List<PaymentTransaction> get _filteredTransactions {
-    return mockTransactions.where((tx) {
+    return _transactions.where((tx) {
       final query = _searchCtrl.text.toLowerCase().trim();
       final matchesQuery = query.isEmpty ||
           tx.serviceType.toLowerCase().contains(query) ||
