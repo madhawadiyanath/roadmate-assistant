@@ -7,6 +7,8 @@ import '../services/assistance_service.dart';
 import '../services/auth_service.dart';
 import '../theme/app_colors.dart';
 import 'request_success_screen.dart';
+import 'payment_methods_screen.dart';
+import 'service_charges_screen.dart';
 
 /// Step 3b of the driver flow: rate + pay before the request is sent.
 /// Pops `true` (→ Requests tab), `'home'`, or a tab index, like the rest.
@@ -458,6 +460,48 @@ class _PaymentReviewScreenState extends State<PaymentReviewScreen> {
                       icon: Icons.money_outlined,
                       title: 'Cash on Site',
                       subtitle: 'Driver receipt',
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  GestureDetector(
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const PaymentMethodsScreen(),
+                        ),
+                      );
+                    },
+                    child: const Text(
+                      '+ Manage Payment Methods',
+                      style: TextStyle(
+                        fontSize: 12.5,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.orange,
+                      ),
+                    ),
+                  ),
+                  GestureDetector(
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const ServiceChargesScreen(),
+                        ),
+                      );
+                    },
+                    child: const Text(
+                      'View Pricing Rates',
+                      style: TextStyle(
+                        fontSize: 12.5,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.greyText,
+                      ),
                     ),
                   ),
                 ],
