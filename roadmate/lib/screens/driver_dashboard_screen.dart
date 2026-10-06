@@ -12,6 +12,9 @@ import 'location_screen.dart';
 import 'onboarding_screen.dart';
 import 'select_service_screen.dart';
 import 'track_request_screen.dart';
+import 'payment_methods_screen.dart';
+import 'payment_history_screen.dart';
+import 'service_charges_screen.dart';
 
 /// Driver home after login — matches the RoadMate dashboard design:
 /// header, dispatch banner, rapid-assistance hero, SOS button,
@@ -1231,7 +1234,58 @@ class _GarageTab extends StatelessWidget {
           _DetailRow(label: 'Plate No', value: 'CAB-8492'),
           _DetailRow(label: 'Make / Model', value: 'Toyota Prius'),
           _DetailRow(label: 'Phone', value: user.phone.isEmpty ? '—' : user.phone),
-          const SizedBox(height: 20),
+          const SizedBox(height: 22),
+          const Text(
+            'Payment & Billing',
+            style: TextStyle(
+              fontSize: 17,
+              fontWeight: FontWeight.w800,
+              color: AppColors.navy,
+            ),
+          ),
+          const SizedBox(height: 10),
+          _PaymentNavTile(
+            icon: Icons.credit_card_rounded,
+            title: 'Payment Methods',
+            subtitle: 'Saved cards, RoadMate Wallet, Cash on Service',
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => const PaymentMethodsScreen(),
+                ),
+              );
+            },
+          ),
+          const SizedBox(height: 10),
+          _PaymentNavTile(
+            icon: Icons.receipt_long_rounded,
+            title: 'Payment History',
+            subtitle: 'Invoices, transaction history & digital receipts',
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => const PaymentHistoryScreen(),
+                ),
+              );
+            },
+          ),
+          const SizedBox(height: 10),
+          _PaymentNavTile(
+            icon: Icons.price_check_rounded,
+            title: 'Pricing & Service Charges',
+            subtitle: 'Standard rates, towing estimates & pricing guarantee',
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => const ServiceChargesScreen(),
+                ),
+              );
+            },
+          ),
+          const SizedBox(height: 24),
           SizedBox(
             width: double.infinity,
             height: 50,
@@ -1251,6 +1305,80 @@ class _GarageTab extends StatelessWidget {
           ),
           const SizedBox(height: 16),
         ],
+      ),
+    );
+  }
+}
+
+class _PaymentNavTile extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final VoidCallback onTap;
+
+  const _PaymentNavTile({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(14),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withAlpha(6),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                color: AppColors.fieldFill,
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Icon(icon, color: AppColors.navy, size: 22),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: const TextStyle(
+                      fontSize: 14.5,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.navy,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    subtitle,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: AppColors.greyText,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const Icon(Icons.chevron_right_rounded,
+                color: AppColors.greyText, size: 20),
+          ],
+        ),
       ),
     );
   }
