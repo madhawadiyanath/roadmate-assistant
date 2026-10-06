@@ -8,6 +8,7 @@ import '../services/auth_service.dart';
 import '../theme/app_colors.dart';
 import 'job_details_screen.dart';
 import 'onboarding_screen.dart';
+import 'earnings_dashboard_screen.dart';
 
 /// Mechanic home matching the RoadMate design:
 /// greeting + online pill, hero card, live stat grid, earnings,
@@ -1201,72 +1202,7 @@ class _EarningsTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const SingleChildScrollView(
-      padding: EdgeInsets.symmetric(horizontal: 18),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SizedBox(height: 14),
-          Text(
-            'Earnings',
-            style: TextStyle(
-              fontSize: 22,
-              fontWeight: FontWeight.w800,
-              color: AppColors.navy,
-            ),
-          ),
-          SizedBox(height: 12),
-          _EarningsCard(),
-          SizedBox(height: 12),
-          _EmptyBox(text: 'Per-job payouts will list here.'),
-          SizedBox(height: 20),
-        ],
-      ),
-    );
-  }
-}
-
-class _EarningsCard extends StatelessWidget {
-  const _EarningsCard();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: AppColors.navy,
-        borderRadius: BorderRadius.circular(18),
-      ),
-      child: const Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            "Today's Earnings",
-            style: TextStyle(fontSize: 13, color: Colors.white70),
-          ),
-          SizedBox(height: 4),
-          Row(
-            children: [
-              Text(
-                'Rs. 12,500',
-                style: TextStyle(
-                  fontSize: 28,
-                  fontWeight: FontWeight.w800,
-                  color: Colors.white,
-                ),
-              ),
-              SizedBox(width: 8),
-              _GainPill(text: '+12%'),
-            ],
-          ),
-          SizedBox(height: 4),
-          Text(
-            '12 jobs completed this week',
-            style: TextStyle(fontSize: 12.5, color: Colors.white70),
-          ),
-        ],
-      ),
-    );
+    return const EarningsDashboardScreen(showBack: false);
   }
 }
 
