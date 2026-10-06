@@ -1,5 +1,21 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+
 /// Represents a single payment / earning transaction.
-enum TransactionStatus { completed, pending, failed, refunded }
+enum TransactionStatus {
+  completed,
+  pending,
+  failed,
+  refunded;
+
+  static TransactionStatus fromString(String? val) {
+    return switch (val) {
+      'pending' => TransactionStatus.pending,
+      'failed' => TransactionStatus.failed,
+      'refunded' => TransactionStatus.refunded,
+      _ => TransactionStatus.completed,
+    };
+  }
+}
 
 class PaymentTransaction {
   final String transactionId;
@@ -16,6 +32,7 @@ class PaymentTransaction {
   final String customerName;
   final String vehicleInfo;
   final double distance;
+  final String driverUid;
 
   PaymentTransaction({
     required this.transactionId,
@@ -32,7 +49,60 @@ class PaymentTransaction {
     this.customerName = '',
     this.vehicleInfo = '',
     this.distance = 0,
+    this.driverUid = '',
   }) : dateTime = dateTime ?? DateTime.now();
+
+  Map<String, dynamic> toMap() => {
+        'transactionId': transactionId,
+        'jobId': jobId,
+        'serviceType': serviceType,
+        'serviceProvider': serviceProvider,
+        'serviceCharge': serviceCharge,
+        'additionalCharges': additionalCharges,
+        'platformFee': platformFee,
+        'totalAmount': totalAmount,
+        'paymentMethod': paymentMethod,
+        'status': status.name,
+        'dateTime': Timestamp.fromDate(dateTime),
+        'customerName': customerName,
+        'vehicleInfo': vehicleInfo,
+        'distance': distance,
+        'driverUid': driverUid,
+      };
+
+  factory PaymentTransaction.fromMap(Map<String, dynamic> data, String id) {
+    DateTime parsedDate = DateTime.now();
+    final dtVal = data['dateTime'];
+    if (dtVal is Timestamp) {
+      parsedDate = dtVal.toDate();
+    } else if (dtVal is String) {
+      parsedDate = DateTime.tryParse(dtVal) ?? DateTime.now();
+    }
+
+    return PaymentTransaction(
+      transactionId: data['transactionId'] as String? ?? id,
+      jobId: data['jobId'] as String? ?? '',
+      serviceType: data['serviceType'] as String? ?? '',
+      serviceProvider: data['serviceProvider'] as String? ?? '',
+      serviceCharge: (data['serviceCharge'] as num?)?.toDouble() ?? 0.0,
+      additionalCharges: (data['additionalCharges'] as num?)?.toDouble() ?? 0.0,
+      platformFee: (data['platformFee'] as num?)?.toDouble() ?? 0.0,
+      totalAmount: (data['totalAmount'] as num?)?.toDouble() ?? 0.0,
+      paymentMethod: data['paymentMethod'] as String? ?? 'Card',
+      status: TransactionStatus.fromString(data['status'] as String?),
+      dateTime: parsedDate,
+      customerName: data['customerName'] as String? ?? '',
+      vehicleInfo: data['vehicleInfo'] as String? ?? '',
+      distance: (data['distance'] as num?)?.toDouble() ?? 0.0,
+      driverUid: data['driverUid'] as String? ?? '',
+    );
+  }
+
+  factory PaymentTransaction.fromDoc(
+      DocumentSnapshot<Map<String, dynamic>> doc) {
+    final data = doc.data() ?? {};
+    return PaymentTransaction.fromMap(data, doc.id);
+  }
 
   String get date {
     const months = [
