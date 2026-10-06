@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../models/earnings_record.dart';
+import '../services/auth_service.dart';
+import '../services/earnings_service.dart';
 import 'earnings_details_screen.dart';
 import 'earnings_history_screen.dart';
 import 'mechanic_transaction_history_screen.dart';
@@ -9,11 +11,15 @@ import 'mechanic_transaction_history_screen.dart';
 class EarningsDashboardScreen extends StatefulWidget {
   final bool showBack;
   final bool showBottomNav;
+  final EarningsService? earningsService;
+  final String? mechanicUid;
 
   const EarningsDashboardScreen({
     super.key,
     this.showBack = true,
     this.showBottomNav = false,
+    this.earningsService,
+    this.mechanicUid,
   });
 
   @override
@@ -24,6 +30,27 @@ class EarningsDashboardScreen extends StatefulWidget {
 class _EarningsDashboardScreenState extends State<EarningsDashboardScreen> {
   String _selectedRange = 'This Week';
   final List<String> _ranges = ['Today', 'This Week', 'This Month'];
+  late List<EarningsRecord> _earningsList;
+
+  EarningsService get _service => widget.earningsService ?? EarningsService();
+  String get _uid =>
+      widget.mechanicUid ?? (AuthService().currentUser?.uid ?? '');
+
+  @override
+  void initState() {
+    super.initState();
+    _earningsList = List.of(mockEarnings);
+    _loadEarnings();
+  }
+
+  Future<void> _loadEarnings() async {
+    try {
+      final list = await _service.getEarnings(mechanicUid: _uid);
+      if (mounted && list.isNotEmpty) {
+        setState(() => _earningsList = list);
+      }
+    } catch (_) {}
+  }
 
   // Weekly data bars (Mon to Sun) matching mockup
   final List<Map<String, dynamic>> _weeklyBars = [
@@ -758,7 +785,10 @@ class _EarningsDashboardScreenState extends State<EarningsDashboardScreen> {
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (_) => const EarningsHistoryScreen(),
+                    builder: (_) => EarningsHistoryScreen(
+                      earningsService: _service,
+                      mechanicUid: _uid,
+                    ),
                   ),
                 );
               },
@@ -786,7 +816,7 @@ class _EarningsDashboardScreenState extends State<EarningsDashboardScreen> {
         const SizedBox(height: 12),
 
         // List of transaction cards matching mockup
-        ...mockEarnings.take(3).map((record) {
+        ..._earningsList.take(5).map((record) {
           final isTire = record.serviceType.contains('Tire') ||
               record.serviceType.contains('Wheel') ||
               record.serviceType.contains('Tyre');

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../models/earnings_record.dart';
+import '../services/auth_service.dart';
+import '../services/earnings_service.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_typography.dart';
 import '../widgets/payment_widgets.dart';
@@ -8,7 +10,14 @@ import 'earnings_details_screen.dart';
 
 /// Earnings History screen for mechanics matching the Stitch design.
 class EarningsHistoryScreen extends StatefulWidget {
-  const EarningsHistoryScreen({super.key});
+  final EarningsService? earningsService;
+  final String? mechanicUid;
+
+  const EarningsHistoryScreen({
+    super.key,
+    this.earningsService,
+    this.mechanicUid,
+  });
 
   @override
   State<EarningsHistoryScreen> createState() => _EarningsHistoryScreenState();
@@ -17,17 +26,38 @@ class EarningsHistoryScreen extends StatefulWidget {
 class _EarningsHistoryScreenState extends State<EarningsHistoryScreen> {
   String _selectedRange = 'This Month';
   final List<String> _ranges = ['This Week', 'This Month', 'All Time'];
+  late List<EarningsRecord> _earningsList;
+
+  EarningsService get _service => widget.earningsService ?? EarningsService();
+  String get _uid =>
+      widget.mechanicUid ?? (AuthService().currentUser?.uid ?? '');
+
+  @override
+  void initState() {
+    super.initState();
+    _earningsList = List.of(mockEarnings);
+    _loadEarnings();
+  }
+
+  Future<void> _loadEarnings() async {
+    try {
+      final list = await _service.getEarnings(mechanicUid: _uid);
+      if (mounted && list.isNotEmpty) {
+        setState(() => _earningsList = list);
+      }
+    } catch (_) {}
+  }
 
   List<EarningsRecord> get _filteredEarnings {
     final now = DateTime.now();
     if (_selectedRange == 'This Week') {
       final weekAgo = now.subtract(const Duration(days: 7));
-      return mockEarnings.where((e) => e.completedDate.isAfter(weekAgo)).toList();
+      return _earningsList.where((e) => e.completedDate.isAfter(weekAgo)).toList();
     } else if (_selectedRange == 'This Month') {
       final monthAgo = now.subtract(const Duration(days: 30));
-      return mockEarnings.where((e) => e.completedDate.isAfter(monthAgo)).toList();
+      return _earningsList.where((e) => e.completedDate.isAfter(monthAgo)).toList();
     }
-    return mockEarnings;
+    return _earningsList;
   }
 
   double get _totalFilteredEarnings {
