@@ -1,14 +1,27 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../models/payment_method.dart';
+import '../services/auth_service.dart';
+import '../services/payment_service.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_typography.dart';
 import '../widgets/payment_widgets.dart';
 
+export '../widgets/payment_widgets.dart'
+    show CardExpiryInputFormatter, validateCardExpiry;
+
 /// Edit / Manage Saved Card screen matching the Stitch design.
 class EditCardScreen extends StatefulWidget {
   final PaymentMethod card;
+  final PaymentService? paymentService;
+  final String? userUid;
 
-  const EditCardScreen({super.key, required this.card});
+  const EditCardScreen({
+    super.key,
+    required this.card,
+    this.paymentService,
+    this.userUid,
+  });
 
   @override
   State<EditCardScreen> createState() => _EditCardScreenState();
@@ -19,15 +32,21 @@ class _EditCardScreenState extends State<EditCardScreen> {
   late final TextEditingController _expiryCtrl;
   late bool _isDefault;
   bool _saving = false;
+  String? _expiryError;
+
+  PaymentService get _service => widget.paymentService ?? PaymentService();
+  String get _uid =>
+      widget.userUid ?? (AuthService().currentUser?.uid ?? 'driver_demo');
 
   @override
   void initState() {
     super.initState();
     _nameCtrl = TextEditingController(text: widget.card.holderName);
-    _expiryCtrl = TextEditingController(
-        text: widget.card.expiryMonth.isNotEmpty
-            ? '${widget.card.expiryMonth}/${widget.card.expiryYear}'
-            : '12/28');
+    final initialExpiry = (widget.card.expiryMonth.isNotEmpty &&
+            widget.card.expiryYear.isNotEmpty)
+        ? '${widget.card.expiryMonth.padLeft(2, '0')}/${widget.card.expiryYear}'
+        : '12/28';
+    _expiryCtrl = TextEditingController(text: initialExpiry);
     _isDefault = widget.card.isDefault;
   }
 
@@ -38,27 +57,26 @@ class _EditCardScreenState extends State<EditCardScreen> {
     super.dispose();
   }
 
-  void _formatExpiry(String val) {
-    final digits = val.replaceAll(RegExp(r'\D'), '');
-    String formatted = digits;
-    if (digits.length >= 2) {
-      formatted =
-          '${digits.substring(0, 2)}/${digits.substring(2, digits.length.clamp(2, 4))}';
-    }
-    if (formatted != _expiryCtrl.text) {
-      _expiryCtrl.value = TextEditingValue(
-        text: formatted,
-        selection: TextSelection.collapsed(offset: formatted.length),
-      );
-    }
-    setState(() {});
+  /// Validates the expiration date string.
+  /// Returns null if valid, or a descriptive error message.
+  String? _validateExpiration(String val) {
+    return validateCardExpiry(val);
   }
 
   Future<void> _saveChanges() async {
-    if (_nameCtrl.text.trim().isEmpty || _expiryCtrl.text.trim().length < 5) {
+    final error = _validateExpiration(_expiryCtrl.text);
+    setState(() {
+      _expiryError = error;
+    });
+
+    if (_nameCtrl.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please fill in valid card details')),
+        const SnackBar(content: Text('Please enter cardholder name')),
       );
+      return;
+    }
+
+    if (error != null) {
       return;
     }
 
@@ -69,6 +87,13 @@ class _EditCardScreenState extends State<EditCardScreen> {
     final month = parts.isNotEmpty ? parts[0] : widget.card.expiryMonth;
     final year = parts.length > 1 ? parts[1] : widget.card.expiryYear;
 
+    final updatedCard = widget.card.copyWith(
+      holderName: _nameCtrl.text.trim(),
+      expiryMonth: month,
+      expiryYear: year,
+      isDefault: _isDefault,
+    );
+
     final index = mockPaymentMethods.indexWhere((m) => m.id == widget.card.id);
     if (index != -1) {
       if (_isDefault) {
@@ -77,13 +102,10 @@ class _EditCardScreenState extends State<EditCardScreen> {
               mockPaymentMethods[i].copyWith(isDefault: false);
         }
       }
-      mockPaymentMethods[index] = widget.card.copyWith(
-        holderName: _nameCtrl.text.trim(),
-        expiryMonth: month,
-        expiryYear: year,
-        isDefault: _isDefault,
-      );
+      mockPaymentMethods[index] = updatedCard;
     }
+
+    await _service.updatePaymentMethod(uid: _uid, method: updatedCard);
 
     if (!mounted) return;
     setState(() => _saving = false);
@@ -94,7 +116,7 @@ class _EditCardScreenState extends State<EditCardScreen> {
         backgroundColor: AppColors.successText,
       ),
     );
-    Navigator.pop(context, true);
+    Navigator.pop(context, CardActionResult.updated(updatedCard));
   }
 
   Future<void> _confirmDelete() async {
@@ -148,6 +170,7 @@ class _EditCardScreenState extends State<EditCardScreen> {
 
     if (confirmed == true) {
       mockPaymentMethods.removeWhere((m) => m.id == widget.card.id);
+      await _service.deletePaymentMethod(uid: _uid, methodId: widget.card.id);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -155,7 +178,7 @@ class _EditCardScreenState extends State<EditCardScreen> {
             backgroundColor: AppColors.error,
           ),
         );
-        Navigator.pop(context, true);
+        Navigator.pop(context, CardActionResult.removed(widget.card.id));
       }
     }
   }
@@ -341,7 +364,20 @@ class _EditCardScreenState extends State<EditCardScreen> {
                       keyboardType: TextInputType.number,
                       maxLength: 5,
                       prefixIcon: Icons.calendar_today_outlined,
-                      onChanged: _formatExpiry,
+                      inputFormatters: [
+                        FilteringTextInputFormatter.allow(RegExp(r'[0-9/]')),
+                        CardExpiryInputFormatter(),
+                      ],
+                      errorText: _expiryError,
+                      onChanged: (val) {
+                        if (_expiryError != null) {
+                          setState(() {
+                            _expiryError = null;
+                          });
+                        } else {
+                          setState(() {});
+                        }
+                      },
                     ),
                     const SizedBox(height: 20),
 
