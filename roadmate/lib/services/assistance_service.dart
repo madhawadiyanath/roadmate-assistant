@@ -138,6 +138,7 @@ class AssistanceService {
       await NotificationService(db: _db).createRequestAccepted(
         driverUid: resolvedDriverUid,
         mechanicName: mechanicName,
+        senderUid: mechanicUid,
         requestId: requestId,
       );
     }
