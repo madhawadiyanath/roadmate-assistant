@@ -9,6 +9,7 @@ import '../services/vehicle_service.dart';
 import '../theme/app_colors.dart';
 import '../widgets/auth_widgets.dart';
 import 'payment_review_screen.dart';
+import 'saved_vehicles_screen.dart';
 
 /// Step 3 of the driver flow: review service, location, vehicle and
 /// contact, then submit. Pops `true` when the request was created,
@@ -56,6 +57,20 @@ class _ConfirmRequestScreenState extends State<ConfirmRequestScreen> {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
   }
 
+  /// Same page as Profile → Vehicle Information, so a driver with no
+  /// default vehicle can add one. The row above updates live on return.
+  void _openGarage() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => SavedVehiclesScreen(
+          uid: widget.user.uid,
+          service: widget.vehicleService,
+        ),
+      ),
+    );
+  }
+
   /// Review payment + rating first. That page creates the request,
   /// shows the success receipt, and pops the onward result — forwarded up.
   Future<void> _submit() async {
@@ -67,6 +82,7 @@ class _ConfirmRequestScreenState extends State<ConfirmRequestScreen> {
           serviceType: widget.serviceType,
           address: widget.address,
           assistanceService: widget.assistanceService,
+          vehicleService: widget.vehicleService,
         ),
       ),
     );
@@ -224,7 +240,7 @@ class _ConfirmRequestScreenState extends State<ConfirmRequestScreen> {
                             ? 'No vehicle selected'
                             : _vehicleTitle(snap),
                         chevron: true,
-                        onTap: () => _snack('Vehicle editing coming soon.'),
+                        onTap: _openGarage,
                       ),
                     ),
                     const Divider(height: 1, color: Color(0xFFEDF1F7)),

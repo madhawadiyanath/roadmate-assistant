@@ -79,6 +79,49 @@ void main() {
       await pump(tester);
       expect(find.text('No vehicle selected'), findsOneWidget);
     });
+
+    testWidgets('Vehicle row opens Saved Vehicles; adding one fills the row',
+        (tester) async {
+      await pump(tester, service: vehicles);
+      expect(find.text('No vehicle selected'), findsOneWidget);
+
+      await tester.tap(find.text('No vehicle selected'));
+      await tester.pumpAndSettle();
+      expect(find.text('Saved Vehicles'), findsOneWidget);
+      expect(find.text('Vehicle editing coming soon.'), findsNothing);
+
+      // Add a vehicle from there.
+      await tester.tap(find.text('Add Vehicle'));
+      await tester.pumpAndSettle();
+      final fields = find.byType(TextField);
+      await tester.enterText(fields.at(0), 'Nissan');
+      await tester.enterText(fields.at(1), 'Leaf');
+      await tester.enterText(fields.at(2), '2019');
+      await tester.enterText(fields.at(3), 'cba 5555');
+      await tester.ensureVisible(find.text('Save Vehicle'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Save Vehicle'));
+      await tester.pumpAndSettle();
+      expect(find.text('Saved Vehicles'), findsOneWidget);
+      expect(find.text('Nissan Leaf'), findsOneWidget);
+
+      // Back on Confirm Request the row shows the new default vehicle.
+      await tester.pump(const Duration(seconds: 5)); // snackbar timer
+      await tester.pumpAndSettle();
+      await tester.tap(find.byTooltip('Back'));
+      await tester.pumpAndSettle();
+      expect(find.text('Confirm Request'), findsOneWidget);
+      expect(find.text('Nissan Leaf (CBA 5555)'), findsOneWidget);
+    });
+
+    testWidgets('Vehicle row still opens the garage without Firebase',
+        (tester) async {
+      await pump(tester);
+      await tester.tap(find.text('No vehicle selected'));
+      await tester.pumpAndSettle();
+      expect(find.text('Saved Vehicles'), findsOneWidget);
+      expect(find.text('Firebase not connected'), findsOneWidget);
+    });
   });
 
   group('Payment snapshots the default vehicle onto the request', () {
