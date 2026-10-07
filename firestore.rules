@@ -12,6 +12,46 @@ service cloud.firestore {
         && request.auth.uid == uid
         && request.resource.data.role in ['driver', 'mechanic'];
       allow delete: if false;
+
+      // ---- Per-user data (Vehicle / Contacts / Notifications module) ----
+
+      // Saved vehicles: the owner has full control.
+      match /vehicles/{vehicleId} {
+        allow read, delete: if request.auth != null && request.auth.uid == uid;
+        allow create, update: if request.auth != null
+          && request.auth.uid == uid
+          && request.resource.data.make is string
+          && request.resource.data.model is string
+          && request.resource.data.plateNo is string
+          && request.resource.data.plateNo.size() > 0
+          && request.resource.data.year is int;
+      }
+
+      // Emergency contacts: the owner has full control.
+      match /emergencyContacts/{contactId} {
+        allow read, delete: if request.auth != null && request.auth.uid == uid;
+        allow create, update: if request.auth != null
+          && request.auth.uid == uid
+          && request.resource.data.name is string
+          && request.resource.data.name.size() > 0
+          && request.resource.data.phone is string
+          && request.resource.data.phone.size() > 0;
+      }
+
+      // Notifications: only the owner reads them and may flip `read`.
+      // Any signed-in user may *create* one for someone else (e.g. a mechanic
+      // notifying the driver), but must stamp their own uid as senderUid and
+      // can only create it unread.
+      match /notifications/{notificationId} {
+        allow read, delete: if request.auth != null && request.auth.uid == uid;
+        allow create: if request.auth != null
+          && request.resource.data.senderUid == request.auth.uid
+          && request.resource.data.read == false;
+        allow update: if request.auth != null
+          && request.auth.uid == uid
+          && request.resource.data.diff(resource.data).affectedKeys()
+            .hasOnly(['read']);
+      }
     }
 
     // Assistance requests.
