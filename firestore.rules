@@ -12,6 +12,43 @@ service cloud.firestore {
         && request.auth.uid == uid
         && request.resource.data.role in ['driver', 'mechanic'];
       allow delete: if false;
+
+      // Saved vehicles (the driver's garage). Owner only.
+      match /vehicles/{vehicleId} {
+        allow read, delete: if request.auth != null && request.auth.uid == uid;
+        allow create, update: if request.auth != null
+          && request.auth.uid == uid
+          && request.resource.data.make is string
+          && request.resource.data.model is string
+          && request.resource.data.plateNo is string
+          && request.resource.data.plateNo.size() > 0
+          && request.resource.data.year is int;
+      }
+
+      // Emergency contacts. Owner only.
+      match /emergencyContacts/{contactId} {
+        allow read, delete: if request.auth != null && request.auth.uid == uid;
+        allow create, update: if request.auth != null
+          && request.auth.uid == uid
+          && request.resource.data.name is string
+          && request.resource.data.name.size() > 0
+          && request.resource.data.phone is string
+          && request.resource.data.phone.size() > 0;
+      }
+
+      // Inbox. Anyone signed in may drop a notification into it (stamped
+      // with their own uid, unread); only the owner reads, marks read
+      // (the `read` field is the only editable one) or deletes.
+      match /notifications/{notificationId} {
+        allow read, delete: if request.auth != null && request.auth.uid == uid;
+        allow create: if request.auth != null
+          && request.resource.data.senderUid == request.auth.uid
+          && request.resource.data.read == false;
+        allow update: if request.auth != null
+          && request.auth.uid == uid
+          && request.resource.data.diff(resource.data).affectedKeys()
+            .hasOnly(['read']);
+      }
     }
 
     // Assistance requests.
