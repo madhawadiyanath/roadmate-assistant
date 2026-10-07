@@ -75,6 +75,14 @@ class AssistanceService {
   Future<void> cancelRequest(String requestId) =>
       _requests.doc(requestId).update({'status': RequestStatus.cancelled.name});
 
+  /// Live list of EVERY request (admin oversight), newest first.
+  Stream<List<ServiceRequest>> watchAllRequests() {
+    return _requests
+        .limit(50)
+        .snapshots()
+        .map((s) => _newestFirst(s.docs.map(ServiceRequest.fromDoc)));
+  }
+
   /// Live view of one request — powers driver tracking.
   Stream<ServiceRequest?> watchRequest(String requestId) {
     return _requests.doc(requestId).snapshots().map(

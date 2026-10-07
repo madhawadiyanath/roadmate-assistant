@@ -86,6 +86,14 @@ class AuthService {
     return AppUser.fromMap(uid, doc.data()!);
   }
 
+  /// Live list of every user (admin oversight — rules allow admins only).
+  Stream<List<AppUser>> watchAllUsers() {
+    return _users.limit(100).snapshots().map(
+          (s) => s.docs.map((d) => AppUser.fromMap(d.id, d.data())).toList()
+            ..sort((a, b) => a.name.compareTo(b.name)),
+        );
+  }
+
   /// Update editable profile fields, return the fresh profile.
   Future<AppUser> updateProfile({
     required String uid,

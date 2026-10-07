@@ -1,14 +1,29 @@
 rules_version = '2';
 // RoadMate Firestore rules — role is stored at users/{uid}.role
-// ("driver" or "mechanic"). Deploy: firebase deploy --only firestore:rules
+// ("driver", "mechanic", or console-created "admin").
+// Admins can ONLY be made in the Firebase console: the create rule below
+// rejects role == 'admin', so the app can never self-promote anyone.
+// Deploy: firebase deploy --only firestore:rules
 service cloud.firestore {
   match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+    // Own role lookup. Short-circuit (`||` first) keeps own-doc reads
+    // free of extra get() charges.
+    function isAdmin() {
+      return signedIn()
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+
     match /users/{uid} {
-      allow create: if request.auth != null
+      // App sign-up: driver/mechanic only. Admins come from the console.
+      allow create: if signedIn()
         && request.auth.uid == uid
         && request.resource.data.role in ['driver', 'mechanic'];
-      allow read: if request.auth != null && request.auth.uid == uid;
-      allow update: if request.auth != null
+      allow read: if signedIn()
+        && (request.auth.uid == uid || isAdmin());
+      allow update: if signedIn()
         && request.auth.uid == uid
         && request.resource.data.role in ['driver', 'mechanic'];
       allow delete: if false;
@@ -20,14 +35,15 @@ service cloud.firestore {
     // - Mechanic claims a pending job (accept), then advances its status.
     // - Driver reads own requests and may cancel them.
     match /requests/{requestId} {
-      allow create: if request.auth != null
+      allow create: if signedIn()
         && request.resource.data.driverUid == request.auth.uid
         && request.resource.data.status == 'pending';
-      allow read: if request.auth != null
+      allow read: if signedIn()
         && (resource.data.driverUid == request.auth.uid
           || resource.data.mechanicUid == request.auth.uid
-          || resource.data.status == 'pending');
-      allow update: if request.auth != null
+          || resource.data.status == 'pending'
+          || isAdmin());
+      allow update: if signedIn()
         && (
           // Driver cancels own request.
           (resource.data.driverUid == request.auth.uid
@@ -41,6 +57,8 @@ service cloud.firestore {
             && request.resource.data.mechanicUid == request.auth.uid
             && request.resource.data.status
               in ['accepted', 'onTheWay', 'completed'])
+          // Admin oversight (reassign / cancel any request).
+          || isAdmin()
         );
       allow delete: if false;
 
@@ -53,7 +71,7 @@ service cloud.firestore {
             get(/databases/$(database)/documents/requests/$(requestId)).data.mechanicUid == request.auth.uid
           );
         }
-        allow read: if isParty();
+        allow read: if isParty() || isAdmin();
         allow create: if isParty()
           && request.resource.data.senderUid == request.auth.uid
           && request.resource.data.text is string
