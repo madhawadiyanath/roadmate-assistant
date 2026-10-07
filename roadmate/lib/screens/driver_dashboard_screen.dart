@@ -10,7 +10,7 @@ import '../widgets/auth_widgets.dart';
 import '../widgets/tow_truck_illustration.dart';
 import 'location_screen.dart';
 import 'onboarding_screen.dart';
-import 'profile_screen.dart';
+import 'saved_vehicles_screen.dart';
 import 'select_service_screen.dart';
 import 'track_request_screen.dart';
 
@@ -141,7 +141,7 @@ class _DriverDashboardScreenState extends State<DriverDashboardScreen> {
               user: widget.user,
               onTab: (i) => setState(() => _tab = i),
             ),
-            _GarageTab(user: widget.user, onLogout: _logout),
+            SavedVehiclesView(user: widget.user),
             const _ChatTab(),
           ],
         ),
@@ -1203,81 +1203,6 @@ String formatDate(DateTime? d) {
 }
 
 // ============================== GARAGE / CHAT ==============================
-
-class _GarageTab extends StatelessWidget {
-  final AppUser user;
-  final VoidCallback onLogout;
-  const _GarageTab({required this.user, required this.onLogout});
-
-  @override
-  Widget build(BuildContext context) {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.symmetric(horizontal: 18),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const SizedBox(height: 14),
-          const Text(
-            'My Garage',
-            style: TextStyle(
-              fontSize: 22,
-              fontWeight: FontWeight.w800,
-              color: AppColors.navy,
-            ),
-          ),
-          const SizedBox(height: 14),
-          const _VehicleCard(),
-          const SizedBox(height: 12),
-          _DetailRow(label: 'Owner', value: user.name.isEmpty ? '—' : user.name),
-          _DetailRow(label: 'Plate No', value: 'CAB-8492'),
-          _DetailRow(label: 'Make / Model', value: 'Toyota Prius'),
-          _DetailRow(label: 'Phone', value: user.phone.isEmpty ? '—' : user.phone),
-          const SizedBox(height: 20),
-          SizedBox(
-            width: double.infinity,
-            height: 50,
-            child: FilledButton.icon(
-              onPressed: () => Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => ProfileScreen(user: user),
-                ),
-              ),
-              style: FilledButton.styleFrom(
-                backgroundColor: AppColors.navy,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-              ),
-              icon: const Icon(Icons.person_rounded, size: 20),
-              label: const Text('My Profile',
-                  style: TextStyle(fontWeight: FontWeight.w700)),
-            ),
-          ),
-          const SizedBox(height: 10),
-          SizedBox(
-            width: double.infinity,
-            height: 50,
-            child: OutlinedButton.icon(
-              onPressed: onLogout,
-              style: OutlinedButton.styleFrom(
-                foregroundColor: Colors.red,
-                side: const BorderSide(color: Colors.red),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-              ),
-              icon: const Icon(Icons.logout_rounded, size: 20),
-              label: const Text('Logout',
-                  style: TextStyle(fontWeight: FontWeight.w700)),
-            ),
-          ),
-          const SizedBox(height: 16),
-        ],
-      ),
-    );
-  }
-}
 
 class _DetailRow extends StatelessWidget {
   final String label;

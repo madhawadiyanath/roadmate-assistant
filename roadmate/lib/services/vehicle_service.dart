@@ -31,6 +31,12 @@ class VehicleService {
     });
   }
 
+  /// Live view of one vehicle; emits null once it has been deleted.
+  Stream<Vehicle?> watchVehicle(String uid, String vehicleId) {
+    return _col(uid).doc(vehicleId).snapshots().map((d) =>
+        d.exists && d.data() != null ? Vehicle.fromMap(d.id, d.data()!) : null);
+  }
+
   Future<Vehicle?> getVehicle(String uid, String vehicleId) async {
     final doc = await _col(uid).doc(vehicleId).get();
     if (!doc.exists || doc.data() == null) return null;
