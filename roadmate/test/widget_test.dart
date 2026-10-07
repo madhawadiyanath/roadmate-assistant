@@ -85,7 +85,7 @@ void main() {
     expect(find.text('Flat Tyre'), findsOneWidget);
     expect(find.text('Jump Start'), findsOneWidget);
     expect(find.text('Fuel Drop'), findsOneWidget);
-    expect(find.text('Toyota Axio • ABC 1234'), findsOneWidget);
+    expect(find.text('No vehicle saved — tap to add'), findsOneWidget);
     expect(find.text('Recent Requests'), findsOneWidget);
     expect(find.text('Towing Service'), findsOneWidget);
 

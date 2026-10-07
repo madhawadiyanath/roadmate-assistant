@@ -37,6 +37,16 @@ class VehicleService {
     });
   }
 
+  /// One-shot read of the default vehicle (null when the garage is empty);
+  /// used when a request snapshots the vehicle it was made for.
+  Future<Vehicle?> getDefaultVehicle(String uid) async {
+    final all = await _vehicles(uid).get();
+    for (final d in all.docs) {
+      if (d.data()['isDefault'] == true) return Vehicle.fromMap(d.id, d.data());
+    }
+    return null;
+  }
+
   /// Save a new vehicle and return its id. The first vehicle (or any
   /// vehicle added to a garage without a default) becomes the default;
   /// the incoming [Vehicle.isDefault] flag is ignored.

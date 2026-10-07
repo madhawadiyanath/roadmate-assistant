@@ -5,6 +5,7 @@ import '../models/app_user.dart';
 import '../models/service_request.dart';
 import '../services/assistance_service.dart';
 import '../services/auth_service.dart';
+import '../services/vehicle_service.dart';
 import '../theme/app_colors.dart';
 import 'request_success_screen.dart';
 
@@ -15,6 +16,7 @@ class PaymentReviewScreen extends StatefulWidget {
   final AssistanceType serviceType;
   final String address;
   final AssistanceService? assistanceService;
+  final VehicleService? vehicleService;
 
   const PaymentReviewScreen({
     super.key,
@@ -22,6 +24,7 @@ class PaymentReviewScreen extends StatefulWidget {
     required this.serviceType,
     required this.address,
     this.assistanceService,
+    this.vehicleService,
   });
 
   @override
@@ -58,6 +61,9 @@ class _PaymentReviewScreenState extends State<PaymentReviewScreen> {
       final fee = feeFor(widget.serviceType);
       // Stable code generated up-front so the receipt shows the same one.
       final refCode = generateRefCode();
+      // Snapshot of the user's default vehicle (none saved → left blank).
+      final vehicle = await (widget.vehicleService ?? VehicleService())
+          .getDefaultVehicle(widget.user.uid);
       await _assist.createRequest(
         driverUid: widget.user.uid,
         driverName: widget.user.name,
@@ -67,8 +73,8 @@ class _PaymentReviewScreenState extends State<PaymentReviewScreen> {
         rating: _rating,
         feedback: _feedback.text.trim(),
         totalFee: fee.total,
-        vehicle: widget.user.vehicleName,
-        plate: widget.user.vehiclePlate,
+        vehicle: vehicle?.name ?? '',
+        plate: vehicle?.plateNo ?? '',
         refCode: refCode,
       );
       if (!mounted) return;
@@ -79,7 +85,7 @@ class _PaymentReviewScreenState extends State<PaymentReviewScreen> {
             refCode: refCode,
             serviceType: widget.serviceType,
             address: widget.address,
-            vehicleDisplay: widget.user.vehicleDisplay,
+            vehicleDisplay: vehicle?.display ?? 'No vehicle selected',
           ),
         ),
       );

@@ -809,11 +809,9 @@ class _QuickCard extends StatelessWidget {
   }
 }
 
-/// Home-tab vehicle card: shows the driver's default saved vehicle.
-///
-/// Falls back to the vehicle typed on the profile (legacy fields) when
-/// Firebase is not connected or nothing is saved yet, and invites the
-/// driver to add one when neither exists.
+/// Home-tab vehicle card: shows the driver's default saved vehicle, or
+/// invites them to add one when there is none (or Firebase is not
+/// connected).
 class _VehicleCard extends StatefulWidget {
   final AppUser user;
   final VehicleService? service;
@@ -848,29 +846,21 @@ class _VehicleCardState extends State<_VehicleCard> {
         : null;
   }
 
-  /// Profile-typed vehicle, or null when the profile has none.
-  String? get _legacy =>
-      widget.user.vehicle.isEmpty ? null : widget.user.vehicleDisplay;
+  static const _none = 'No vehicle saved — tap to add';
 
   @override
   Widget build(BuildContext context) {
     final stream = _stream;
-    if (stream == null) {
-      // No Firebase: keep the profile/demo label the app always showed.
-      return _card(widget.user.vehicleDisplay);
-    }
+    if (stream == null) return _card(_none, active: false);
     return StreamBuilder<Vehicle?>(
       stream: stream,
       builder: (context, snap) {
-        if (snap.hasError) return _card(_legacy ?? 'Vehicle unavailable');
+        if (snap.hasError) return _card('Vehicle unavailable', active: false);
         if (snap.connectionState == ConnectionState.waiting) {
           return _card('Loading…');
         }
         final v = snap.data;
-        if (v != null) return _card(v.display);
-        return _legacy != null
-            ? _card(_legacy!)
-            : _card('No vehicle saved — tap to add', active: false);
+        return v != null ? _card(v.display) : _card(_none, active: false);
       },
     );
   }

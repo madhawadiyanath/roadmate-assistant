@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 
-import '../models/app_user.dart';
 import '../models/service_request.dart';
 import '../theme/app_colors.dart';
 
@@ -18,7 +17,7 @@ class RequestSuccessScreen extends StatelessWidget {
     required this.refCode,
     required this.serviceType,
     required this.address,
-    this.vehicleDisplay = '$demoVehicleName • $demoVehiclePlate',
+    this.vehicleDisplay = 'No vehicle selected',
   });
 
   String get _refCode => refCode;

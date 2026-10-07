@@ -1,7 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
-import 'app_user.dart';
-
 /// Types of roadside assistance a driver can request.
 enum AssistanceType {
   flatTyre('Flat Tyre', '~12 min'),
@@ -81,11 +79,10 @@ class ServiceRequest {
     this.createdAt,
   });
 
-  /// Display for the request's vehicle, with demo fallback.
+  /// Display for the request's vehicle ("Toyota Corolla • CAK 1234").
   String get vehicleDisplay {
-    final v = vehicle.isEmpty ? demoVehicleName : vehicle;
-    final p = plate.isEmpty ? demoVehiclePlate : plate;
-    return '$v • $p';
+    if (vehicle.isEmpty) return 'No vehicle selected';
+    return plate.isEmpty ? vehicle : '$vehicle • $plate';
   }
 
   Map<String, dynamic> toMap() => {

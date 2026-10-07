@@ -46,7 +46,7 @@ class Vehicle {
   /// "Toyota Corolla" — the label used across the app.
   String get name => '$make $model'.trim();
 
-  /// "Toyota Corolla • CAK 1234" — same shape as `AppUser.vehicleDisplay`.
+  /// "Toyota Corolla • CAK 1234".
   String get display => '$name • $plateNo';
 
   Vehicle copyWith({
