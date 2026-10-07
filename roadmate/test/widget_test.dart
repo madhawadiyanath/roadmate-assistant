@@ -595,6 +595,15 @@ void main() {
     expect(find.text('kasun@example.com'), findsOneWidget);
     expect(find.text('Admins are created in the Firebase console only.'),
         findsOneWidget);
+
+    // Payments tab shows revenue analysis (demo without Firebase).
+    await tester.tap(find.text('Payments'));
+    await tester.pumpAndSettle();
+    expect(find.text('Revenue (paid)'), findsOneWidget);
+    expect(find.text('Rs. 24500'), findsOneWidget);
+    expect(find.text('Paid vs Pending'), findsOneWidget);
+    expect(find.text('Revenue by Method'), findsOneWidget);
+    expect(find.text('Daily Revenue'), findsOneWidget);
   });
 
   testWidgets('Receipt shows invoice with PAID stamp', (
