@@ -5,6 +5,7 @@ import '../services/auth_service.dart';
 import '../theme/app_colors.dart';
 import '../widgets/auth_widgets.dart';
 import '../widgets/role_selector.dart';
+import 'google_sign_in_flow.dart';
 import 'role_home.dart';
 import 'sign_in_screen.dart';
 
@@ -24,6 +25,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
 
   AppRole _role = AppRole.driver;
   bool _loading = false;
+  bool _googleBusy = false;
 
   AuthService get _auth => widget.authService ?? AuthService();
 
@@ -93,6 +95,16 @@ class _SignUpScreenState extends State<SignUpScreen> {
       _show(AuthService.friendlyMessage(e));
     } finally {
       if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _google() async {
+    if (_googleBusy) return;
+    setState(() => _googleBusy = true);
+    try {
+      await continueWithGoogle(context, auth: _auth, initialRole: _role);
+    } finally {
+      if (mounted) setState(() => _googleBusy = false);
     }
   }
 
@@ -191,18 +203,10 @@ class _SignUpScreenState extends State<SignUpScreen> {
                       onPressed: _signUp,
                     ),
                     const OrDivider(),
-                    const SocialAuthButton(
+                    SocialAuthButton(
                       text: 'Continue with Google',
-                      icon: GoogleBadge(),
-                    ),
-                    const SizedBox(height: 10),
-                    const SocialAuthButton(
-                      text: 'Continue with Apple',
-                      icon: Icon(
-                        Icons.apple,
-                        size: 22,
-                        color: AppColors.navyDark,
-                      ),
+                      icon: const GoogleBadge(),
+                      onPressed: _google,
                     ),
                   ],
                 ),

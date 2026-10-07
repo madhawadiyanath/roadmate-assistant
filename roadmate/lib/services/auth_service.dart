@@ -109,6 +109,61 @@ class AuthService {
         );
   }
 
+  // ------------------------- Google sign-in -------------------------
+
+  /// "Continue with Google" via Firebase's own provider flow (no extra
+  /// package). Returns the existing profile, or — for someone signing in
+  /// for the first time — a [GoogleSignInOutcome.newUser] that still needs
+  /// a role: nothing is written to `users/{uid}` until [createProfile] runs.
+  ///
+  /// If the Google email already has an email/password account Firebase
+  /// links them (default behaviour) and that account's profile is returned.
+  Future<GoogleSignInOutcome> signInWithGoogle() async {
+    final cred = await _auth.signInWithProvider(GoogleAuthProvider());
+    final fbUser = cred.user;
+    if (fbUser == null) {
+      throw FirebaseAuthException(
+        code: 'null-user',
+        message: 'Google sign-in did not return a user.',
+      );
+    }
+    final profile = await getProfile(fbUser.uid);
+    if (profile != null) return GoogleSignInOutcome.existing(profile);
+    return GoogleSignInOutcome.newUser(
+      uid: fbUser.uid,
+      name: fbUser.displayName ?? '',
+      email: fbUser.email ?? '',
+    );
+  }
+
+  /// Create the `users/{uid}` doc for a signed-in user that has none yet
+  /// (Google sign-in, after they picked a role).
+  Future<AppUser> createProfile({
+    required String uid,
+    required String name,
+    required String email,
+    required AppRole role,
+    String phone = '',
+  }) async {
+    final user = AppUser(
+      uid: uid,
+      name: name.trim(),
+      email: email.trim(),
+      phone: phone.trim(),
+      role: role,
+    );
+    await _users.doc(uid).set(user.toMap());
+    return user;
+  }
+
+  /// True when the user simply closed/cancelled the Google sheet.
+  static bool isCancelled(Object e) =>
+      e is FirebaseAuthException &&
+      (e.code == 'canceled' ||
+          e.code == 'web-context-canceled' ||
+          e.code == 'popup-closed-by-user' ||
+          e.code == 'cancelled-popup-request');
+
   Future<void> signOut() => _auth.signOut();
 
   /// Human-readable message for auth errors shown in SnackBars.
@@ -131,6 +186,12 @@ class AuthService {
           return 'Too many attempts. Try again in a minute.';
         case 'network-request-failed':
           return 'No internet connection. Check and retry.';
+        case 'account-exists-with-different-credential':
+          return 'An account already exists with this email. '
+              'Sign in with your password instead.';
+        case 'canceled':
+        case 'web-context-canceled':
+          return 'Sign-in was cancelled.';
         case 'permission-denied':
           return 'Database access denied. Check Firestore rules.';
         default:
@@ -142,4 +203,35 @@ class AuthService {
     }
     return 'Something went wrong. Try again.';
   }
+}
+
+/// Result of [AuthService.signInWithGoogle]: either a returning user
+/// ([profile] set) or a first-time user who still has to choose a role.
+class GoogleSignInOutcome {
+  final AppUser? profile;
+  final String uid;
+  final String name;
+  final String email;
+
+  const GoogleSignInOutcome._({
+    this.profile,
+    required this.uid,
+    required this.name,
+    required this.email,
+  });
+
+  factory GoogleSignInOutcome.existing(AppUser profile) => GoogleSignInOutcome._(
+        profile: profile,
+        uid: profile.uid,
+        name: profile.name,
+        email: profile.email,
+      );
+
+  const GoogleSignInOutcome.newUser({
+    required String uid,
+    required String name,
+    required String email,
+  }) : this._(uid: uid, name: name, email: email);
+
+  bool get isNewUser => profile == null;
 }

@@ -5,6 +5,7 @@ import '../config/firebase_state.dart';
 import '../models/app_user.dart';
 import '../services/auth_service.dart';
 import '../theme/app_colors.dart';
+import 'choose_role_screen.dart';
 import 'onboarding_screen.dart';
 import 'role_home.dart';
 
@@ -43,14 +44,16 @@ class AuthGate extends StatelessWidget {
                 ),
               );
             }
-            final profile = prof.data ??
-                AppUser(
-                  uid: fbUser.uid,
-                  name: fbUser.displayName ?? '',
-                  email: fbUser.email ?? '',
-                  phone: '',
-                  role: AppRole.driver,
-                );
+            final profile = prof.data;
+            if (profile == null) {
+              // Signed in (e.g. Google) but never picked a role.
+              return ChooseRoleScreen(
+                uid: fbUser.uid,
+                name: fbUser.displayName ?? '',
+                email: fbUser.email ?? '',
+                authService: authService,
+              );
+            }
             return RoleHome(user: profile);
           },
         );
