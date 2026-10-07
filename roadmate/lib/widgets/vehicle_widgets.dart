@@ -282,16 +282,16 @@ class VehicleDetailRows extends StatelessWidget {
                 children: [
                   Icon(rows[i].$1, size: 22, color: AppColors.greyText),
                   const SizedBox(width: 14),
-                  Expanded(
-                    child: Text(
-                      rows[i].$2,
-                      style: const TextStyle(
-                        fontSize: 15,
-                        color: AppColors.greyText,
-                      ),
+                  Text(
+                    rows[i].$2,
+                    style: const TextStyle(
+                      fontSize: 15,
+                      color: AppColors.greyText,
                     ),
                   ),
-                  Flexible(
+                  const SizedBox(width: 12),
+                  // Takes the rest of the row so the value hugs the right edge.
+                  Expanded(
                     child: Text(
                       rows[i].$3,
                       textAlign: TextAlign.right,
