@@ -39,6 +39,8 @@ class AssistanceService {
     String vehicle = '',
     String plate = '',
     String refCode = '',
+    String mechanicUid = '',
+    String mechanicName = '',
   }) async {
     final doc = await _requests.add(ServiceRequest(
       id: '',
@@ -55,6 +57,8 @@ class AssistanceService {
       totalFee: totalFee,
       vehicle: vehicle,
       plate: plate,
+      mechanicUid: mechanicUid,
+      mechanicName: mechanicName,
       refCode: refCode.isEmpty ? generateRefCode() : refCode,
     ).toMap());
     return doc.id;

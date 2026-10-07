@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 
 import '../config/firebase_state.dart';
 import '../models/app_user.dart';
+import '../models/garage.dart';
 import '../services/auth_service.dart';
+import '../services/garage_service.dart';
 import '../theme/app_colors.dart';
 import 'manage_methods_screen.dart';
 import 'onboarding_screen.dart';
@@ -28,8 +30,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
   late final TextEditingController _vehicle;
   late final TextEditingController _plate;
 
+  // Mechanic garage listing fields.
+  late final TextEditingController _garageName;
+  late final TextEditingController _garageArea;
+  late final TextEditingController _garagePhone;
+  late final TextEditingController _garageServices;
+  bool _garageOpen = true;
+
   AuthService get _auth => widget.authService ?? AuthService();
+  final GarageService _garages = GarageService();
   bool get _isDriver => widget.user.role == AppRole.driver;
+  bool get _isMechanic => widget.user.role == AppRole.mechanic;
 
   @override
   void initState() {
@@ -42,6 +53,28 @@ class _ProfileScreenState extends State<ProfileScreen> {
             : widget.user.vehicle);
     _plate = TextEditingController(
         text: widget.user.plate.isEmpty ? demoVehiclePlate : widget.user.plate);
+    _garageName = TextEditingController(text: widget.user.name);
+    _garageArea = TextEditingController();
+    _garagePhone = TextEditingController(text: widget.user.phone);
+    _garageServices =
+        TextEditingController(text: 'Flat Tyre, Jump Start, Towing');
+    if (_isMechanic && firebaseReady) _loadGarage();
+  }
+
+  Future<void> _loadGarage() async {
+    try {
+      final g = await _garages.getMyGarage(widget.user.uid);
+      if (!mounted || g == null) return;
+      setState(() {
+        _garageName.text = g.name;
+        _garageArea.text = g.area;
+        _garagePhone.text = g.phone;
+        _garageServices.text = g.services.join(', ');
+        _garageOpen = g.open;
+      });
+    } catch (_) {
+      // Listing stays editable with defaults.
+    }
   }
 
   @override
@@ -50,6 +83,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
     _phone.dispose();
     _vehicle.dispose();
     _plate.dispose();
+    _garageName.dispose();
+    _garageArea.dispose();
+    _garagePhone.dispose();
+    _garageServices.dispose();
     super.dispose();
   }
 
@@ -75,6 +112,24 @@ class _ProfileScreenState extends State<ProfileScreen> {
         vehicle: _isDriver ? _vehicle.text : '',
         plate: _isDriver ? _plate.text : '',
       );
+      if (_isMechanic) {
+        // Keep the public directory listing in sync.
+        final services = _garageServices.text
+            .split(',')
+            .map((e) => e.trim())
+            .where((e) => e.isNotEmpty)
+            .toList();
+        await _garages.saveMyGarage(GarageProfile(
+          ownerUid: widget.user.uid,
+          name: _garageName.text.trim().isEmpty
+              ? _name.text.trim()
+              : _garageName.text.trim(),
+          area: _garageArea.text.trim(),
+          phone: _garagePhone.text.trim(),
+          services: services,
+          open: _garageOpen,
+        ));
+      }
       if (!mounted) return;
       _snack('Profile updated.');
       Navigator.pop(context, updated);
@@ -270,6 +325,70 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 ],
               ),
             if (_isDriver) const SizedBox(height: 12),
+
+            // Garage listing (mechanics only) — this is what drivers
+            // see in their Garages directory.
+            if (_isMechanic)
+              _SectionCard(
+                title: 'My Garage Listing',
+                children: [
+                  _Field(
+                    label: 'Garage Name',
+                    controller: _garageName,
+                    editing: _editing,
+                    icon: Icons.garage_outlined,
+                    hint: 'City Auto Garage',
+                  ),
+                  const SizedBox(height: 12),
+                  _Field(
+                    label: 'Area',
+                    controller: _garageArea,
+                    editing: _editing,
+                    icon: Icons.location_on_outlined,
+                    hint: 'Colombo 03 • 1.2 km',
+                  ),
+                  const SizedBox(height: 12),
+                  _Field(
+                    label: 'Garage Phone',
+                    controller: _garagePhone,
+                    editing: _editing,
+                    icon: Icons.phone_outlined,
+                    keyboardType: TextInputType.phone,
+                    hint: '+94112345678',
+                  ),
+                  const SizedBox(height: 12),
+                  _Field(
+                    label: 'Services (comma separated)',
+                    controller: _garageServices,
+                    editing: _editing,
+                    icon: Icons.build_outlined,
+                    hint: 'Flat Tyre, Jump Start, Towing',
+                  ),
+                  const SizedBox(height: 6),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text(
+                        'Open for jobs',
+                        style: TextStyle(
+                          fontSize: 13.5,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.navyDark,
+                        ),
+                      ),
+                      Switch(
+                        value: _garageOpen,
+                        activeThumbColor: const Color(0xFF22B573),
+                        onChanged: !_editing
+                            ? null
+                            : (v) =>
+                                setState(() => _garageOpen = v),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            if (_isMechanic) const SizedBox(height: 12),
 
             // Save button in edit mode
             if (_editing)

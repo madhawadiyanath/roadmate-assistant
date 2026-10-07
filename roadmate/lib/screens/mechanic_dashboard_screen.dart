@@ -965,9 +965,13 @@ class _MechJobsTabState extends State<_MechJobsTab> {
                   if (jobsSnap.hasError) {
                     return _ErrorBox(error: jobsSnap.error);
                   }
+                  // New feed: unclaimed jobs, plus inquiries sent
+                  // directly to me (pre-assigned pending).
                   final fresh = ((pendingSnap.data ?? [])
-                        ..removeWhere(
-                            (r) => r.driverUid == widget.mechanicUid))
+                        ..removeWhere((r) =>
+                            r.driverUid == widget.mechanicUid ||
+                            (r.mechanicUid.isNotEmpty &&
+                                r.mechanicUid != widget.mechanicUid)))
                       .toList();
                   final mine = jobsSnap.data ?? [];
                   final active = mine

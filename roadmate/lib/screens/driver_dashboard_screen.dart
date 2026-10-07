@@ -2,16 +2,17 @@ import 'package:flutter/material.dart';
 
 import '../config/firebase_state.dart';
 import '../models/app_user.dart';
+import '../models/garage.dart';
 import '../models/notification_item.dart';
 import '../models/service_request.dart';
 import '../services/assistance_service.dart';
 import '../services/auth_service.dart';
+import '../services/garage_service.dart';
 import '../services/notification_service.dart';
 import '../theme/app_colors.dart';
 import '../widgets/tow_truck_illustration.dart';
 import 'chat_screen.dart';
 import 'location_screen.dart';
-import 'onboarding_screen.dart';
 import 'profile_screen.dart';
 import 'select_service_screen.dart';
 import 'track_request_screen.dart';
@@ -109,37 +110,6 @@ class _DriverDashboardScreenState extends State<DriverDashboardScreen> {
     }
   }
 
-  Future<void> _logout() async {
-    final yes = await showDialog<bool>(
-      context: context,
-      builder: (_) => AlertDialog(
-        title: const Text('Logout?'),
-        content: const Text('Are you sure you want to logout?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Logout'),
-          ),
-        ],
-      ),
-    );
-    if (yes != true) return;
-    try {
-      await (widget.authService ?? AuthService()).signOut();
-    } catch (_) {
-      // Leave anyway.
-    }
-    if (!mounted) return;
-    Navigator.of(context).pushAndRemoveUntil(
-      MaterialPageRoute(builder: (_) => const OnboardingScreen()),
-      (_) => false,
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -165,7 +135,7 @@ class _DriverDashboardScreenState extends State<DriverDashboardScreen> {
               user: _user,
               onTab: (i) => setState(() => _tab = i),
             ),
-            _GarageTab(user: _user, onLogout: _logout),
+            _GarageTab(user: _user, assistance: _assist),
             _ChatTab(user: _user, assistance: _assist),
           ],
         ),
@@ -1327,10 +1297,88 @@ String formatDate(DateTime? d) {
 
 // ============================== GARAGE / CHAT ==============================
 
-class _GarageTab extends StatelessWidget {
+/// Nearby garages & mechanics directory. Chat opens a manual
+/// inquiry thread with that garage (they see it as a pending job).
+class _GarageTab extends StatefulWidget {
   final AppUser user;
-  final VoidCallback onLogout;
-  const _GarageTab({required this.user, required this.onLogout});
+  final AssistanceService assistance;
+  const _GarageTab({required this.user, required this.assistance});
+
+  @override
+  State<_GarageTab> createState() => _GarageTabState();
+}
+
+class _GarageTabState extends State<_GarageTab> {
+  bool _busy = false;
+
+  final GarageService _garages = GarageService();
+
+  void _snack(String msg) {
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+  }
+
+  Future<void> _messageGarage(GarageProfile g) async {
+    if (!firebaseReady) {
+      _snack('Firebase not connected yet. Add google-services files first.');
+      return;
+    }
+    final yes = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: Text('Message ${g.name}?'),
+        content: const Text(
+            'This opens a chat inquiry they can accept and reply to.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Chat'),
+          ),
+        ],
+      ),
+    );
+    if (yes != true || !mounted) return;
+    setState(() => _busy = true);
+    try {
+      final requestId = await widget.assistance.createRequest(
+        driverUid: widget.user.uid,
+        driverName: widget.user.name,
+        type: AssistanceType.general,
+        address: g.area,
+        mechanicUid: g.ownerUid,
+        mechanicName: g.name,
+      );
+      if (!mounted) return;
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => ChatScreen(
+            request: ServiceRequest(
+              id: requestId,
+              driverUid: widget.user.uid,
+              driverName: widget.user.name,
+              type: AssistanceType.general,
+              status: RequestStatus.pending,
+              address: g.area,
+              mechanicUid: g.ownerUid,
+              mechanicName: g.name,
+            ),
+            senderUid: widget.user.uid,
+            senderName: widget.user.name,
+            senderRole: 'driver',
+            peerName: g.name,
+          ),
+        ),
+      );
+    } catch (e) {
+      _snack(AuthService.friendlyMessage(e));
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -1341,38 +1389,82 @@ class _GarageTab extends StatelessWidget {
         children: [
           const SizedBox(height: 14),
           const Text(
-            'My Garage',
+            'Garages',
             style: TextStyle(
               fontSize: 22,
               fontWeight: FontWeight.w800,
               color: AppColors.navy,
             ),
           ),
-          const SizedBox(height: 14),
-          _VehicleCard(user: user),
-          const SizedBox(height: 12),
-          _DetailRow(label: 'Owner', value: user.name.isEmpty ? '—' : user.name),
-          _DetailRow(label: 'Plate No', value: user.vehiclePlate),
-          _DetailRow(label: 'Make / Model', value: user.vehicleName),
-          _DetailRow(label: 'Phone', value: user.phone.isEmpty ? '—' : user.phone),
-          const SizedBox(height: 20),
-          SizedBox(
-            width: double.infinity,
-            height: 50,
-            child: OutlinedButton.icon(
-              onPressed: onLogout,
-              style: OutlinedButton.styleFrom(
-                foregroundColor: Colors.red,
-                side: const BorderSide(color: Colors.red),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-              ),
-              icon: const Icon(Icons.logout_rounded, size: 20),
-              label: const Text('Logout',
-                  style: TextStyle(fontWeight: FontWeight.w700)),
-            ),
+          const SizedBox(height: 4),
+          const Text(
+            'Nearby garages & mechanics. Tap chat to message one directly.',
+            style: TextStyle(fontSize: 13, color: AppColors.greyText),
           ),
+          const SizedBox(height: 14),
+          _VehicleCard(user: widget.user),
+          const SizedBox(height: 12),
+          if (!firebaseReady)
+            Column(
+              children: [
+                for (final g in demoGarages) ...[
+                  _GarageCard(
+                    garage: g,
+                    busy: _busy,
+                    onChat: () => _messageGarage(g),
+                    onCall: () => _snack('Calling ${g.name}…'),
+                  ),
+                  const SizedBox(height: 10),
+                ],
+              ],
+            )
+          else
+            StreamBuilder<List<GarageProfile>>(
+              stream: _garages.watchGarages(),
+              builder: (context, snap) {
+                if (snap.connectionState == ConnectionState.waiting) {
+                  return const Padding(
+                    padding: EdgeInsets.all(24),
+                    child: Center(child: CircularProgressIndicator()),
+                  );
+                }
+                if (snap.hasError) {
+                  return _StreamErrorBox(error: snap.error);
+                }
+                final items = snap.data ?? [];
+                if (items.isEmpty) {
+                  return Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(18),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(
+                          color: const Color(0xFFEDF1F7), width: 1.2),
+                    ),
+                    child: const Text(
+                      'No garages listed yet.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                          color: AppColors.greyText, fontSize: 13),
+                    ),
+                  );
+                }
+                return Column(
+                  children: [
+                    for (final g in items) ...[
+                      _GarageCard(
+                        garage: g,
+                        busy: _busy,
+                        onChat: () => _messageGarage(g),
+                        onCall: () => _snack('Calling ${g.name}…'),
+                      ),
+                      const SizedBox(height: 10),
+                    ],
+                  ],
+                );
+              },
+            ),
           const SizedBox(height: 16),
         ],
       ),
@@ -1380,32 +1472,190 @@ class _GarageTab extends StatelessWidget {
   }
 }
 
-class _DetailRow extends StatelessWidget {
-  final String label;
-  final String value;
-  const _DetailRow({required this.label, required this.value});
+class _GarageCard extends StatelessWidget {
+  final GarageProfile garage;
+  final bool busy;
+  final VoidCallback onChat;
+  final VoidCallback onCall;
+  const _GarageCard({
+    required this.garage,
+    required this.busy,
+    required this.onChat,
+    required this.onCall,
+  });
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(14),
         border: Border.all(color: const Color(0xFFEDF1F7), width: 1.2),
       ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(label,
-              style:
-                  const TextStyle(fontSize: 13, color: AppColors.greyText)),
-          Text(value,
-              style: const TextStyle(
-                  fontSize: 13.5,
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.navyDark)),
+          Row(
+            children: [
+              Container(
+                width: 46,
+                height: 46,
+                decoration: BoxDecoration(
+                  color: AppColors.navy.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(
+                  Icons.garage_rounded,
+                  color: AppColors.navy,
+                  size: 24,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      garage.name,
+                      style: const TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w800,
+                        color: AppColors.navyDark,
+                      ),
+                    ),
+                    Row(
+                      children: [
+                        const Icon(Icons.star_rounded,
+                            size: 14, color: AppColors.orange),
+                        const SizedBox(width: 4),
+                        Text(
+                          '${garage.rating.toStringAsFixed(1)} • ${garage.jobsDone} jobs',
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: AppColors.greyText,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 10, vertical: 5),
+                decoration: BoxDecoration(
+                  color: garage.open
+                      ? const Color(0xFFE6F7EE)
+                      : AppColors.fieldFill,
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Text(
+                  garage.open ? 'Open' : 'Closed',
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    color: garage.open
+                        ? const Color(0xFF22B573)
+                        : AppColors.greyText,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          if (garage.area.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                const Icon(Icons.location_on_outlined,
+                    size: 15, color: AppColors.greyText),
+                const SizedBox(width: 4),
+                Expanded(
+                  child: Text(
+                    garage.area,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 12.5,
+                      color: AppColors.navyDark,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+          if (garage.services.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 6,
+              runSpacing: 6,
+              children: [
+                for (final s in garage.services)
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 9, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: AppColors.fieldFill,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Text(
+                      s,
+                      style: const TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.navy,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ],
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              Expanded(
+                child: SizedBox(
+                  height: 44,
+                  child: OutlinedButton.icon(
+                    onPressed: onCall,
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: AppColors.navy,
+                      side: const BorderSide(
+                          color: AppColors.navy, width: 1.4),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(11),
+                      ),
+                    ),
+                    icon: const Icon(Icons.phone_outlined, size: 18),
+                    label: const Text('Call',
+                        style: TextStyle(fontWeight: FontWeight.w700)),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: SizedBox(
+                  height: 44,
+                  child: ElevatedButton.icon(
+                    onPressed: busy ? null : onChat,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.orange,
+                      foregroundColor: Colors.white,
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(11),
+                      ),
+                    ),
+                    icon: const Icon(
+                        Icons.chat_bubble_outline_rounded,
+                        size: 18),
+                    label: const Text('Chat',
+                        style: TextStyle(fontWeight: FontWeight.w700)),
+                  ),
+                ),
+              ),
+            ],
+          ),
         ],
       ),
     );

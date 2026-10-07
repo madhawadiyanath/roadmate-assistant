@@ -517,6 +517,50 @@ void main() {
     expect(find.text('Vehicle Details'), findsNothing);
   });
 
+  testWidgets('Driver Garage tab lists garages with chat', (
+    WidgetTester tester,
+  ) async {
+    const user = AppUser(
+      uid: 'u1',
+      name: 'Kasun Perera',
+      email: 'kasun@example.com',
+      phone: '',
+      role: AppRole.driver,
+    );
+    await tester.pumpWidget(
+      const MaterialApp(home: DriverDashboardScreen(user: user)),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Garage'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Garages'), findsOneWidget);
+    expect(find.text('City Auto Garage'), findsOneWidget);
+    expect(find.text('Express Motors'), findsOneWidget);
+    expect(find.text('Chat'), findsWidgets);
+    expect(find.text('Call'), findsWidgets);
+  });
+
+  testWidgets('Mechanic profile shows garage listing editor', (
+    WidgetTester tester,
+  ) async {
+    const mech = AppUser(
+      uid: 'm1',
+      name: 'Nimal',
+      email: 'n@e.com',
+      phone: '',
+      role: AppRole.mechanic,
+    );
+    await tester.pumpWidget(
+      const MaterialApp(home: ProfileScreen(user: mech)),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('My Garage Listing'), findsOneWidget);
+    expect(find.text('Vehicle Details'), findsNothing);
+  });
+
   testWidgets('Mechanic profile hides vehicle section', (
     WidgetTester tester,
   ) async {

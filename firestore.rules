@@ -34,6 +34,15 @@ service cloud.firestore {
       }
     }
 
+    // Public garage directory. Any signed-in user may read;
+    // only the owning mechanic (or an admin) may write.
+    match /garages/{ownerUid} {
+      allow read: if signedIn();
+      allow write: if signedIn()
+        && (request.auth.uid == ownerUid || isAdmin());
+      allow delete: if false;
+    }
+
     // Money movements. Payer creates on submit; payee collects cash;
     // admin oversees. Parties + admin may read.
     match /transactions/{txnId} {
