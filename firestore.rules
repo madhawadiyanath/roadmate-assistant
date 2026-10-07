@@ -27,6 +27,27 @@ service cloud.firestore {
         && request.auth.uid == uid
         && request.resource.data.role in ['driver', 'mechanic'];
       allow delete: if false;
+
+      // Saved payment methods — owner only (metadata, never full PANs).
+      match /paymentMethods/{methodId} {
+        allow read, write: if signedIn() && request.auth.uid == uid;
+      }
+    }
+
+    // Money movements. Payer creates on submit; payee collects cash;
+    // admin oversees. Parties + admin may read.
+    match /transactions/{txnId} {
+      allow create: if signedIn()
+        && request.resource.data.payerUid == request.auth.uid
+        && request.resource.data.status in ['paid', 'pending'];
+      allow read: if signedIn()
+        && (resource.data.payerUid == request.auth.uid
+          || resource.data.payeeUid == request.auth.uid
+          || isAdmin());
+      allow update: if signedIn()
+        && (resource.data.payeeUid == request.auth.uid
+          || isAdmin());
+      allow delete: if false;
     }
 
     // Assistance requests.

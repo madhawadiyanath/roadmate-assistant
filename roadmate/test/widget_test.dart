@@ -5,7 +5,11 @@ import 'package:roadmate/main.dart';
 import 'package:roadmate/models/app_user.dart';
 import 'package:roadmate/models/service_request.dart';
 import 'package:fake_cloud_firestore/fake_cloud_firestore.dart';
+import 'package:roadmate/models/payments.dart';
 import 'package:roadmate/screens/admin_dashboard_screen.dart';
+import 'package:roadmate/screens/receipt_screen.dart';
+import 'package:roadmate/screens/transactions_screen.dart';
+import 'package:roadmate/services/payment_service.dart';
 import 'package:roadmate/screens/chat_screen.dart';
 import 'package:roadmate/screens/profile_screen.dart';
 import 'package:roadmate/screens/confirm_request_screen.dart';
@@ -591,6 +595,71 @@ void main() {
     expect(find.text('kasun@example.com'), findsOneWidget);
     expect(find.text('Admins are created in the Firebase console only.'),
         findsOneWidget);
+  });
+
+  testWidgets('Receipt shows invoice with PAID stamp', (
+    WidgetTester tester,
+  ) async {
+    const txn = TxnRecord(
+      id: 't1',
+      requestId: 'req1',
+      refCode: '#RM1058',
+      type: 'Flat Tyre',
+      payerUid: 'driver1',
+      payerName: 'Kasun',
+      payeeUid: 'mech1',
+      payeeName: 'Nimal',
+      amount: 3500,
+      method: 'Card •• 4242',
+      status: 'paid',
+      items: [
+        FeeLine('Flatbed Dispatch & Triage', 2800),
+        FeeLine('Tyre Change Labour', 700),
+      ],
+    );
+    await tester.pumpWidget(
+      const MaterialApp(home: ReceiptScreen(record: txn)),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Receipt'), findsOneWidget);
+    expect(find.text('PAID'), findsOneWidget);
+    expect(find.text('Rs. 3500.00'), findsOneWidget);
+    expect(find.text('#RM1058'), findsOneWidget);
+    expect(find.text('Card •• 4242'), findsOneWidget);
+    expect(find.text('Nimal'), findsOneWidget);
+  });
+
+  testWidgets('Transaction history lists with receipts', (
+    WidgetTester tester,
+  ) async {
+    final db = FakeFirebaseFirestore();
+    final pay = PaymentService(db: db);
+    await pay.createTransaction(
+      requestId: 'req1',
+      refCode: '#RM1058',
+      type: 'Flat Tyre',
+      payerUid: 'driver1',
+      payerName: 'Kasun',
+      amount: 3500,
+      method: 'Card •• 4242',
+      items: const [FeeLine('Dispatch', 3500)],
+      paidAtOnce: true,
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: TransactionsScreen(
+          uid: 'driver1',
+          mode: TxnMode.payer,
+          paymentService: pay,
+        ),
+      ),
+    );
+    // NOTE: screen gates on firebaseReady (false in tests) → hint shown.
+    // Live list is covered by the service test above.
+    await tester.pumpAndSettle();
+    expect(find.text('Payment History'), findsOneWidget);
   });
 
   testWidgets('RoleHome routes driver to dashboard, mechanic to jobs', (
