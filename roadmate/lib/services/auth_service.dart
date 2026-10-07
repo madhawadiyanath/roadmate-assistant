@@ -112,6 +112,43 @@ class AuthService {
   Future<void> sendPasswordReset(String email) =>
       _auth.sendPasswordResetEmail(email: email.trim());
 
+  // -------------------------- Change password --------------------------
+
+  /// Whether the signed-in account has a password (false for accounts that
+  /// only ever signed in with Google — they have none to change).
+  bool get hasPassword =>
+      _auth.currentUser?.providerData.any((p) => p.providerId == 'password') ??
+      false;
+
+  /// Change the signed-in user's password: re-authenticate with
+  /// [currentPassword] first, then set [newPassword].
+  ///
+  /// Throws [FirebaseAuthException]: `wrong-password` / `invalid-credential`
+  /// when the current password is wrong (see [isWrongPassword]),
+  /// `weak-password` when Firebase rejects the new one.
+  Future<void> changePassword({
+    required String currentPassword,
+    required String newPassword,
+  }) async {
+    final user = _auth.currentUser;
+    final email = user?.email;
+    if (user == null || email == null || email.isEmpty) {
+      throw FirebaseAuthException(
+        code: 'no-current-user',
+        message: 'You are signed out. Please sign in again.',
+      );
+    }
+    await user.reauthenticateWithCredential(
+      EmailAuthProvider.credential(email: email, password: currentPassword),
+    );
+    await user.updatePassword(newPassword);
+  }
+
+  /// True for the error codes Firebase uses when a password is wrong.
+  static bool isWrongPassword(Object e) =>
+      e is FirebaseAuthException &&
+      (e.code == 'wrong-password' || e.code == 'invalid-credential');
+
   /// Email/password login. Profile (with role) is read from `users/{uid}`.
   Future<AppUser> signIn({
     required String email,

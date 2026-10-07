@@ -179,7 +179,6 @@ void main() {
 
   for (final c in [
     ('Documents', _driver),
-    ('Change Password', _driver),
     ('Services Offered', _mechanic),
   ]) {
     testWidgets('${c.$1} shows a Coming soon page', (tester) async {

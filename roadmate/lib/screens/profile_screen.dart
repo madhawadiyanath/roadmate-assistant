@@ -8,6 +8,7 @@ import '../services/vehicle_service.dart';
 import '../theme/app_colors.dart';
 import '../widgets/roadmate_top_bar.dart';
 import '../widgets/striped_placeholder.dart';
+import 'change_password_screen.dart';
 import 'coming_soon_screen.dart';
 import 'emergency_contacts_screen.dart';
 import 'onboarding_screen.dart';
@@ -218,10 +219,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
           _MenuRow(
             icon: Icons.verified_user_outlined,
             title: 'Change Password',
-            onTap: () => _push(const ComingSoonScreen(
-              title: 'Change Password',
-              icon: Icons.verified_user_outlined,
-            )),
+            onTap: () =>
+                _push(ChangePasswordScreen(authService: widget.authService)),
           ),
           const SizedBox(height: 28),
           TextButton.icon(
