@@ -10,6 +10,7 @@ import '../widgets/auth_widgets.dart';
 import '../widgets/tow_truck_illustration.dart';
 import 'location_screen.dart';
 import 'onboarding_screen.dart';
+import 'profile_screen.dart';
 import 'select_service_screen.dart';
 import 'track_request_screen.dart';
 
@@ -1232,6 +1233,28 @@ class _GarageTab extends StatelessWidget {
           _DetailRow(label: 'Make / Model', value: 'Toyota Prius'),
           _DetailRow(label: 'Phone', value: user.phone.isEmpty ? '—' : user.phone),
           const SizedBox(height: 20),
+          SizedBox(
+            width: double.infinity,
+            height: 50,
+            child: FilledButton.icon(
+              onPressed: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => ProfileScreen(user: user),
+                ),
+              ),
+              style: FilledButton.styleFrom(
+                backgroundColor: AppColors.navy,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+              icon: const Icon(Icons.person_rounded, size: 20),
+              label: const Text('My Profile',
+                  style: TextStyle(fontWeight: FontWeight.w700)),
+            ),
+          ),
+          const SizedBox(height: 10),
           SizedBox(
             width: double.infinity,
             height: 50,
