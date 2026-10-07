@@ -6,14 +6,24 @@ import '../theme/app_colors.dart';
 /// round profile button on the right.
 class RoadMateTopBar extends StatelessWidget {
   final VoidCallback? onAvatarTap;
-  const RoadMateTopBar({super.key, this.onAvatarTap});
+
+  /// Shows a back arrow before the logo (for pages with no title row).
+  final VoidCallback? onBack;
+  const RoadMateTopBar({super.key, this.onAvatarTap, this.onBack});
 
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(18, 10, 18, 6),
+      padding: EdgeInsets.fromLTRB(onBack == null ? 18 : 6, 10, 18, 6),
       child: Row(
         children: [
+          if (onBack != null)
+            IconButton(
+              tooltip: 'Back',
+              onPressed: onBack,
+              icon: const Icon(Icons.arrow_back_rounded,
+                  color: AppColors.navy, size: 26),
+            ),
           const _ShieldLogo(),
           const SizedBox(width: 8),
           const Text(

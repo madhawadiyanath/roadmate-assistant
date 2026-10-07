@@ -86,19 +86,17 @@ class AuthService {
     return AppUser.fromMap(uid, doc.data()!);
   }
 
-  /// Update editable profile fields, return the fresh profile.
+  /// Update the editable profile fields (name and phone only — vehicles
+  /// live in `users/{uid}/vehicles`), return the fresh profile. Other
+  /// fields on the doc are left untouched.
   Future<AppUser> updateProfile({
     required String uid,
     required String name,
     required String phone,
-    String vehicle = '',
-    String plate = '',
   }) async {
     await _users.doc(uid).update({
       'name': name.trim(),
       'phone': phone.trim(),
-      'vehicle': vehicle.trim(),
-      'plate': plate.trim(),
     });
     final fresh = await getProfile(uid);
     return fresh ??
@@ -108,8 +106,6 @@ class AuthService {
           email: '',
           phone: phone.trim(),
           role: AppRole.driver,
-          vehicle: vehicle.trim(),
-          plate: plate.trim(),
         );
   }
 

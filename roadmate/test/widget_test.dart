@@ -459,7 +459,7 @@ void main() {
     expect(all, hasLength(2));
   });
 
-  testWidgets('Profile page shows details, edits, guards save', (
+  testWidgets('Profile page shows menu, edits, guards save', (
     WidgetTester tester,
   ) async {
     const user = AppUser(
@@ -468,23 +468,22 @@ void main() {
       email: 'kasun@example.com',
       phone: '+94771234567',
       role: AppRole.driver,
-      vehicle: 'Toyota Axio',
-      plate: 'ABC 1234',
     );
     await tester.pumpWidget(
       const MaterialApp(home: ProfileScreen(user: user)),
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('Profile'), findsOneWidget);
     expect(find.text('Kasun Perera'), findsWidgets);
-    expect(find.text('Personal Details'), findsOneWidget);
-    expect(find.text('Vehicle Details'), findsOneWidget);
+    expect(find.text('Personal Information'), findsOneWidget);
+    expect(find.text('Vehicle Information'), findsOneWidget);
+    expect(find.text('Vehicle Details'), findsNothing); // no inline vehicle
     expect(find.text('Logout'), findsOneWidget);
 
-    // Edit mode enables fields; save without Firebase shows hint.
-    await tester.tap(find.byIcon(Icons.edit_outlined));
+    // Personal Information opens edit mode; save without Firebase shows hint.
+    await tester.tap(find.text('Personal Information'));
     await tester.pumpAndSettle();
+    expect(find.text('Personal Details'), findsOneWidget);
     expect(find.text('Save Changes'), findsOneWidget);
     await tester.ensureVisible(find.text('Save Changes'));
     await tester.pumpAndSettle();
@@ -493,7 +492,7 @@ void main() {
     expect(find.textContaining('Firebase not connected'), findsOneWidget);
   });
 
-  testWidgets('Mechanic profile hides vehicle section', (
+  testWidgets('Mechanic profile has no vehicle entry', (
     WidgetTester tester,
   ) async {
     const mech = AppUser(
@@ -508,8 +507,10 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('MECHANIC'), findsOneWidget);
-    expect(find.text('Vehicle Details'), findsNothing);
+    expect(find.text('Mechanic'), findsOneWidget);
+    expect(find.text('Services Offered'), findsOneWidget);
+    expect(find.text('Vehicle Information'), findsNothing);
+    expect(find.text('Emergency Contacts'), findsNothing);
   });
 
   testWidgets('Driver avatar opens Profile page', (
@@ -529,8 +530,8 @@ void main() {
 
     await tester.tap(find.byType(CircleAvatar).first);
     await tester.pumpAndSettle();
-    expect(find.text('Profile'), findsOneWidget);
-    expect(find.text('Personal Details'), findsOneWidget);
+    expect(find.text('Personal Information'), findsOneWidget);
+    expect(find.text('Kasun Perera'), findsWidgets);
   });
 
   testWidgets('RoleHome routes driver to dashboard, mechanic to jobs', (
