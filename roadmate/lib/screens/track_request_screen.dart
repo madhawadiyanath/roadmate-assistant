@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../config/firebase_state.dart';
 import '../models/service_request.dart';
+import 'chat_screen.dart';
 import '../services/assistance_service.dart';
 import '../services/auth_service.dart';
 import '../theme/app_colors.dart';
@@ -408,17 +409,31 @@ class _Body extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(width: 8),
-                    Container(
-                      width: 42,
-                      height: 42,
-                      decoration: const BoxDecoration(
-                        color: AppColors.fieldFill,
-                        shape: BoxShape.circle,
+                    GestureDetector(
+                      onTap: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => ChatScreen(
+                            request: request,
+                            senderUid: request.driverUid,
+                            senderName: request.driverName,
+                            senderRole: 'driver',
+                            peerName: request.mechanicName,
+                          ),
+                        ),
                       ),
-                      child: const Icon(
-                        Icons.chat_bubble_outline_rounded,
-                        color: AppColors.navy,
-                        size: 20,
+                      child: Container(
+                        width: 42,
+                        height: 42,
+                        decoration: const BoxDecoration(
+                          color: AppColors.fieldFill,
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(
+                          Icons.chat_bubble_outline_rounded,
+                          color: AppColors.navy,
+                          size: 20,
+                        ),
                       ),
                     ),
                     const SizedBox(width: 8),
