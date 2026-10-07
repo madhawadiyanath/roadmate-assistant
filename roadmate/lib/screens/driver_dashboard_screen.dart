@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 
 import '../config/firebase_state.dart';
 import '../models/app_user.dart';
-import '../models/notification_item.dart';
 import '../models/service_request.dart';
 import '../models/vehicle.dart';
 import '../services/assistance_service.dart';
@@ -10,12 +9,15 @@ import '../services/auth_service.dart';
 import '../services/notification_service.dart';
 import '../services/vehicle_service.dart';
 import '../theme/app_colors.dart';
+import '../widgets/notification_widgets.dart';
 import '../widgets/roadmate_top_bar.dart';
 import '../widgets/tow_truck_illustration.dart';
 import 'chat_screen.dart';
 import 'location_screen.dart';
+import 'notifications_screen.dart';
 import 'onboarding_screen.dart';
 import 'profile_screen.dart';
+import 'request_history_screen.dart';
 import 'saved_vehicles_screen.dart';
 import 'select_service_screen.dart';
 import 'track_request_screen.dart';
@@ -28,6 +30,7 @@ class DriverDashboardScreen extends StatefulWidget {
   final AuthService? authService;
   final AssistanceService? assistanceService;
   final VehicleService? vehicleService;
+  final NotificationService? notificationService;
 
   const DriverDashboardScreen({
     super.key,
@@ -35,6 +38,7 @@ class DriverDashboardScreen extends StatefulWidget {
     this.authService,
     this.assistanceService,
     this.vehicleService,
+    this.notificationService,
   });
 
   @override
@@ -165,6 +169,7 @@ class _DriverDashboardScreenState extends State<DriverDashboardScreen> {
               onAvatarTap: _openProfile,
               assistance: _assist,
               vehicleService: widget.vehicleService,
+              notificationService: widget.notificationService,
               onLogout: _logout,
               onTab: (i) => setState(() => _tab = i),
             ),
@@ -210,6 +215,7 @@ class _HomeTab extends StatelessWidget {
   final VoidCallback onAvatarTap;
   final AssistanceService assistance;
   final VehicleService? vehicleService;
+  final NotificationService? notificationService;
   final VoidCallback onLogout;
   final ValueChanged<int> onTab;
 
@@ -224,74 +230,18 @@ class _HomeTab extends StatelessWidget {
     required this.onAvatarTap,
     required this.assistance,
     required this.vehicleService,
+    required this.notificationService,
     required this.onLogout,
     required this.onTab,
   });
 
   void _showNotifications(BuildContext context) {
-    final service = NotificationService();
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (_) => Container(
-        height: 420,
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-        ),
-        child: StreamBuilder<List<AppNotificationItem>>(
-          stream: service.watchUserNotifications(user.uid),
-          builder: (context, snap) {
-            if (snap.connectionState == ConnectionState.waiting) {
-              return const Center(child: CircularProgressIndicator());
-            }
-            final items = snap.data ?? const <AppNotificationItem>[];
-            if (items.isEmpty) {
-              return const Center(
-                child: Padding(
-                  padding: EdgeInsets.all(24),
-                  child: Text('No notifications yet.'),
-                ),
-              );
-            }
-            return ListView.separated(
-              padding: const EdgeInsets.all(18),
-              itemCount: items.length,
-              separatorBuilder: (_, _) => const SizedBox(height: 10),
-              itemBuilder: (_, i) {
-                final n = items[i];
-                return Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: AppColors.fieldFill,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        n.title,
-                        style: const TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w800,
-                          color: AppColors.navy,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        n.body,
-                        style: const TextStyle(
-                          fontSize: 12.5,
-                          color: AppColors.greyText,
-                        ),
-                      ),
-                    ],
-                  ),
-                );
-              },
-            );
-          },
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => NotificationsScreen(
+          uid: user.uid,
+          service: notificationService,
         ),
       ),
     );
@@ -397,29 +347,10 @@ class _HomeTab extends StatelessWidget {
                   ),
                 ],
               ),
-              Stack(
-                children: [
-                  IconButton(
-                    onPressed: () => _showNotifications(context),
-                    icon: const Icon(
-                      Icons.notifications_outlined,
-                      color: AppColors.navy,
-                      size: 26,
-                    ),
-                  ),
-                  Positioned(
-                    right: 12,
-                    top: 12,
-                    child: Container(
-                      width: 9,
-                      height: 9,
-                      decoration: const BoxDecoration(
-                        color: AppColors.orange,
-                        shape: BoxShape.circle,
-                      ),
-                    ),
-                  ),
-                ],
+              NotificationBellButton(
+                uid: user.uid,
+                service: notificationService,
+                onPressed: () => _showNotifications(context),
               ),
             ],
           ),
@@ -1161,13 +1092,36 @@ class _RequestsTab extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const SizedBox(height: 14),
-          const Text(
-            'My Requests',
-            style: TextStyle(
-              fontSize: 22,
-              fontWeight: FontWeight.w800,
-              color: AppColors.navy,
-            ),
+          Row(
+            children: [
+              const Expanded(
+                child: Text(
+                  'My Requests',
+                  style: TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.w800,
+                    color: AppColors.navy,
+                  ),
+                ),
+              ),
+              RequestHistoryLink(
+                onTap: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => RequestHistoryScreen(
+                      uid: user.uid,
+                      // Only hand over the service when Firebase is live,
+                      // otherwise the screen shows "not connected".
+                      service: firebaseReady ? assistance : null,
+                      onOpen: (ctx, r) => openTracking(ctx, r, (i) {
+                        Navigator.pop(ctx);
+                        onTab(i);
+                      }),
+                    ),
+                  ),
+                ),
+              ),
+            ],
           ),
           const SizedBox(height: 4),
           const Text(

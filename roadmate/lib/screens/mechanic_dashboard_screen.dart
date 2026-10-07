@@ -2,14 +2,15 @@ import 'package:flutter/material.dart';
 
 import '../config/firebase_state.dart';
 import '../models/app_user.dart';
-import '../models/notification_item.dart';
 import '../models/service_request.dart';
 import '../services/assistance_service.dart';
 import '../services/auth_service.dart';
 import '../services/notification_service.dart';
 import '../theme/app_colors.dart';
+import '../widgets/notification_widgets.dart';
 import 'chat_screen.dart';
 import 'job_details_screen.dart';
+import 'notifications_screen.dart';
 import 'profile_screen.dart';
 
 /// Mechanic home matching the RoadMate design:
@@ -19,12 +20,14 @@ class MechanicDashboardScreen extends StatefulWidget {
   final AppUser user;
   final AuthService? authService;
   final AssistanceService? assistanceService;
+  final NotificationService? notificationService;
 
   const MechanicDashboardScreen({
     super.key,
     required this.user,
     this.authService,
     this.assistanceService,
+    this.notificationService,
   });
 
   @override
@@ -72,69 +75,12 @@ class _MechanicDashboardScreenState extends State<MechanicDashboardScreen> {
   }
 
   void _showNotifications() {
-    final service = NotificationService();
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (_) => Container(
-        height: 420,
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-        ),
-        child: StreamBuilder<List<AppNotificationItem>>(
-          stream: service.watchUserNotifications(_user.uid),
-          builder: (context, snap) {
-            if (snap.connectionState == ConnectionState.waiting) {
-              return const Center(child: CircularProgressIndicator());
-            }
-            final items = snap.data ?? const <AppNotificationItem>[];
-            if (items.isEmpty) {
-              return const Center(
-                child: Padding(
-                  padding: EdgeInsets.all(24),
-                  child: Text('No notifications yet.'),
-                ),
-              );
-            }
-            return ListView.separated(
-              padding: const EdgeInsets.all(18),
-              itemCount: items.length,
-              separatorBuilder: (_, _) => const SizedBox(height: 10),
-              itemBuilder: (_, i) {
-                final n = items[i];
-                return Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: AppColors.fieldFill,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        n.title,
-                        style: const TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w800,
-                          color: AppColors.navy,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        n.body,
-                        style: const TextStyle(
-                          fontSize: 12.5,
-                          color: AppColors.greyText,
-                        ),
-                      ),
-                    ],
-                  ),
-                );
-              },
-            );
-          },
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => NotificationsScreen(
+          uid: _user.uid,
+          service: widget.notificationService,
         ),
       ),
     );
@@ -196,6 +142,7 @@ class _MechanicDashboardScreenState extends State<MechanicDashboardScreen> {
               onAvatarTap: _openProfile,
               onViewRequests: () => setState(() => _tab = 1),
               onShowNotifications: _showNotifications,
+              notificationService: widget.notificationService,
               assistance: _assist,
               mechanicUid: _user.uid,
             ),
@@ -260,6 +207,7 @@ class _MechHomeTab extends StatelessWidget {
   final VoidCallback onAvatarTap;
   final VoidCallback onViewRequests;
   final VoidCallback onShowNotifications;
+  final NotificationService? notificationService;
   final AssistanceService assistance;
   final String mechanicUid;
 
@@ -270,6 +218,7 @@ class _MechHomeTab extends StatelessWidget {
     required this.onAvatarTap,
     required this.onViewRequests,
     required this.onShowNotifications,
+    required this.notificationService,
     required this.assistance,
     required this.mechanicUid,
   });
@@ -393,10 +342,11 @@ class _MechHomeTab extends StatelessWidget {
                   ),
                 ),
               ),
-              IconButton(
+              NotificationBellButton(
+                uid: mechanicUid,
+                service: notificationService,
+                iconSize: 24,
                 onPressed: onShowNotifications,
-                icon: const Icon(Icons.notifications_outlined,
-                    color: AppColors.navy, size: 24),
               ),
             ],
           ),

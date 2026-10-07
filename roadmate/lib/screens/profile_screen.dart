@@ -4,6 +4,8 @@ import '../config/firebase_state.dart';
 import '../models/app_user.dart';
 import '../services/auth_service.dart';
 import '../theme/app_colors.dart';
+import '../widgets/striped_placeholder.dart';
+import 'emergency_contacts_screen.dart';
 import 'onboarding_screen.dart';
 
 /// Driver / mechanic profile with CRUD for personal + vehicle details.
@@ -53,6 +55,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   void _snack(String msg) {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+  }
+
+  /// Leave edit mode and discard anything typed.
+  void _cancelEdit() {
+    _name.text = widget.user.name;
+    _phone.text = widget.user.phone;
+    _vehicle.text =
+        widget.user.vehicle.isEmpty ? demoVehicleName : widget.user.vehicle;
+    _plate.text =
+        widget.user.plate.isEmpty ? demoVehiclePlate : widget.user.plate;
+    setState(() => _editing = false);
   }
 
   Future<void> _save() async {
@@ -125,19 +138,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
         backgroundColor: AppColors.pageBg,
         elevation: 0,
         foregroundColor: AppColors.navy,
-        title: const Text(
-          'Profile',
-          style: TextStyle(fontWeight: FontWeight.w800, color: AppColors.navy),
+        title: Text(
+          _editing ? 'Edit Profile' : 'Profile',
+          style: const TextStyle(
+              fontWeight: FontWeight.w800, color: AppColors.navy),
         ),
         actions: [
-          if (_editing)
-            TextButton(
-              onPressed: _saving
-                  ? null
-                  : () => setState(() => _editing = false),
-              child: const Text('Cancel'),
-            )
-          else
+          if (!_editing)
             IconButton(
               tooltip: 'Edit profile',
               onPressed: () => setState(() => _editing = true),
@@ -150,6 +157,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
         child: Column(
           children: [
             const SizedBox(height: 8),
+            // Edit mode: photo placeholder with camera badge.
+            if (_editing)
+              _PhotoEditor(
+                onTap: () => _snack('Photo upload is not available yet.'),
+              )
+            else
             // Header card
             Container(
               width: double.infinity,
@@ -265,6 +278,22 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ),
             if (_isDriver) const SizedBox(height: 12),
 
+            // Emergency contacts (drivers only)
+            if (_isDriver)
+              _NavRow(
+                icon: Icons.contacts_outlined,
+                title: 'Emergency Contacts',
+                subtitle: 'People we alert when you need urgent help',
+                onTap: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) =>
+                        EmergencyContactsScreen(uid: widget.user.uid),
+                  ),
+                ),
+              ),
+            if (_isDriver) const SizedBox(height: 12),
+
             // Save button in edit mode
             if (_editing)
               SizedBox(
@@ -289,37 +318,192 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             color: Colors.white,
                           ),
                         )
-                      : const Text(
-                          'Save Changes',
-                          style: TextStyle(
-                            fontSize: 15.5,
-                            fontWeight: FontWeight.w700,
-                          ),
+                      : const Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.check_rounded, size: 21),
+                            SizedBox(width: 8),
+                            Text(
+                              'Save Changes',
+                              style: TextStyle(
+                                fontSize: 15.5,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ],
                         ),
+                ),
+              ),
+            if (_editing) const SizedBox(height: 10),
+            if (_editing)
+              SizedBox(
+                width: double.infinity,
+                height: 50,
+                child: TextButton(
+                  onPressed: _saving ? null : _cancelEdit,
+                  style: TextButton.styleFrom(
+                    backgroundColor: AppColors.fieldFill,
+                    foregroundColor: AppColors.navy,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  child: const Text(
+                    'Cancel',
+                    style:
+                        TextStyle(fontSize: 15.5, fontWeight: FontWeight.w700),
+                  ),
                 ),
               ),
             if (_editing) const SizedBox(height: 12),
 
             // Logout
-            SizedBox(
-              width: double.infinity,
-              height: 50,
-              child: OutlinedButton.icon(
-                onPressed: _logout,
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: Colors.red,
-                  side: const BorderSide(color: Colors.red),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
+            if (!_editing)
+              SizedBox(
+                width: double.infinity,
+                height: 50,
+                child: OutlinedButton.icon(
+                  onPressed: _logout,
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: Colors.red,
+                    side: const BorderSide(color: Colors.red),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
                   ),
+                  icon: const Icon(Icons.logout_rounded, size: 20),
+                  label: const Text('Logout',
+                      style: TextStyle(fontWeight: FontWeight.w700)),
                 ),
-                icon: const Icon(Icons.logout_rounded, size: 20),
-                label: const Text('Logout',
-                    style: TextStyle(fontWeight: FontWeight.w700)),
               ),
-            ),
             const SizedBox(height: 20),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Edit-mode photo block: striped placeholder, camera badge and a
+/// "Change photo" link. Upload itself is not built yet.
+class _PhotoEditor extends StatelessWidget {
+  final VoidCallback onTap;
+  const _PhotoEditor({required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        Semantics(
+          button: true,
+          label: 'Change photo',
+          child: GestureDetector(
+            onTap: onTap,
+            child: SizedBox(
+              width: 112,
+              height: 112,
+              child: Stack(
+                children: [
+                  const StripedPlaceholder(
+                    label: 'profile photo',
+                    width: 104,
+                    height: 104,
+                    circle: true,
+                  ),
+                  Positioned(
+                    right: 0,
+                    bottom: 0,
+                    child: Container(
+                      width: 38,
+                      height: 38,
+                      decoration: BoxDecoration(
+                        color: AppColors.orange,
+                        shape: BoxShape.circle,
+                        border: Border.all(color: Colors.white, width: 3),
+                      ),
+                      child: const Icon(Icons.photo_camera_outlined,
+                          size: 19, color: Colors.white),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+        TextButton(
+          onPressed: onTap,
+          child: const Text(
+            'Change photo',
+            style: TextStyle(
+              fontSize: 15,
+              fontWeight: FontWeight.w800,
+              color: AppColors.orange,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _NavRow extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final VoidCallback onTap;
+  const _NavRow({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(16),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(16),
+        onTap: onTap,
+        child: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: const Color(0xFFEDF1F7), width: 1.2),
+          ),
+          child: Row(
+            children: [
+              Icon(icon, color: AppColors.navy),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: const TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w800,
+                        color: AppColors.navyDark,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      subtitle,
+                      style: const TextStyle(
+                        fontSize: 12.5,
+                        color: AppColors.greyText,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const Icon(Icons.chevron_right_rounded,
+                  color: AppColors.greyText),
+            ],
+          ),
         ),
       ),
     );

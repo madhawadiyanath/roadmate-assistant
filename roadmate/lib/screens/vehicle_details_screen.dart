@@ -6,6 +6,7 @@ import '../services/auth_service.dart';
 import '../services/vehicle_service.dart';
 import '../theme/app_colors.dart';
 import '../widgets/roadmate_top_bar.dart';
+import '../widgets/state_message.dart';
 import '../widgets/striped_placeholder.dart';
 import '../widgets/vehicle_widgets.dart';
 import 'driver_dashboard_screen.dart' show formatDate;
@@ -139,7 +140,7 @@ class _VehicleDetailsScreenState extends State<VehicleDetailsScreen> {
   Widget _body() {
     final stream = _stream;
     if (stream == null) {
-      return const VehicleStateMessage(
+      return const StateMessage(
         icon: Icons.cloud_off_rounded,
         title: 'Firebase not connected',
         message: 'Add your google-services files to view saved vehicles.',
@@ -149,7 +150,7 @@ class _VehicleDetailsScreenState extends State<VehicleDetailsScreen> {
       stream: stream,
       builder: (context, snap) {
         if (snap.hasError) {
-          return VehicleStateMessage(
+          return StateMessage(
             icon: Icons.error_outline_rounded,
             color: const Color(0xFFB02A37),
             title: 'Could not load vehicle',

@@ -6,6 +6,7 @@ import '../services/auth_service.dart';
 import '../services/vehicle_service.dart';
 import '../theme/app_colors.dart';
 import '../widgets/roadmate_top_bar.dart';
+import '../widgets/state_message.dart';
 import '../widgets/vehicle_widgets.dart';
 import 'vehicle_details_screen.dart';
 import 'vehicle_form_screen.dart';
@@ -121,7 +122,7 @@ class _SavedVehiclesViewState extends State<SavedVehiclesView> {
         stream == null
             ? _layout(
                 count: null,
-                body: const VehicleStateMessage(
+                body: const StateMessage(
                   icon: Icons.cloud_off_rounded,
                   title: 'Firebase not connected',
                   message:
@@ -134,7 +135,7 @@ class _SavedVehiclesViewState extends State<SavedVehiclesView> {
                   if (snap.hasError) {
                     return _layout(
                       count: null,
-                      body: VehicleStateMessage(
+                      body: StateMessage(
                         icon: Icons.error_outline_rounded,
                         color: const Color(0xFFB02A37),
                         title: 'Could not load vehicles',
@@ -152,7 +153,7 @@ class _SavedVehiclesViewState extends State<SavedVehiclesView> {
                   if (list.isEmpty) {
                     return _layout(
                       count: 0,
-                      body: const VehicleStateMessage(
+                      body: const StateMessage(
                         icon: Icons.directions_car_outlined,
                         title: 'No vehicles yet',
                         message:
