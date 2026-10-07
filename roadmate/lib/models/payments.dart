@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'payment_transaction.dart';
 
 /// Saved payment method in `users/{uid}/paymentMethods/{id}`.
 /// Only metadata is stored — never full card numbers.
@@ -140,6 +141,25 @@ class TxnRecord {
           .map(FeeLine.fromMap)
           .toList(),
       createdAt: (m['createdAt'] as Timestamp?)?.toDate(),
+    );
+  }
+
+  PaymentTransaction toPaymentTransaction() {
+    return PaymentTransaction(
+      transactionId: id.isNotEmpty ? id : refCode,
+      jobId: requestId.isNotEmpty ? requestId : refCode,
+      serviceType: type,
+      serviceProvider: payeeName.isNotEmpty ? payeeName : 'RoadMate Patrol Specialist',
+      totalAmount: amount,
+      paymentMethod: method,
+      status: isPaid ? TransactionStatus.completed : TransactionStatus.pending,
+      customerName: payerName,
+      dateTime: createdAt ?? DateTime.now(),
+      serviceCharge: items.isNotEmpty ? items.first.amount : amount,
+      additionalCharges: items.length > 1
+          ? items.sublist(1).fold(0.0, (s, i) => s + i.amount)
+          : 0.0,
+      driverUid: payerUid,
     );
   }
 }

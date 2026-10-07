@@ -2,14 +2,17 @@ import 'package:flutter/material.dart';
 
 import '../config/firebase_state.dart';
 import '../models/app_user.dart';
-import '../models/payments.dart';
+import '../models/earnings_record.dart';
+import '../models/payment_transaction.dart';
 import '../models/service_request.dart';
 import '../services/assistance_service.dart';
 import '../services/auth_service.dart';
+import '../services/earnings_service.dart';
 import '../services/payment_service.dart';
 import '../theme/app_colors.dart';
-import 'manage_methods_screen.dart';
 import 'request_success_screen.dart';
+import 'payment_methods_screen.dart';
+import 'service_charges_screen.dart';
 
 /// Step 3b of the driver flow: rate + pay before the request is sent.
 /// Pops `true` (→ Requests tab), `'home'`, or a tab index, like the rest.
@@ -37,10 +40,7 @@ class _PaymentReviewScreenState extends State<PaymentReviewScreen> {
   int _rating = 4;
   final _feedback = TextEditingController();
   final _tags = <String>{'Professional'};
-
-  /// Selected method id (`cash` = pay on site) + display label.
-  String _methodId = 'cash';
-  String _methodLabel = 'Cash on Site';
+  String _method = 'card';
   bool _submitting = false;
 
   AssistanceService get _assist =>
@@ -68,12 +68,12 @@ class _PaymentReviewScreenState extends State<PaymentReviewScreen> {
       final fee = feeFor(widget.serviceType);
       // Stable code generated up-front so the receipt shows the same one.
       final refCode = generateRefCode();
-      final requestId = await _assist.createRequest(
+      await _assist.createRequest(
         driverUid: widget.user.uid,
         driverName: widget.user.name,
         type: widget.serviceType,
         address: widget.address,
-        paymentMethod: _methodLabel,
+        paymentMethod: _method,
         rating: _rating,
         feedback: _feedback.text.trim(),
         totalFee: fee.total,
@@ -81,22 +81,41 @@ class _PaymentReviewScreenState extends State<PaymentReviewScreen> {
         plate: widget.user.vehiclePlate,
         refCode: refCode,
       );
-      final items = [
-        FeeLine(fee.line1, fee.fee1),
-        FeeLine(fee.line2, fee.fee2),
-      ];
-      final paidAtOnce = _methodId != 'cash';
-      final txnId = await _pay.createTransaction(
-        requestId: requestId,
-        refCode: refCode,
-        type: widget.serviceType.label,
-        payerUid: widget.user.uid,
-        payerName: widget.user.name,
-        amount: fee.total,
-        method: _methodLabel,
-        items: items,
-        paidAtOnce: paidAtOnce,
+
+      final txnId =
+          'TXN-${10000000 + DateTime.now().millisecondsSinceEpoch % 90000000}';
+      final tx = PaymentTransaction(
+        transactionId: txnId,
+        jobId: refCode,
+        serviceType: widget.serviceType.label,
+        serviceProvider: 'RoadMate Patrol Specialist',
+        dateTime: DateTime.now(),
+        serviceCharge: fee.fee1,
+        additionalCharges: fee.fee2,
+        totalAmount: fee.total,
+        paymentMethod: _method == 'card'
+            ? 'Mastercard •••• 4242'
+            : (_method == 'wallet' ? 'RoadMate Wallet' : 'Cash on Service'),
+        status: TransactionStatus.completed,
+        driverUid: widget.user.uid,
+        customerName: widget.user.name,
+        vehicleInfo: widget.user.vehicleDisplay,
       );
+      await _pay.recordTransaction(tx);
+
+      final earning = EarningsRecord(
+        jobId: refCode,
+        transactionId: txnId,
+        serviceType: widget.serviceType.label,
+        customerName: widget.user.name,
+        serviceCharge: fee.fee1,
+        platformFee: fee.fee2 > 0 ? (fee.fee2 * 0.2) : 200,
+        netEarnings: fee.fee1,
+        paymentStatus: 'Completed',
+        completedDate: DateTime.now(),
+      );
+      await EarningsService().recordEarning(earning);
+
       if (!mounted) return;
       final result = await Navigator.pushReplacement(
         context,
@@ -106,19 +125,8 @@ class _PaymentReviewScreenState extends State<PaymentReviewScreen> {
             serviceType: widget.serviceType,
             address: widget.address,
             vehicleDisplay: widget.user.vehicleDisplay,
-            txn: TxnRecord(
-              id: txnId,
-              requestId: requestId,
-              refCode: refCode,
-              type: widget.serviceType.label,
-              payerUid: widget.user.uid,
-              payerName: widget.user.name,
-              amount: fee.total,
-              method: _methodLabel,
-              status: paidAtOnce ? 'paid' : 'pending',
-              items: items,
-              createdAt: DateTime.now(),
-            ),
+            transaction: tx,
+            txn: tx.toTxnRecord(),
           ),
         ),
       );
@@ -484,127 +492,71 @@ class _PaymentReviewScreenState extends State<PaymentReviewScreen> {
                 ],
               ),
               const SizedBox(height: 8),
-              if (!firebaseReady)
-                Row(
-                  children: [
-                    Expanded(
-                      child: _MethodCard(
-                        selected: _methodId == 'demo-card',
-                        onTap: () => setState(() {
-                          _methodId = 'demo-card';
-                          _methodLabel = 'Card •• 4242';
-                        }),
-                        icon: Icons.credit_card_rounded,
-                        title: 'Card •• 4242',
-                        subtitle: 'VISA Exp 08/27',
+              Row(
+                children: [
+                  Expanded(
+                    child: _MethodCard(
+                      selected: _method == 'card',
+                      onTap: () => setState(() => _method = 'card'),
+                      icon: Icons.credit_card_rounded,
+                      title: 'Card •• 4242',
+                      subtitle: 'VISA Exp 08/27',
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: _MethodCard(
+                      selected: _method == 'cash',
+                      onTap: () => setState(() => _method = 'cash'),
+                      icon: Icons.money_outlined,
+                      title: 'Cash on Site',
+                      subtitle: 'Driver receipt',
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  GestureDetector(
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const PaymentMethodsScreen(),
+                        ),
+                      );
+                    },
+                    child: const Text(
+                      '+ Manage Payment Methods',
+                      style: TextStyle(
+                        fontSize: 12.5,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.orange,
                       ),
                     ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: _MethodCard(
-                        selected: _methodId == 'cash',
-                        onTap: () => setState(() {
-                          _methodId = 'cash';
-                          _methodLabel = 'Cash on Site';
-                        }),
-                        icon: Icons.money_outlined,
-                        title: 'Cash on Site',
-                        subtitle: 'Driver receipt',
+                  ),
+                  GestureDetector(
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const ServiceChargesScreen(),
+                        ),
+                      );
+                    },
+                    child: const Text(
+                      'View Pricing Rates',
+                      style: TextStyle(
+                        fontSize: 12.5,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.greyText,
                       ),
                     ),
-                  ],
-                )
-              else
-                StreamBuilder<List<SavedMethod>>(
-                  stream: _pay.watchMethods(widget.user.uid),
-                  builder: (context, snap) {
-                    final methods = snap.data ?? [];
-                    // Keep a valid selection as the list loads.
-                    if (methods.isNotEmpty &&
-                        _methodId != 'cash' &&
-                        !methods.any((m) => m.id == _methodId)) {
-                      final dflt = methods.firstWhere(
-                        (m) => m.isDefault,
-                        orElse: () => methods.first,
-                      );
-                      WidgetsBinding.instance.addPostFrameCallback((_) {
-                        if (!mounted) return;
-                        setState(() {
-                          _methodId = dflt.id;
-                          _methodLabel = dflt.label;
-                        });
-                      });
-                    }
-                    if (snap.connectionState == ConnectionState.waiting &&
-                        methods.isEmpty) {
-                      return const Padding(
-                        padding: EdgeInsets.all(12),
-                        child: Center(
-                            child: CircularProgressIndicator()),
-                      );
-                    }
-                    return Column(
-                      children: [
-                        for (final m in methods) ...[
-                          _MethodCard(
-                            selected: _methodId == m.id,
-                            onTap: () => setState(() {
-                              _methodId = m.id;
-                              _methodLabel = m.label;
-                            }),
-                            icon: Icons.credit_card_rounded,
-                            title: m.label,
-                            subtitle: m.detail,
-                          ),
-                          const SizedBox(height: 10),
-                        ],
-                        _MethodCard(
-                          selected: _methodId == 'cash',
-                          onTap: () => setState(() {
-                            _methodId = 'cash';
-                            _methodLabel = 'Cash on Site';
-                          }),
-                          icon: Icons.money_outlined,
-                          title: 'Cash on Site',
-                          subtitle: 'Pay the patrol directly',
-                        ),
-                        const SizedBox(height: 10),
-                        SizedBox(
-                          width: double.infinity,
-                          child: OutlinedButton.icon(
-                            onPressed: () => Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => ManageMethodsScreen(
-                                  uid: widget.user.uid,
-                                  paymentService: widget.paymentService,
-                                ),
-                              ),
-                            ),
-                            style: OutlinedButton.styleFrom(
-                              foregroundColor: AppColors.navy,
-                              side: const BorderSide(
-                                  color: AppColors.navy, width: 1.4),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              padding: const EdgeInsets.symmetric(
-                                  vertical: 13),
-                            ),
-                            icon: const Icon(
-                                Icons.add_card_rounded,
-                                size: 20),
-                            label: const Text(
-                              'Add / Manage Cards',
-                              style: TextStyle(
-                                  fontWeight: FontWeight.w700),
-                            ),
-                          ),
-                        ),
-                      ],
-                    );
-                  },
-                ),
+                  ),
+                ],
+              ),
               const SizedBox(height: 14),
 
               // Complete & submit

@@ -4,9 +4,10 @@ import '../config/firebase_state.dart';
 import '../models/app_user.dart';
 import '../services/auth_service.dart';
 import '../theme/app_colors.dart';
-import 'manage_methods_screen.dart';
+import 'mechanic_transaction_history_screen.dart';
 import 'onboarding_screen.dart';
-import 'transactions_screen.dart';
+import 'payment_history_screen.dart';
+import 'payment_methods_screen.dart';
 
 /// Driver / mechanic profile with CRUD for personal + vehicle details.
 /// Pops the updated [AppUser] after a successful save.
@@ -320,8 +321,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       ? () => Navigator.push(
                             context,
                             MaterialPageRoute(
-                              builder: (_) => ManageMethodsScreen(
-                                uid: widget.user.uid,
+                              builder: (_) => PaymentMethodsScreen(
+                                userUid: widget.user.uid,
                               ),
                             ),
                           )
@@ -339,12 +340,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   onTap: () => Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (_) => TransactionsScreen(
-                        uid: widget.user.uid,
-                        mode: _isDriver
-                            ? TxnMode.payer
-                            : TxnMode.payee,
-                      ),
+                      builder: (_) => _isDriver
+                          ? PaymentHistoryScreen(driverUid: widget.user.uid)
+                          : MechanicTransactionHistoryScreen(
+                              mechanicUid: widget.user.uid,
+                            ),
                     ),
                   ),
                 ),
