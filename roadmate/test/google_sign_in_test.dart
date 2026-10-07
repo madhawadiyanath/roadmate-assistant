@@ -20,6 +20,9 @@ class _FakeUser extends Fake implements User {
   String? get displayName => 'Kasun Perera';
   @override
   String? get email => 'kasun@gmail.com';
+  // Google accounts come with a verified email (AuthGate checks this).
+  @override
+  bool get emailVerified => true;
 }
 
 class _FakeCred extends Fake implements UserCredential {

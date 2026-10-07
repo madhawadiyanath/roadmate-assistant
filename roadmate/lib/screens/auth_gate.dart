@@ -8,6 +8,7 @@ import '../theme/app_colors.dart';
 import 'choose_role_screen.dart';
 import 'onboarding_screen.dart';
 import 'role_home.dart';
+import 'verify_email_screen.dart';
 
 /// Decides the first screen: logged-in users resume their dashboard,
 /// everyone else (or no Firebase config) sees onboarding.
@@ -51,6 +52,12 @@ class AuthGate extends StatelessWidget {
                 uid: fbUser.uid,
                 name: fbUser.displayName ?? '',
                 email: fbUser.email ?? '',
+                authService: authService,
+              );
+            }
+            if (AuthService.userNeedsEmailVerification(fbUser)) {
+              return VerifyEmailScreen(
+                user: profile,
                 authService: authService,
               );
             }

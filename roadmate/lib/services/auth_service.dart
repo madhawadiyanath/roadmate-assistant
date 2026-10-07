@@ -49,12 +49,68 @@ class AuthService {
     try {
       await _users.doc(user.uid).set(user.toMap());
       await cred.user!.updateDisplayName(user.name);
-      return user;
     } catch (_) {
       await cred.user?.delete();
       rethrow;
     }
+    // Verification mail is best-effort: a failed send must not undo the
+    // sign-up — the verify screen has a "Resend email" button.
+    try {
+      await cred.user!.sendEmailVerification();
+    } catch (_) {}
+    return user;
   }
+
+  // ------------------------ Email verification ------------------------
+
+  /// Accounts created before this moment are never asked to verify their
+  /// email (they signed up before verification existed).
+  static final DateTime emailVerificationCutoff =
+      DateTime.utc(2026, 10, 7, 8, 0);
+
+  /// Whether [user] must verify their email before using the app: a
+  /// password account (Google accounts are already verified), not yet
+  /// verified, created after [emailVerificationCutoff].
+  static bool userNeedsEmailVerification(User? user) {
+    if (user == null || user.emailVerified) return false;
+    if (!user.providerData.any((p) => p.providerId == 'password')) {
+      return false;
+    }
+    final created = user.metadata.creationTime;
+    return created != null && created.isAfter(emailVerificationCutoff);
+  }
+
+  /// [userNeedsEmailVerification] for the currently signed-in user.
+  bool get needsEmailVerification =>
+      userNeedsEmailVerification(_auth.currentUser);
+
+  /// (Re)send the verification email to the signed-in user.
+  Future<void> sendVerificationEmail() async {
+    final user = _auth.currentUser;
+    if (user == null) {
+      throw FirebaseAuthException(
+        code: 'no-current-user',
+        message: 'You are signed out. Please sign in again.',
+      );
+    }
+    await user.sendEmailVerification();
+  }
+
+  /// Refresh the signed-in user from Firebase and report whether their
+  /// email is verified now (they may have just tapped the link).
+  Future<bool> isEmailVerified() async {
+    final user = _auth.currentUser;
+    if (user == null) return false;
+    await user.reload();
+    return _auth.currentUser?.emailVerified ?? false;
+  }
+
+  // --------------------------- Password reset ---------------------------
+
+  /// Send Firebase's password-reset email (the link opens Firebase's hosted
+  /// "set a new password" page).
+  Future<void> sendPasswordReset(String email) =>
+      _auth.sendPasswordResetEmail(email: email.trim());
 
   /// Email/password login. Profile (with role) is read from `users/{uid}`.
   Future<AppUser> signIn({

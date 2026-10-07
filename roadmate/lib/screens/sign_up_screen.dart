@@ -6,7 +6,7 @@ import '../theme/app_colors.dart';
 import '../widgets/auth_widgets.dart';
 import '../widgets/role_selector.dart';
 import 'google_sign_in_flow.dart';
-import 'role_home.dart';
+import 'verify_email_screen.dart';
 import 'sign_in_screen.dart';
 
 class SignUpScreen extends StatefulWidget {
@@ -88,7 +88,13 @@ class _SignUpScreenState extends State<SignUpScreen> {
       );
       if (!mounted) return;
       Navigator.of(context).pushAndRemoveUntil(
-        MaterialPageRoute(builder: (_) => RoleHome(user: user)),
+        MaterialPageRoute(
+          builder: (_) => VerifyEmailScreen(
+            user: user,
+            authService: _auth,
+            justSent: true,
+          ),
+        ),
         (_) => false,
       );
     } catch (e) {

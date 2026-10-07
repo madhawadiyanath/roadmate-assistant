@@ -3,9 +3,11 @@ import '../config/firebase_state.dart';
 import '../services/auth_service.dart';
 import '../theme/app_colors.dart';
 import '../widgets/auth_widgets.dart';
+import 'forgot_password_screen.dart';
 import 'google_sign_in_flow.dart';
 import 'role_home.dart';
 import 'sign_up_screen.dart';
+import 'verify_email_screen.dart';
 
 class SignInScreen extends StatefulWidget {
   final AuthService? authService;
@@ -28,6 +30,17 @@ class _SignInScreenState extends State<SignInScreen> {
     _email.dispose();
     _password.dispose();
     super.dispose();
+  }
+
+  void _forgotPassword() {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => ForgotPasswordScreen(
+          initialEmail: _email.text.trim(),
+          authService: widget.authService,
+        ),
+      ),
+    );
   }
 
   void _goSignUp() {
@@ -56,8 +69,13 @@ class _SignInScreenState extends State<SignInScreen> {
         password: _password.text,
       );
       if (!mounted) return;
+      final needsVerify = _auth.needsEmailVerification;
       Navigator.of(context).pushAndRemoveUntil(
-        MaterialPageRoute(builder: (_) => RoleHome(user: user)),
+        MaterialPageRoute(
+          builder: (_) => needsVerify
+              ? VerifyEmailScreen(user: user, authService: _auth)
+              : RoleHome(user: user),
+        ),
         (_) => false,
       );
     } catch (e) {
@@ -129,7 +147,7 @@ class _SignInScreenState extends State<SignInScreen> {
                     AuthLabel(
                       text: 'Password',
                       trailing: GestureDetector(
-                        onTap: () {},
+                        onTap: _forgotPassword,
                         child: const Text(
                           'Forgot Password?',
                           style: TextStyle(
