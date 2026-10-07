@@ -22,7 +22,7 @@ const _user = AppUser(
 );
 
 void _phone(WidgetTester tester) {
-  tester.view.physicalSize = const Size(920, 1800);
+  tester.view.physicalSize = const Size(920, 3200);
   tester.view.devicePixelRatio = 2;
   addTearDown(tester.view.reset);
 }

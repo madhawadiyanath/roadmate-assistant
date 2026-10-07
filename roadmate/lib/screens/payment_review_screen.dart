@@ -9,7 +9,9 @@ import '../services/vehicle_service.dart';
 import '../theme/app_colors.dart';
 import 'request_success_screen.dart';
 
-/// Step 3b of the driver flow: rate + pay before the request is sent.
+/// Step 3b of the driver flow: review the charges and pick how to pay
+/// before the request is sent. (Rating happens later, once the job is
+/// completed — see RateRequestScreen.)
 /// Pops `true` (→ Requests tab), `'home'`, or a tab index, like the rest.
 class PaymentReviewScreen extends StatefulWidget {
   final AppUser user;
@@ -32,20 +34,11 @@ class PaymentReviewScreen extends StatefulWidget {
 }
 
 class _PaymentReviewScreenState extends State<PaymentReviewScreen> {
-  int _rating = 4;
-  final _feedback = TextEditingController();
-  final _tags = <String>{'Professional'};
   String _method = 'card';
   bool _submitting = false;
 
   AssistanceService get _assist =>
       widget.assistanceService ?? AssistanceService();
-
-  @override
-  void dispose() {
-    _feedback.dispose();
-    super.dispose();
-  }
 
   void _snack(String msg) {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
@@ -70,8 +63,6 @@ class _PaymentReviewScreenState extends State<PaymentReviewScreen> {
         type: widget.serviceType,
         address: widget.address,
         paymentMethod: _method,
-        rating: _rating,
-        feedback: _feedback.text.trim(),
         totalFee: fee.total,
         vehicle: vehicle?.name ?? '',
         plate: vehicle?.plateNo ?? '',
@@ -156,7 +147,7 @@ class _PaymentReviewScreenState extends State<PaymentReviewScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'Rate Your Experience',
+                          'Payment',
                           style: TextStyle(
                             fontSize: 22,
                             fontWeight: FontWeight.w800,
@@ -164,7 +155,7 @@ class _PaymentReviewScreenState extends State<PaymentReviewScreen> {
                           ),
                         ),
                         Text(
-                          'How was the service during your breakdown?',
+                          'Review your charges and choose how to pay',
                           style: TextStyle(
                               fontSize: 12.5, color: AppColors.greyText),
                         ),
@@ -260,101 +251,6 @@ class _PaymentReviewScreenState extends State<PaymentReviewScreen> {
                 ),
               ),
               const SizedBox(height: 14),
-
-              // Stars
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    '${_ratingLabel()} (${_rating.toStringAsFixed(1)})',
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w800,
-                      color: AppColors.navyDark,
-                    ),
-                  ),
-                  const Text(
-                    'Tap star to rate',
-                    style:
-                        TextStyle(fontSize: 11.5, color: AppColors.greyText),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 6),
-              Row(
-                children: [
-                  for (int i = 1; i <= 5; i++)
-                    GestureDetector(
-                      onTap: () => setState(() => _rating = i),
-                      child: Padding(
-                        padding: const EdgeInsets.only(right: 4),
-                        child: Icon(
-                          i <= _rating
-                              ? Icons.star_rounded
-                              : Icons.star_outline_rounded,
-                          size: 34,
-                          color: AppColors.orange,
-                        ),
-                      ),
-                    ),
-                ],
-              ),
-              const SizedBox(height: 12),
-
-              // Feedback
-              TextField(
-                controller: _feedback,
-                maxLines: 3,
-                style: const TextStyle(
-                    fontSize: 13.5, color: AppColors.navyDark),
-                decoration: InputDecoration(
-                  hintText:
-                      'Share feedback (optional) — the dispatch team reads every note…',
-                  hintStyle: const TextStyle(
-                      color: AppColors.fieldHint, fontSize: 13),
-                  filled: true,
-                  fillColor: Colors.white,
-                  contentPadding: const EdgeInsets.all(14),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: const BorderSide(
-                        color: Color(0xFFE3E8F0), width: 1.2),
-                  ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: const BorderSide(
-                        color: Color(0xFFE3E8F0), width: 1.2),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: const BorderSide(
-                        color: AppColors.navy, width: 1.4),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 10),
-
-              // Tags
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: [
-                  for (final t in const [
-                    'Fast Arrival',
-                    'Professional',
-                    'Polite',
-                    'Careful Handling'
-                  ])
-                    _Tag(
-                      label: t,
-                      selected: _tags.contains(t),
-                      onTap: () => setState(() => _tags.contains(t)
-                          ? _tags.remove(t)
-                          : _tags.add(t)),
-                    ),
-                ],
-              ),
-              const SizedBox(height: 16),
 
               // Payment summary
               Row(
@@ -551,14 +447,6 @@ class _PaymentReviewScreenState extends State<PaymentReviewScreen> {
       ),
     );
   }
-
-  String _ratingLabel() => switch (_rating) {
-        5 => 'Excellent Service!',
-        4 => 'Great Service!',
-        3 => 'Good Service',
-        2 => 'Needs Work',
-        _ => 'Poor Service',
-      };
 }
 
 /// Fixed-rate fee breakdown per service type.
@@ -594,52 +482,6 @@ String formatFee(double v) {
     buf.write(digits[i]);
   }
   return 'Rs. ${buf.toString().split('').reversed.join()}.${parts[1]}';
-}
-
-class _Tag extends StatelessWidget {
-  final String label;
-  final bool selected;
-  final VoidCallback onTap;
-  const _Tag({
-    required this.label,
-    required this.selected,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        decoration: BoxDecoration(
-          color: selected ? const Color(0xFFFFEDE0) : Colors.white,
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(
-            color: selected ? AppColors.orange : const Color(0xFFE3E8F0),
-            width: 1.2,
-          ),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (selected)
-              const Icon(Icons.check_rounded,
-                  size: 14, color: AppColors.orange),
-            if (selected) const SizedBox(width: 4),
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 12.5,
-                fontWeight: FontWeight.w600,
-                color: selected ? AppColors.orange : AppColors.greyText,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
 }
 
 class _FeeRow extends StatelessWidget {

@@ -8,6 +8,7 @@ import '../theme/app_colors.dart';
 import '../widgets/request_history_widgets.dart';
 import '../widgets/roadmate_top_bar.dart';
 import '../widgets/state_message.dart';
+import 'rate_request_screen.dart';
 
 enum _Filter { all, completed, cancelled }
 
@@ -61,6 +62,16 @@ class _RequestHistoryScreenState extends State<RequestHistoryScreen> {
       case _Filter.cancelled:
         return r.status == RequestStatus.cancelled;
     }
+  }
+
+  /// Rate a completed request; the list refreshes itself from the stream.
+  void _rate(ServiceRequest r) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => RateRequestScreen(request: r, service: widget.service),
+      ),
+    );
   }
 
   @override
@@ -156,6 +167,7 @@ class _RequestHistoryScreenState extends State<RequestHistoryScreen> {
                         onTap: widget.onOpen == null
                             ? null
                             : () => widget.onOpen!(context, shown[i]),
+                        onRate: () => _rate(shown[i]),
                       ),
                     ),
             ),

@@ -46,6 +46,12 @@ class ServiceRequest {
   final String paymentMethod;
   final int rating;
   final String feedback;
+
+  /// Quick tags picked on the rating screen ("Fast Arrival", ...).
+  final List<String> tags;
+
+  /// When the driver submitted their rating (null = not rated yet).
+  final DateTime? ratedAt;
   final double totalFee;
 
   /// Vehicle snapshot at request time (driver may change theirs later).
@@ -72,6 +78,8 @@ class ServiceRequest {
     this.paymentMethod = '',
     this.rating = 0,
     this.feedback = '',
+    this.tags = const [],
+    this.ratedAt,
     this.totalFee = 0,
     this.vehicle = '',
     this.plate = '',
@@ -84,6 +92,11 @@ class ServiceRequest {
     if (vehicle.isEmpty) return 'No vehicle selected';
     return plate.isEmpty ? vehicle : '$vehicle • $plate';
   }
+
+  /// True once the driver has submitted a rating. `ratedAt` is what
+  /// counts: older docs carry a default `rating` from before the rating
+  /// screen existed and must not be treated as a real rating.
+  bool get isRated => ratedAt != null && rating >= 1;
 
   Map<String, dynamic> toMap() => {
         'driverUid': driverUid,
@@ -98,6 +111,7 @@ class ServiceRequest {
         'paymentMethod': paymentMethod,
         'rating': rating,
         'feedback': feedback,
+        'tags': tags,
         'totalFee': totalFee,
         'vehicle': vehicle,
         'plate': plate,
@@ -123,6 +137,8 @@ class ServiceRequest {
       paymentMethod: (m['paymentMethod'] ?? '') as String,
       rating: (m['rating'] as num?)?.toInt() ?? 0,
       feedback: (m['feedback'] ?? '') as String,
+      tags: ((m['tags'] as List?) ?? const []).whereType<String>().toList(),
+      ratedAt: (m['ratedAt'] as Timestamp?)?.toDate(),
       totalFee: (m['totalFee'] as num?)?.toDouble() ?? 0,
       vehicle: (m['vehicle'] ?? '') as String,
       plate: (m['plate'] ?? '') as String,

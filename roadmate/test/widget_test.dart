@@ -232,7 +232,8 @@ void main() {
     await tester.tap(find.text('Continue to Payment'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Rate Your Experience'), findsOneWidget);
+    expect(find.text('Payment'), findsOneWidget);
+    expect(find.text('Rate Your Experience'), findsNothing); // rating is post-job
     expect(find.text('Payment Summary'), findsOneWidget);
     expect(find.text('Payment Method'), findsOneWidget);
     expect(find.text('Rs. 3,500.00'), findsOneWidget);

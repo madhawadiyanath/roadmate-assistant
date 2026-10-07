@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../models/service_request.dart';
 import '../theme/app_colors.dart';
+import 'rating_widgets.dart';
 
 const _lineColor = Color(0xFFE3E8F5);
 const _iconBg = Color(0xFFEEF2FF);
@@ -122,22 +123,28 @@ class RequestStatusBadge extends StatelessWidget {
 }
 
 /// One history entry: service icon, title, date/time, request id on the
-/// left; status badge and cost on the right.
+/// left; status badge and cost on the right. Completed requests also show
+/// the driver's stars, or a "Rate this service" action while unrated.
 class RequestHistoryCard extends StatelessWidget {
   final ServiceRequest request;
   final VoidCallback? onTap;
+
+  /// Opens the rating screen; the action is hidden when null.
+  final VoidCallback? onRate;
   final DateTime? now;
 
   const RequestHistoryCard({
     super.key,
     required this.request,
     this.onTap,
+    this.onRate,
     this.now,
   });
 
   @override
   Widget build(BuildContext context) {
     final r = request;
+    final completed = r.status == RequestStatus.completed;
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: Material(
@@ -152,67 +159,108 @@ class RequestHistoryCard extends StatelessWidget {
               borderRadius: BorderRadius.circular(18),
               border: Border.all(color: _lineColor, width: 1.2),
             ),
-            child: Row(
+            child: Column(
               children: [
-                Container(
-                  width: 56,
-                  height: 56,
-                  decoration: const BoxDecoration(
-                    color: _iconBg,
-                    shape: BoxShape.circle,
-                  ),
-                  child: Icon(assistanceIcon(r.type),
-                      color: AppColors.navy, size: 26),
+                Row(
+                  children: [
+                    Container(
+                      width: 56,
+                      height: 56,
+                      decoration: const BoxDecoration(
+                        color: _iconBg,
+                        shape: BoxShape.circle,
+                      ),
+                      child: Icon(assistanceIcon(r.type),
+                          color: AppColors.navy, size: 26),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            r.type.label,
+                            style: const TextStyle(
+                              fontSize: 17,
+                              fontWeight: FontWeight.w800,
+                              color: AppColors.navy,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            requestDateTimeLabel(r.createdAt, now: now),
+                            style: const TextStyle(
+                              fontSize: 14,
+                              color: AppColors.navyDark,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            r.refCode,
+                            style: const TextStyle(
+                              fontSize: 13.5,
+                              color: AppColors.greyText,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        RequestStatusBadge(status: r.status),
+                        const SizedBox(height: 10),
+                        Text(
+                          requestCostLabel(r),
+                          textAlign: TextAlign.right,
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w800,
+                            color: AppColors.navy,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
                 ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                if (completed && r.isRated) ...[
+                  const Divider(height: 22, color: _lineColor),
+                  Row(
                     children: [
-                      Text(
-                        r.type.label,
-                        style: const TextStyle(
-                          fontSize: 17,
-                          fontWeight: FontWeight.w800,
-                          color: AppColors.navy,
-                        ),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        requestDateTimeLabel(r.createdAt, now: now),
-                        style: const TextStyle(
-                          fontSize: 14,
-                          color: AppColors.navyDark,
-                        ),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        r.refCode,
-                        style: const TextStyle(
+                      const Text(
+                        'Your rating',
+                        style: TextStyle(
                           fontSize: 13.5,
                           color: AppColors.greyText,
                         ),
                       ),
+                      const Spacer(),
+                      StarRow(rating: r.rating, size: 20),
                     ],
                   ),
-                ),
-                const SizedBox(width: 8),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    RequestStatusBadge(status: r.status),
-                    const SizedBox(height: 10),
-                    Text(
-                      requestCostLabel(r),
-                      textAlign: TextAlign.right,
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w800,
-                        color: AppColors.navy,
+                ] else if (completed && onRate != null) ...[
+                  const Divider(height: 22, color: _lineColor),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 42,
+                    child: OutlinedButton.icon(
+                      onPressed: onRate,
+                      icon: const Icon(Icons.star_outline_rounded, size: 20),
+                      label: const Text(
+                        'Rate this service',
+                        style: TextStyle(fontWeight: FontWeight.w800),
+                      ),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: AppColors.orange,
+                        side: const BorderSide(color: AppColors.orange),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
                       ),
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ],
             ),
           ),

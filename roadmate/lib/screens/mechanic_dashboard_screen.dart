@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../config/firebase_state.dart';
 import '../models/app_user.dart';
+import '../models/rating_summary.dart';
 import '../models/service_request.dart';
 import '../services/assistance_service.dart';
 import '../services/auth_service.dart';
@@ -388,8 +389,8 @@ class _MechHomeTab extends StatelessWidget {
                   iconColor: Color(0xFF22B573),
                 ),
                 _StatCard(
-                  value: '4.8',
-                  label: 'Rating',
+                  value: '—',
+                  label: 'No ratings yet',
                   icon: Icons.star_rounded,
                   iconBg: Color(0xFFFFF3DC),
                   iconColor: AppColors.orange,
@@ -415,6 +416,7 @@ class _MechHomeTab extends StatelessWidget {
                       .where(
                           (r) => r.status == RequestStatus.completed)
                       .length;
+                  final rating = RatingSummary.from(myJobs);
                   return GridView.count(
                     crossAxisCount: 2,
                     shrinkWrap: true,
@@ -444,11 +446,13 @@ class _MechHomeTab extends StatelessWidget {
                         iconBg: const Color(0xFFE6F7EE),
                         iconColor: const Color(0xFF22B573),
                       ),
-                      const _StatCard(
-                        value: '4.8',
-                        label: 'Rating',
+                      _StatCard(
+                        value: rating.averageText,
+                        label: rating.hasRatings
+                            ? 'Rating (${rating.count})'
+                            : 'No ratings yet',
                         icon: Icons.star_rounded,
-                        iconBg: Color(0xFFFFF3DC),
+                        iconBg: const Color(0xFFFFF3DC),
                         iconColor: AppColors.orange,
                       ),
                     ],
