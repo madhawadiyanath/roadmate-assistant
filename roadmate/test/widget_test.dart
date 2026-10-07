@@ -572,6 +572,11 @@ void main() {
     expect(find.textContaining('Hello, Admin'), findsOneWidget);
     expect(find.text('Total Users'), findsOneWidget);
     expect(find.text('Pending Requests'), findsOneWidget);
+    expect(find.text('Analytics'), findsOneWidget);
+    expect(find.text('Requests by Status'), findsOneWidget);
+    expect(find.text('This Week'), findsOneWidget);
+    expect(find.text('Requests by Service'), findsOneWidget);
+    expect(find.text('Users by Role'), findsOneWidget);
     expect(find.text('All Requests'), findsWidgets);
     expect(find.text('All Users'), findsWidgets);
 

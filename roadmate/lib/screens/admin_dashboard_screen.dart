@@ -6,6 +6,7 @@ import '../models/service_request.dart';
 import '../services/assistance_service.dart';
 import '../services/auth_service.dart';
 import '../theme/app_colors.dart';
+import '../widgets/admin_charts.dart';
 import 'profile_screen.dart';
 
 /// Admin home: platform stats, every request, every user.
@@ -180,7 +181,13 @@ class _AdminHomeTab extends StatelessWidget {
           ),
           const SizedBox(height: 14),
           if (!firebaseReady)
-            const _DemoStats()
+            const Column(
+              children: [
+                _DemoStats(),
+                SizedBox(height: 14),
+                _DemoAnalytics(),
+              ],
+            )
           else
             StreamBuilder<List<ServiceRequest>>(
               stream: assistance.watchAllRequests(),
@@ -196,17 +203,30 @@ class _AdminHomeTab extends StatelessWidget {
                   }
                   final reqs = reqSnap.data ?? [];
                   final users = userSnap.data ?? [];
-                  return _StatGrid(
-                    totalUsers: users.length,
-                    drivers: users
-                        .where((u) => u.role == AppRole.driver)
-                        .length,
-                    mechanics: users
-                        .where((u) => u.role == AppRole.mechanic)
-                        .length,
-                    pending: reqs
-                        .where((r) => r.status == RequestStatus.pending)
-                        .length,
+                  return Column(
+                    children: [
+                      _StatGrid(
+                        totalUsers: users.length,
+                        drivers: users
+                            .where((u) => u.role == AppRole.driver)
+                            .length,
+                        mechanics: users
+                            .where((u) => u.role == AppRole.mechanic)
+                            .length,
+                        pending: reqs
+                            .where(
+                                (r) => r.status == RequestStatus.pending)
+                            .length,
+                      ),
+                      const SizedBox(height: 14),
+                      _AnalyticsSection(
+                        byStatus: statusSegments(reqs),
+                        byRole: roleSegments(users),
+                        byType: typeSegments(reqs),
+                        weekly: weeklyCounts(reqs),
+                        total: reqs.length,
+                      ),
+                    ],
                   );
                 },
               ),
@@ -236,6 +256,184 @@ class _AdminHomeTab extends StatelessWidget {
           const SizedBox(height: 16),
         ],
       ),
+    );
+  }
+}
+
+/// Aggregation helpers for the analytics section.
+List<DonutSegment> statusSegments(List<ServiceRequest> reqs) => [
+      for (final s in RequestStatus.values)
+        DonutSegment(
+          label: s.label,
+          value: reqs.where((r) => r.status == s).length,
+          color: switch (s) {
+            RequestStatus.pending => AppColors.orange,
+            RequestStatus.accepted => const Color(0xFF2F7DE1),
+            RequestStatus.onTheWay => AppColors.navy,
+            RequestStatus.completed => const Color(0xFF22B573),
+            RequestStatus.cancelled => AppColors.greyText,
+          },
+        ),
+    ];
+
+List<DonutSegment> typeSegments(List<ServiceRequest> reqs) => [
+      for (final t in AssistanceType.values)
+        DonutSegment(
+          label: t.label,
+          value: reqs.where((r) => r.type == t).length,
+          color: switch (t) {
+            AssistanceType.flatTyre => AppColors.orange,
+            AssistanceType.jumpStart => const Color(0xFF2F7DE1),
+            AssistanceType.fuelDrop => AppColors.navy,
+            AssistanceType.towing => const Color(0xFF22B573),
+            AssistanceType.general => AppColors.greyText,
+          },
+        ),
+    ];
+
+List<DonutSegment> roleSegments(List<AppUser> users) => [
+      DonutSegment(
+        label: 'Drivers',
+        value: users.where((u) => u.role == AppRole.driver).length,
+        color: const Color(0xFF2F7DE1),
+      ),
+      DonutSegment(
+        label: 'Mechanics',
+        value: users.where((u) => u.role == AppRole.mechanic).length,
+        color: AppColors.orange,
+      ),
+      DonutSegment(
+        label: 'Admins',
+        value: users.where((u) => u.role == AppRole.admin).length,
+        color: AppColors.navy,
+      ),
+    ];
+
+/// Requests per day, oldest → newest (7 entries).
+List<int> weeklyCounts(List<ServiceRequest> reqs) {
+  final now = DateTime.now();
+  final today = DateTime(now.year, now.month, now.day);
+  return List.generate(7, (i) {
+    final day = today.subtract(Duration(days: 6 - i));
+    return reqs.where((r) {
+      final c = r.createdAt;
+      return c != null &&
+          c.year == day.year &&
+          c.month == day.month &&
+          c.day == day.day;
+    }).length;
+  });
+}
+
+class _AnalyticsSection extends StatelessWidget {
+  final List<DonutSegment> byStatus;
+  final List<DonutSegment> byRole;
+  final List<DonutSegment> byType;
+  final List<int> weekly;
+  final int total;
+  const _AnalyticsSection({
+    required this.byStatus,
+    required this.byRole,
+    required this.byType,
+    required this.weekly,
+    required this.total,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Analytics',
+          style: TextStyle(
+            fontSize: 17,
+            fontWeight: FontWeight.w800,
+            color: AppColors.navyDark,
+          ),
+        ),
+        const SizedBox(height: 10),
+        AnalyticsCard(
+          title: 'Requests by Status',
+          subtitle: '$total total requests',
+          child: DonutChart(segments: byStatus),
+        ),
+        const SizedBox(height: 10),
+        AnalyticsCard(
+          title: 'This Week',
+          subtitle: 'Requests per day',
+          child: WeeklyBars(values: weekly),
+        ),
+        const SizedBox(height: 10),
+        AnalyticsCard(
+          title: 'Requests by Service',
+          subtitle: 'Most needed help',
+          child: TypeBars(segments: byType),
+        ),
+        const SizedBox(height: 10),
+        AnalyticsCard(
+          title: 'Users by Role',
+          subtitle: 'Platform mix',
+          child: DonutChart(segments: byRole),
+        ),
+      ],
+    );
+  }
+}
+
+class _DemoAnalytics extends StatelessWidget {
+  const _DemoAnalytics();
+
+  @override
+  Widget build(BuildContext context) {
+    return const _AnalyticsSection(
+      byStatus: [
+        DonutSegment(
+            label: 'Pending', value: 5, color: AppColors.orange),
+        DonutSegment(
+            label: 'Accepted',
+            value: 3,
+            color: Color(0xFF2F7DE1)),
+        DonutSegment(
+            label: 'On the way', value: 2, color: AppColors.navy),
+        DonutSegment(
+            label: 'Completed',
+            value: 12,
+            color: Color(0xFF22B573)),
+        DonutSegment(
+            label: 'Cancelled',
+            value: 1,
+            color: AppColors.greyText),
+      ],
+      byRole: [
+        DonutSegment(
+            label: 'Drivers',
+            value: 96,
+            color: Color(0xFF2F7DE1)),
+        DonutSegment(
+            label: 'Mechanics', value: 32, color: AppColors.orange),
+        DonutSegment(label: 'Admins', value: 2, color: AppColors.navy),
+      ],
+      byType: [
+        DonutSegment(
+            label: 'Flat Tyre', value: 8, color: AppColors.orange),
+        DonutSegment(
+            label: 'Jump Start',
+            value: 5,
+            color: Color(0xFF2F7DE1)),
+        DonutSegment(
+            label: 'Fuel Drop', value: 3, color: AppColors.navy),
+        DonutSegment(
+            label: 'Towing Service',
+            value: 6,
+            color: Color(0xFF22B573)),
+        DonutSegment(
+            label: 'Request Assistance',
+            value: 1,
+            color: AppColors.greyText),
+      ],
+      weekly: [3, 5, 2, 6, 4, 7, 5],
+      total: 23,
     );
   }
 }
