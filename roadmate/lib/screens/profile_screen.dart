@@ -4,7 +4,9 @@ import '../config/firebase_state.dart';
 import '../models/app_user.dart';
 import '../services/auth_service.dart';
 import '../theme/app_colors.dart';
+import 'manage_methods_screen.dart';
 import 'onboarding_screen.dart';
+import 'transactions_screen.dart';
 
 /// Driver / mechanic profile with CRUD for personal + vehicle details.
 /// Pops the updated [AppUser] after a successful save.
@@ -304,6 +306,52 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ),
             if (_editing) const SizedBox(height: 12),
 
+            // Payments section
+            _SectionCard(
+              title: 'Payments',
+              children: [
+                _LinkRow(
+                  icon: Icons.credit_card_outlined,
+                  label: 'Payment Methods',
+                  subtitle: _isDriver
+                      ? 'Cards for rescue payments'
+                      : 'Payout destination (coming soon)',
+                  onTap: _isDriver
+                      ? () => Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => ManageMethodsScreen(
+                                uid: widget.user.uid,
+                              ),
+                            ),
+                          )
+                      : null,
+                ),
+                const SizedBox(height: 4),
+                _LinkRow(
+                  icon: Icons.receipt_long_outlined,
+                  label: _isDriver
+                      ? 'Transaction History'
+                      : 'Income History',
+                  subtitle: _isDriver
+                      ? 'Every rescue payment + receipts'
+                      : 'Every payout + receipts',
+                  onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => TransactionsScreen(
+                        uid: widget.user.uid,
+                        mode: _isDriver
+                            ? TxnMode.payer
+                            : TxnMode.payee,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+
             // Logout
             SizedBox(
               width: double.infinity,
@@ -486,6 +534,73 @@ class _ReadOnlyRow extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+class _LinkRow extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final String subtitle;
+  final VoidCallback? onTap;
+  const _LinkRow({
+    required this.icon,
+    required this.label,
+    required this.subtitle,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      behavior: HitTestBehavior.opaque,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 8),
+        child: Row(
+          children: [
+            Container(
+              width: 42,
+              height: 42,
+              decoration: BoxDecoration(
+                color: AppColors.fieldFill,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(icon, size: 20, color: AppColors.navy),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    label,
+                    style: const TextStyle(
+                      fontSize: 14.5,
+                      fontWeight: FontWeight.w800,
+                      color: AppColors.navyDark,
+                    ),
+                  ),
+                  Text(
+                    subtitle,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: AppColors.greyText,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Icon(
+              Icons.arrow_forward_ios_rounded,
+              size: 15,
+              color: onTap == null
+                  ? AppColors.fieldHint
+                  : AppColors.greyText,
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

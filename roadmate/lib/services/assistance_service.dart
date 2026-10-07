@@ -3,6 +3,7 @@ import 'dart:math';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../models/service_request.dart';
+import 'payment_service.dart';
 import 'notification_service.dart';
 
 /// Generates a stable reference code like #RM4821 at creation time.
@@ -141,6 +142,13 @@ class AssistanceService {
       'mechanicName': mechanicName,
       'status': RequestStatus.accepted.name,
     });
+
+    // Link the mechanic as payee on this request's transactions.
+    await PaymentService(db: _db).assignPayee(
+      requestId: requestId,
+      mechanicUid: mechanicUid,
+      mechanicName: mechanicName,
+    );
 
     if (resolvedDriverUid.isNotEmpty) {
       await NotificationService(db: _db).createRequestAccepted(

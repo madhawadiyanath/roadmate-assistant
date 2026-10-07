@@ -2,12 +2,15 @@ import 'package:flutter/material.dart';
 
 import '../config/firebase_state.dart';
 import '../models/app_user.dart';
+import '../models/payments.dart';
 import '../models/service_request.dart';
 import '../services/assistance_service.dart';
 import '../services/auth_service.dart';
+import '../services/payment_service.dart';
 import '../theme/app_colors.dart';
 import '../widgets/admin_charts.dart';
 import 'profile_screen.dart';
+import 'receipt_screen.dart';
 
 /// Admin home: platform stats, every request, every user.
 /// Admins log in with email + password like everyone else — the account
@@ -34,6 +37,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   AssistanceService get _assist =>
       widget.assistanceService ?? AssistanceService();
   AuthService get _auth => widget.authService ?? AuthService();
+  PaymentService get _pay => PaymentService();
 
   String get _firstName {
     final n = widget.user.name.trim();
@@ -52,55 +56,179 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     );
   }
 
+  static const _wideBreakpoint = 900.0;
+
   @override
   Widget build(BuildContext context) {
+    final pages = [
+      _AdminHomeTab(
+        firstName: _firstName,
+        assistance: _assist,
+        auth: _auth,
+        onOpenProfile: _openProfile,
+        onViewRequests: () => setState(() => _tab = 1),
+        onViewUsers: () => setState(() => _tab = 2),
+      ),
+      _AdminRequestsTab(assistance: _assist),
+      _AdminUsersTab(auth: _auth),
+      _AdminPaymentsTab(pay: _pay),
+    ];
     return Scaffold(
       backgroundColor: AppColors.pageBg,
       body: SafeArea(
-        child: IndexedStack(
-          index: _tab,
-          children: [
-            _AdminHomeTab(
-              firstName: _firstName,
-              assistance: _assist,
-              auth: _auth,
-              onOpenProfile: _openProfile,
-              onViewRequests: () => setState(() => _tab = 1),
-              onViewUsers: () => setState(() => _tab = 2),
-            ),
-            _AdminRequestsTab(assistance: _assist),
-            _AdminUsersTab(auth: _auth),
-          ],
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            // Wide screens (web/desktop admin): side nav rail.
+            if (constraints.maxWidth >= _wideBreakpoint) {
+              final extended = constraints.maxWidth >= 1200;
+              return Row(
+                children: [
+                  NavigationRail(
+                    extended: extended,
+                    selectedIndex: _tab,
+                    onDestinationSelected: (i) =>
+                        setState(() => _tab = i),
+                    backgroundColor: Colors.white,
+                    selectedIconTheme: const IconThemeData(
+                        color: AppColors.orange),
+                    selectedLabelTextStyle: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w800,
+                      color: AppColors.orange,
+                    ),
+                    unselectedLabelTextStyle: const TextStyle(
+                      fontSize: 13,
+                      color: AppColors.greyText,
+                    ),
+                    leading: const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 16),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.shield_rounded,
+                              color: AppColors.navy, size: 24),
+                          SizedBox(width: 6),
+                          Text(
+                            'Admin',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w800,
+                              color: AppColors.navy,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    destinations: const [
+                      NavigationRailDestination(
+                        icon:
+                            Icon(Icons.home_outlined),
+                        selectedIcon: Icon(Icons.home_rounded),
+                        label: Text('Home'),
+                      ),
+                      NavigationRailDestination(
+                        icon: Icon(
+                            Icons.receipt_long_outlined),
+                        selectedIcon:
+                            Icon(Icons.receipt_long_rounded),
+                        label: Text('Requests'),
+                      ),
+                      NavigationRailDestination(
+                        icon: Icon(Icons.group_outlined),
+                        selectedIcon: Icon(Icons.group_rounded),
+                        label: Text('Users'),
+                      ),
+                      NavigationRailDestination(
+                        icon: Icon(
+                            Icons.payments_outlined),
+                        selectedIcon:
+                            Icon(Icons.payments_rounded),
+                        label: Text('Payments'),
+                      ),
+                    ],
+                  ),
+                  const VerticalDivider(
+                      thickness: 1, width: 1, color: Color(0xFFEDF1F7)),
+                  Expanded(
+                    child: Align(
+                      alignment: Alignment.topCenter,
+                      child: ConstrainedBox(
+                        constraints:
+                            const BoxConstraints(maxWidth: 860),
+                        child: IndexedStack(
+                          index: _tab,
+                          children: pages,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              );
+            }
+            // Phones/tablets: bottom nav.
+            return IndexedStack(index: _tab, children: pages);
+          },
         ),
       ),
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: _tab,
+      bottomNavigationBar: _AdminBottomNav(
+        index: _tab,
         onTap: (i) => setState(() => _tab = i),
-        type: BottomNavigationBarType.fixed,
-        backgroundColor: Colors.white,
-        selectedItemColor: AppColors.orange,
-        unselectedItemColor: AppColors.greyText,
-        selectedLabelStyle:
-            const TextStyle(fontSize: 11, fontWeight: FontWeight.w700),
-        unselectedLabelStyle: const TextStyle(fontSize: 11),
-        items: const [
-          BottomNavigationBarItem(
-            icon: Icon(Icons.home_outlined),
-            activeIcon: Icon(Icons.home_rounded),
-            label: 'Home',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.receipt_long_outlined),
-            activeIcon: Icon(Icons.receipt_long_rounded),
-            label: 'Requests',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.group_outlined),
-            activeIcon: Icon(Icons.group_rounded),
-            label: 'Users',
-          ),
-        ],
       ),
+    );
+  }
+}
+
+/// Bottom nav is hidden on wide screens where the side rail shows.
+/// Rendered with zero size there so tab indices stay aligned.
+class _AdminBottomNav extends StatelessWidget {
+  final int index;
+  final ValueChanged<int> onTap;
+  const _AdminBottomNav({required this.index, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        // Inside Scaffold.bottomNavigationBar constraints are unbounded;
+        // use screen width instead.
+        final wide =
+            MediaQuery.sizeOf(context).width >=
+                _AdminDashboardScreenState._wideBreakpoint;
+        if (wide) return const SizedBox.shrink();
+        return BottomNavigationBar(
+          currentIndex: index,
+          onTap: onTap,
+          type: BottomNavigationBarType.fixed,
+          backgroundColor: Colors.white,
+          selectedItemColor: AppColors.orange,
+          unselectedItemColor: AppColors.greyText,
+          selectedLabelStyle:
+              const TextStyle(fontSize: 11, fontWeight: FontWeight.w700),
+          unselectedLabelStyle: const TextStyle(fontSize: 11),
+          items: const [
+            BottomNavigationBarItem(
+              icon: Icon(Icons.home_outlined),
+              activeIcon: Icon(Icons.home_rounded),
+              label: 'Home',
+            ),
+            BottomNavigationBarItem(
+              icon: Icon(Icons.receipt_long_outlined),
+              activeIcon: Icon(Icons.receipt_long_rounded),
+              label: 'Requests',
+            ),
+            BottomNavigationBarItem(
+              icon: Icon(Icons.group_outlined),
+              activeIcon: Icon(Icons.group_rounded),
+              label: 'Users',
+            ),
+            BottomNavigationBarItem(
+              icon: Icon(Icons.payments_outlined),
+              activeIcon: Icon(Icons.payments_rounded),
+              label: 'Payments',
+            ),
+          ],
+        );
+      },
     );
   }
 }
@@ -914,6 +1042,368 @@ class _AdminUserRow extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+// ============================== PAYMENTS TAB ==============================
+
+/// Payment analysis: revenue totals, paid-vs-pending, method split,
+/// daily revenue and every transaction with receipts.
+class _AdminPaymentsTab extends StatelessWidget {
+  final PaymentService pay;
+  const _AdminPaymentsTab({required this.pay});
+
+  @override
+  Widget build(BuildContext context) {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.symmetric(horizontal: 18),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const SizedBox(height: 14),
+          const Text(
+            'Payments',
+            style: TextStyle(
+              fontSize: 22,
+              fontWeight: FontWeight.w800,
+              color: AppColors.navy,
+            ),
+          ),
+          const SizedBox(height: 10),
+          if (!firebaseReady)
+            const _DemoPayments()
+          else
+            StreamBuilder<List<TxnRecord>>(
+              stream: pay.watchAllTransactions(),
+              builder: (context, snap) {
+                if (snap.connectionState == ConnectionState.waiting) {
+                  return const Padding(
+                    padding: EdgeInsets.all(20),
+                    child: Center(child: CircularProgressIndicator()),
+                  );
+                }
+                if (snap.hasError) {
+                  return _AdminErrorBox(error: snap.error);
+                }
+                return _PaymentsBody(txns: snap.data ?? []);
+              },
+            ),
+          const SizedBox(height: 20),
+        ],
+      ),
+    );
+  }
+}
+
+class _PaymentsBody extends StatelessWidget {
+  final List<TxnRecord> txns;
+  const _PaymentsBody({required this.txns});
+
+  @override
+  Widget build(BuildContext context) {
+    final paid = txns.where((t) => t.isPaid).toList();
+    final pending = txns.where((t) => !t.isPaid).toList();
+    final paidSum = paid.fold<double>(0, (s, t) => s + t.amount).toInt();
+    final pendingSum =
+        pending.fold<double>(0, (s, t) => s + t.amount).toInt();
+    final cardSum = paid
+        .where((t) => t.method.toLowerCase().contains('card'))
+        .fold<double>(0, (s, t) => s + t.amount)
+        .toInt();
+    final cashSum = paid
+        .where((t) => !t.method.toLowerCase().contains('card'))
+        .fold<double>(0, (s, t) => s + t.amount)
+        .toInt();
+    return Column(
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: _MoneyStat(
+                label: 'Revenue (paid)',
+                value: 'Rs. $paidSum',
+                icon: Icons.payments_rounded,
+                iconBg: const Color(0xFFE6F7EE),
+                iconColor: const Color(0xFF22B573),
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: _MoneyStat(
+                label: 'Pending',
+                value: 'Rs. $pendingSum',
+                icon: Icons.schedule_outlined,
+                iconBg: const Color(0xFFFFEDE0),
+                iconColor: AppColors.orange,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 10),
+        AnalyticsCard(
+          title: 'Paid vs Pending',
+          subtitle: 'By value',
+          child: DonutChart(
+            segments: [
+              DonutSegment(
+                  label: 'Paid',
+                  value: paidSum,
+                  color: const Color(0xFF22B573)),
+              DonutSegment(
+                  label: 'Pending',
+                  value: pendingSum,
+                  color: AppColors.orange),
+            ],
+          ),
+        ),
+        const SizedBox(height: 10),
+        AnalyticsCard(
+          title: 'Revenue by Method',
+          subtitle: 'Paid transactions',
+          child: DonutChart(
+            segments: [
+              DonutSegment(
+                  label: 'Card',
+                  value: cardSum,
+                  color: const Color(0xFF2F7DE1)),
+              DonutSegment(
+                  label: 'Cash',
+                  value: cashSum,
+                  color: AppColors.navy),
+            ],
+          ),
+        ),
+        const SizedBox(height: 10),
+        AnalyticsCard(
+          title: 'Daily Revenue',
+          subtitle: 'Last 7 days (Rs.)',
+          child: WeeklyBars(values: _dailyRevenue(txns)),
+        ),
+        const SizedBox(height: 10),
+        if (txns.isEmpty)
+          const _AdminEmptyBox(text: 'No transactions yet.')
+        else
+          for (final t in txns.take(12)) ...[
+            _AdminTxnRow(txn: t),
+            const SizedBox(height: 10),
+          ],
+      ],
+    );
+  }
+
+  static List<int> _dailyRevenue(List<TxnRecord> txns) {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    return List.generate(7, (i) {
+      final day = today.subtract(Duration(days: 6 - i));
+      return txns
+          .where((t) =>
+              t.isPaid &&
+              t.createdAt != null &&
+              t.createdAt!.year == day.year &&
+              t.createdAt!.month == day.month &&
+              t.createdAt!.day == day.day)
+          .fold<double>(0, (s, t) => s + t.amount)
+          .toInt();
+    });
+  }
+}
+
+class _MoneyStat extends StatelessWidget {
+  final String label;
+  final String value;
+  final IconData icon;
+  final Color iconBg;
+  final Color iconColor;
+  const _MoneyStat({
+    required this.label,
+    required this.value,
+    required this.icon,
+    required this.iconBg,
+    required this.iconColor,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: AppColors.navy,
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, color: Colors.white70, size: 20),
+          const SizedBox(height: 8),
+          Text(
+            value,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              fontSize: 19,
+              fontWeight: FontWeight.w800,
+              color: Colors.white,
+            ),
+          ),
+          Text(
+            label,
+            style:
+                const TextStyle(fontSize: 11.5, color: Colors.white70),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _AdminTxnRow extends StatelessWidget {
+  final TxnRecord txn;
+  const _AdminTxnRow({required this.txn});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: () => Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => ReceiptScreen(record: txn),
+        ),
+      ),
+      behavior: HitTestBehavior.opaque,
+      child: Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: const Color(0xFFEDF1F7), width: 1.2),
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    '${txn.type} • ${txn.refCode}',
+                    style: const TextStyle(
+                      fontSize: 14.5,
+                      fontWeight: FontWeight.w800,
+                      color: AppColors.navyDark,
+                    ),
+                  ),
+                  Text(
+                    '${txn.payerName} → ${txn.payeeName.isEmpty ? 'unassigned' : txn.payeeName} • ${txn.method}',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 12.5,
+                      color: AppColors.greyText,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Text(
+                  'Rs. ${txn.amount.toStringAsFixed(0)}',
+                  style: const TextStyle(
+                    fontSize: 14.5,
+                    fontWeight: FontWeight.w800,
+                    color: AppColors.navy,
+                  ),
+                ),
+                Text(
+                  txn.isPaid ? 'Paid' : 'Pending',
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    color: txn.isPaid
+                        ? const Color(0xFF22B573)
+                        : AppColors.orange,
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _DemoPayments extends StatelessWidget {
+  const _DemoPayments();
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        const Row(
+          children: [
+            Expanded(
+              child: _MoneyStat(
+                label: 'Revenue (paid)',
+                value: 'Rs. 24500',
+                icon: Icons.payments_rounded,
+                iconBg: Color(0xFFE6F7EE),
+                iconColor: Color(0xFF22B573),
+              ),
+            ),
+            SizedBox(width: 10),
+            Expanded(
+              child: _MoneyStat(
+                label: 'Pending',
+                value: 'Rs. 7000',
+                icon: Icons.schedule_outlined,
+                iconBg: Color(0xFFFFEDE0),
+                iconColor: AppColors.orange,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 10),
+        const AnalyticsCard(
+          title: 'Paid vs Pending',
+          subtitle: 'By value',
+          child: DonutChart(
+            segments: [
+              DonutSegment(
+                  label: 'Paid',
+                  value: 24500,
+                  color: Color(0xFF22B573)),
+              DonutSegment(
+                  label: 'Pending',
+                  value: 7000,
+                  color: AppColors.orange),
+            ],
+          ),
+        ),
+        const SizedBox(height: 10),
+        const AnalyticsCard(
+          title: 'Revenue by Method',
+          subtitle: 'Paid transactions',
+          child: DonutChart(
+            segments: [
+              DonutSegment(
+                  label: 'Card',
+                  value: 17500,
+                  color: Color(0xFF2F7DE1)),
+              DonutSegment(
+                  label: 'Cash', value: 7000, color: AppColors.navy),
+            ],
+          ),
+        ),
+        const SizedBox(height: 10),
+        const AnalyticsCard(
+          title: 'Daily Revenue',
+          subtitle: 'Last 7 days (Rs.)',
+          child: WeeklyBars(values: [1200, 3500, 0, 7000, 2800, 8500, 4200]),
+        ),
+      ],
     );
   }
 }
