@@ -5,6 +5,7 @@ import 'package:roadmate/main.dart';
 import 'package:roadmate/models/app_user.dart';
 import 'package:roadmate/models/service_request.dart';
 import 'package:fake_cloud_firestore/fake_cloud_firestore.dart';
+import 'package:roadmate/screens/admin_dashboard_screen.dart';
 import 'package:roadmate/screens/chat_screen.dart';
 import 'package:roadmate/screens/profile_screen.dart';
 import 'package:roadmate/screens/confirm_request_screen.dart';
@@ -493,6 +494,25 @@ void main() {
     expect(find.textContaining('Firebase not connected'), findsOneWidget);
   });
 
+  testWidgets('Admin profile shows ADMIN badge, no vehicle', (
+    WidgetTester tester,
+  ) async {
+    const admin = AppUser(
+      uid: 'a1',
+      name: 'Admin Perera',
+      email: 'admin@roadmate.lk',
+      phone: '',
+      role: AppRole.admin,
+    );
+    await tester.pumpWidget(
+      const MaterialApp(home: ProfileScreen(user: admin)),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('ADMIN'), findsOneWidget);
+    expect(find.text('Vehicle Details'), findsNothing);
+  });
+
   testWidgets('Mechanic profile hides vehicle section', (
     WidgetTester tester,
   ) async {
@@ -533,6 +553,41 @@ void main() {
     expect(find.text('Personal Details'), findsOneWidget);
   });
 
+  testWidgets('Admin dashboard shows stats and tabs', (
+    WidgetTester tester,
+  ) async {
+    const admin = AppUser(
+      uid: 'a1',
+      name: 'Admin Perera',
+      email: 'admin@roadmate.lk',
+      phone: '',
+      role: AppRole.admin,
+    );
+    await tester.pumpWidget(
+      const MaterialApp(home: AdminDashboardScreen(user: admin)),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('RoadMate Admin'), findsOneWidget);
+    expect(find.textContaining('Hello, Admin'), findsOneWidget);
+    expect(find.text('Total Users'), findsOneWidget);
+    expect(find.text('Pending Requests'), findsOneWidget);
+    expect(find.text('All Requests'), findsWidgets);
+    expect(find.text('All Users'), findsWidgets);
+
+    // Requests tab lists every request (demo without Firebase).
+    await tester.tap(find.text('Requests').last);
+    await tester.pumpAndSettle();
+    expect(find.text('Flat Tyre • #RM1058'), findsOneWidget);
+
+    // Users tab lists every user (demo without Firebase).
+    await tester.tap(find.text('Users').last);
+    await tester.pumpAndSettle();
+    expect(find.text('kasun@example.com'), findsOneWidget);
+    expect(find.text('Admins are created in the Firebase console only.'),
+        findsOneWidget);
+  });
+
   testWidgets('RoleHome routes driver to dashboard, mechanic to jobs', (
     WidgetTester tester,
   ) async {
@@ -566,5 +621,17 @@ void main() {
     // Cards open Request Details instead of inline accept.
     expect(find.text('Accept Job'), findsNothing);
     expect(find.textContaining('Kasun Perera'), findsOneWidget);
+
+    const admin = AppUser(
+      uid: 'a1',
+      name: 'Admin Perera',
+      email: 'admin@roadmate.lk',
+      phone: '',
+      role: AppRole.admin,
+    );
+    await tester.pumpWidget(const MaterialApp(home: RoleHome(user: admin)));
+    await tester.pumpAndSettle();
+    expect(find.text('RoadMate Admin'), findsOneWidget);
+    expect(find.text('Total Users'), findsOneWidget);
   });
 }

@@ -197,7 +197,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       borderRadius: BorderRadius.circular(20),
                     ),
                     child: Text(
-                      _isDriver ? 'DRIVER' : 'MECHANIC',
+                      switch (widget.user.role) {
+                        AppRole.driver => 'DRIVER',
+                        AppRole.mechanic => 'MECHANIC',
+                        AppRole.admin => 'ADMIN',
+                      },
                       style: const TextStyle(
                         fontSize: 11,
                         fontWeight: FontWeight.w800,
