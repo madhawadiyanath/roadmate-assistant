@@ -31,6 +31,10 @@ class ChatScreen extends StatefulWidget {
 
 class _ChatScreenState extends State<ChatScreen> {
   final _input = TextEditingController();
+
+  /// State-owned edit controller: never disposed while the edit dialog's
+  /// pop transition may still rebuild its TextField.
+  final _editController = TextEditingController();
   final _scroll = ScrollController();
   bool _sending = false;
 
@@ -39,6 +43,7 @@ class _ChatScreenState extends State<ChatScreen> {
   @override
   void dispose() {
     _input.dispose();
+    _editController.dispose();
     _scroll.dispose();
     super.dispose();
   }
@@ -74,6 +79,113 @@ class _ChatScreenState extends State<ChatScreen> {
       duration: const Duration(milliseconds: 250),
       curve: Curves.easeOut,
     );
+  }
+
+  /// Long-press menu on own bubbles: edit or delete the message.
+  Future<void> _bubbleMenu(ChatMessage m) async {
+    final action = await showModalBottomSheet<String>(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (_) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.edit_outlined,
+                  color: AppColors.navy),
+              title: const Text('Edit message'),
+              onTap: () => Navigator.pop(context, 'edit'),
+            ),
+            ListTile(
+              leading: const Icon(Icons.delete_outline_rounded,
+                  color: Colors.red),
+              title: const Text('Delete message',
+                  style: TextStyle(color: Colors.red)),
+              onTap: () => Navigator.pop(context, 'delete'),
+            ),
+            const SizedBox(height: 8),
+          ],
+        ),
+      ),
+    );
+    if (!mounted) return;
+    if (action == 'edit') {
+      await _editDialog(m);
+    } else if (action == 'delete') {
+      await _confirmDelete(m);
+    }
+  }
+
+  Future<void> _editDialog(ChatMessage m) async {
+    _editController.text = m.text;
+    final saved = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Edit message'),
+        content: TextField(
+          controller: _editController,
+          autofocus: true,
+          maxLines: 3,
+          maxLength: 1000,
+          decoration: const InputDecoration(
+            border: OutlineInputBorder(),
+            counterText: '',
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Save'),
+          ),
+        ],
+      ),
+    );
+    if (saved != true || !mounted) return;
+    try {
+      await _chat.edit(
+        requestId: widget.request.id,
+        messageId: m.id,
+        newText: _editController.text,
+      );
+    } catch (e) {
+      _snack(AuthService.friendlyMessage(e));
+    }
+  }
+
+  Future<void> _confirmDelete(ChatMessage m) async {
+    final yes = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Delete message?'),
+        content: const Text('This removes it for both sides.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Keep'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+    if (yes != true || !mounted) return;
+    try {
+      await _chat.remove(
+        requestId: widget.request.id,
+        messageId: m.id,
+      );
+    } catch (e) {
+      _snack(AuthService.friendlyMessage(e));
+    }
   }
 
   @override
@@ -179,7 +291,12 @@ class _ChatScreenState extends State<ChatScreen> {
                   itemBuilder: (_, i) {
                     final m = msgs[i];
                     final mine = m.senderUid == widget.senderUid;
-                    return _Bubble(message: m, mine: mine);
+                    return _Bubble(
+                      message: m,
+                      mine: mine,
+                      onLongPress:
+                          mine ? () => _bubbleMenu(m) : null,
+                    );
                   },
                 );
               },
@@ -257,14 +374,21 @@ class _ChatScreenState extends State<ChatScreen> {
 class _Bubble extends StatelessWidget {
   final ChatMessage message;
   final bool mine;
-  const _Bubble({required this.message, required this.mine});
+  final VoidCallback? onLongPress;
+  const _Bubble({
+    required this.message,
+    required this.mine,
+    this.onLongPress,
+  });
 
   @override
   Widget build(BuildContext context) {
     return Align(
       alignment: mine ? Alignment.centerRight : Alignment.centerLeft,
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 8),
+      child: GestureDetector(
+        onLongPress: onLongPress,
+        child: Container(
+          margin: const EdgeInsets.only(bottom: 8),
         padding:
             const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
         constraints: BoxConstraints(
@@ -304,7 +428,22 @@ class _Bubble extends StatelessWidget {
                 color: mine ? Colors.white : AppColors.navyDark,
               ),
             ),
+            if (message.edited)
+              Padding(
+                padding: const EdgeInsets.only(top: 2),
+                child: Text(
+                  'edited',
+                  style: TextStyle(
+                    fontSize: 10,
+                    fontStyle: FontStyle.italic,
+                    color: mine
+                        ? Colors.white70
+                        : AppColors.greyText,
+                  ),
+                ),
+              ),
           ],
+        ),
         ),
       ),
     );
