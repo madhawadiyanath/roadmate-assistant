@@ -131,6 +131,12 @@ class RequestHistoryCard extends StatelessWidget {
 
   /// Opens the rating screen; the action is hidden when null.
   final VoidCallback? onRate;
+
+  /// Edit pickup address; shown when non-null (pending requests).
+  final VoidCallback? onEdit;
+
+  /// Permanently delete; shown when non-null (pending/cancelled).
+  final VoidCallback? onDelete;
   final DateTime? now;
 
   const RequestHistoryCard({
@@ -138,6 +144,8 @@ class RequestHistoryCard extends StatelessWidget {
     required this.request,
     this.onTap,
     this.onRate,
+    this.onEdit,
+    this.onDelete,
     this.now,
   });
 
@@ -259,6 +267,67 @@ class RequestHistoryCard extends StatelessWidget {
                         ),
                       ),
                     ),
+                  ),
+                ],
+                if (onEdit != null || onDelete != null) ...[
+                  const Divider(height: 22, color: _lineColor),
+                  Row(
+                    children: [
+                      if (onEdit != null)
+                        Expanded(
+                          child: SizedBox(
+                            height: 42,
+                            child: OutlinedButton.icon(
+                              onPressed: onEdit,
+                              icon: const Icon(
+                                  Icons.edit_location_outlined,
+                                  size: 20),
+                              label: const Text(
+                                'Edit address',
+                                style: TextStyle(
+                                    fontWeight: FontWeight.w800),
+                              ),
+                              style: OutlinedButton.styleFrom(
+                                foregroundColor: AppColors.navy,
+                                side: const BorderSide(
+                                    color: AppColors.navy),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius:
+                                      BorderRadius.circular(12),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      if (onEdit != null && onDelete != null)
+                        const SizedBox(width: 10),
+                      if (onDelete != null)
+                        Expanded(
+                          child: SizedBox(
+                            height: 42,
+                            child: OutlinedButton.icon(
+                              onPressed: onDelete,
+                              icon: const Icon(
+                                  Icons.delete_outline_rounded,
+                                  size: 20),
+                              label: const Text(
+                                'Delete',
+                                style: TextStyle(
+                                    fontWeight: FontWeight.w800),
+                              ),
+                              style: OutlinedButton.styleFrom(
+                                foregroundColor: Colors.red,
+                                side: const BorderSide(
+                                    color: Color(0xFFF5C2C7)),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius:
+                                      BorderRadius.circular(12),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                    ],
                   ),
                 ],
               ],

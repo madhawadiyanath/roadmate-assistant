@@ -41,6 +41,9 @@ class _RequestHistoryScreenState extends State<RequestHistoryScreen> {
   Stream<List<ServiceRequest>>? _stream;
   _Filter _filter = _Filter.all;
 
+  /// State-owned (never disposed mid-dialog) address editor.
+  final _addressController = TextEditingController();
+
   /// An injected service (tests, previews) always counts as connected.
   bool get _connected => widget.service != null || firebaseReady;
 
@@ -50,6 +53,91 @@ class _RequestHistoryScreenState extends State<RequestHistoryScreen> {
     if (_connected) {
       _stream = (widget.service ?? AssistanceService())
           .watchDriverRequests(widget.uid);
+    }
+  }
+
+  @override
+  void dispose() {
+    _addressController.dispose();
+    super.dispose();
+  }
+
+  void _snack(String msg) {
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text(msg)));
+  }
+
+  /// Change the pickup address of a pending request.
+  Future<void> _editAddress(ServiceRequest r) async {
+    _addressController.text = r.address;
+    final saved = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Edit pickup address'),
+        content: TextField(
+          controller: _addressController,
+          autofocus: true,
+          maxLines: 2,
+          maxLength: 500,
+          decoration: const InputDecoration(
+            hintText: 'Where should the patrol find you?',
+            border: OutlineInputBorder(),
+            counterText: '',
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Save'),
+          ),
+        ],
+      ),
+    );
+    if (saved != true || !mounted) return;
+    try {
+      await (widget.service ?? AssistanceService())
+          .updateAddress(r.id, _addressController.text);
+      if (!mounted) return;
+      _snack('Pickup address updated.');
+    } catch (e) {
+      if (!mounted) return;
+      _snack(AuthService.friendlyMessage(e));
+    }
+  }
+
+  /// Permanently delete own pending/cancelled request + its thread.
+  Future<void> _deleteRequest(ServiceRequest r) async {
+    final yes = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Delete request?'),
+        content: Text(
+            'This permanently removes ${r.refCode.isEmpty ? 'this request' : r.refCode} and its chat.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Keep'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+    if (yes != true || !mounted) return;
+    try {
+      await (widget.service ?? AssistanceService()).deleteRequest(r.id);
+      if (!mounted) return;
+      _snack('Request deleted.');
+    } catch (e) {
+      if (!mounted) return;
+      _snack(AuthService.friendlyMessage(e));
     }
   }
 
@@ -161,14 +249,26 @@ class _RequestHistoryScreenState extends State<RequestHistoryScreen> {
                   : ListView.builder(
                       padding: const EdgeInsets.fromLTRB(18, 0, 18, 24),
                       itemCount: shown.length,
-                      itemBuilder: (_, i) => RequestHistoryCard(
-                        request: shown[i],
+                      itemBuilder: (_, i) {
+                      final r = shown[i];
+                      final pending =
+                          r.status == RequestStatus.pending;
+                      final removable = pending ||
+                          r.status == RequestStatus.cancelled;
+                      return RequestHistoryCard(
+                        request: r,
                         now: now,
                         onTap: widget.onOpen == null
                             ? null
-                            : () => widget.onOpen!(context, shown[i]),
-                        onRate: () => _rate(shown[i]),
-                      ),
+                            : () => widget.onOpen!(context, r),
+                        onRate: () => _rate(r),
+                        onEdit:
+                            pending ? () => _editAddress(r) : null,
+                        onDelete: removable
+                            ? () => _deleteRequest(r)
+                            : null,
+                      );
+                    },
                     ),
             ),
           ],
