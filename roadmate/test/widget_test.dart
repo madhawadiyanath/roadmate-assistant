@@ -465,6 +465,71 @@ void main() {
     expect(all, hasLength(2));
   });
 
+  testWidgets('Chat own bubble long-press edits and deletes', (
+    WidgetTester tester,
+  ) async {
+    final db = FakeFirebaseFirestore();
+    final chat = ChatService(db: db);
+    const req = ServiceRequest(
+      id: 'req1',
+      driverUid: 'driver1',
+      driverName: 'Kasun',
+      type: AssistanceType.flatTyre,
+      status: RequestStatus.accepted,
+      refCode: '#RM1058',
+      mechanicUid: 'mech1',
+      mechanicName: 'Nimal',
+    );
+    await chat.send(
+      requestId: 'req1',
+      senderUid: 'driver1',
+      senderName: 'Kasun',
+      senderRole: 'driver',
+      text: 'Hello there',
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: ChatScreen(
+          request: req,
+          senderUid: 'driver1',
+          senderName: 'Kasun',
+          senderRole: 'driver',
+          peerName: 'Nimal',
+          chatService: chat,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Hello there'), findsOneWidget);
+
+    // Long-press own bubble → Edit message → save new text.
+    await tester.longPress(find.text('Hello there'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Edit message'));
+    await tester.pumpAndSettle();
+    final dialogField = find.descendant(
+      of: find.byType(AlertDialog),
+      matching: find.byType(TextField),
+    );
+    expect(dialogField, findsOneWidget);
+    await tester.enterText(dialogField, 'Hello!!');
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Save'));
+    await tester.pumpAndSettle();
+    expect(find.text('Hello!!'), findsOneWidget);
+    expect(find.text('edited'), findsOneWidget);
+
+    // Long-press → Delete message → confirm.
+    await tester.longPress(find.text('Hello!!'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Delete message'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Delete').last);
+    await tester.pumpAndSettle();
+    expect(find.text('Hello!!'), findsNothing);
+  });
+
   testWidgets('Profile page shows menu, edits, guards save', (
     WidgetTester tester,
   ) async {

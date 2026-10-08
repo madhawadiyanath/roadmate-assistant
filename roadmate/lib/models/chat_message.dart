@@ -7,6 +7,7 @@ class ChatMessage {
   final String senderName;
   final String senderRole;
   final String text;
+  final bool edited;
   final DateTime? createdAt;
 
   const ChatMessage({
@@ -15,6 +16,7 @@ class ChatMessage {
     required this.senderName,
     required this.senderRole,
     required this.text,
+    this.edited = false,
     this.createdAt,
   });
 
@@ -23,6 +25,7 @@ class ChatMessage {
         'senderName': senderName,
         'senderRole': senderRole,
         'text': text,
+        'edited': edited,
         'createdAt': FieldValue.serverTimestamp(),
       };
 
@@ -34,6 +37,7 @@ class ChatMessage {
       senderName: (m['senderName'] ?? '') as String,
       senderRole: (m['senderRole'] ?? '') as String,
       text: (m['text'] ?? '') as String,
+      edited: (m['edited'] ?? false) as bool,
       createdAt: (m['createdAt'] as Timestamp?)?.toDate(),
     );
   }
