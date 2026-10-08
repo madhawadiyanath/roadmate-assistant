@@ -3,6 +3,7 @@ import 'dart:math';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../models/service_request.dart';
+import 'payment_service.dart';
 import 'notification_service.dart';
 
 /// Generates a stable reference code like #RM4821 at creation time.
@@ -95,6 +96,14 @@ class AssistanceService {
   Future<void> cancelRequest(String requestId) =>
       _requests.doc(requestId).update({'status': RequestStatus.cancelled.name});
 
+  /// Live list of EVERY request (admin oversight), newest first.
+  Stream<List<ServiceRequest>> watchAllRequests() {
+    return _requests
+        .limit(50)
+        .snapshots()
+        .map((s) => _newestFirst(s.docs.map(ServiceRequest.fromDoc)));
+  }
+
   /// Live view of one request — powers driver tracking.
   Stream<ServiceRequest?> watchRequest(String requestId) {
     return _requests.doc(requestId).snapshots().map(
@@ -153,6 +162,13 @@ class AssistanceService {
       'mechanicName': mechanicName,
       'status': RequestStatus.accepted.name,
     });
+
+    // Link the mechanic as payee on this request's transactions.
+    await PaymentService(db: _db).assignPayee(
+      requestId: requestId,
+      mechanicUid: mechanicUid,
+      mechanicName: mechanicName,
+    );
 
     if (resolvedDriverUid.isNotEmpty) {
       await NotificationService(db: _db).createRequestAccepted(

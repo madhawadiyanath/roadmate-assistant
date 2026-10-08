@@ -53,13 +53,15 @@ void main() {
       'Personal Information',
       'Vehicle Information',
       'Emergency Contacts',
+      'Payment Methods',
+      'Transaction History',
       'Documents',
       'Change Password',
     ]) {
       expect(find.text(row), findsOneWidget, reason: row);
     }
     expect(find.text('Services Offered'), findsNothing); // mechanic-only
-    expect(find.byIcon(Icons.chevron_right_rounded), findsNWidgets(5));
+    expect(find.byIcon(Icons.chevron_right_rounded), findsNWidgets(7));
     expect(find.text('Logout'), findsOneWidget);
 
     // The old inline vehicle section and its demo data are gone.

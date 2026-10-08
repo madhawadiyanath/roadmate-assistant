@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 
+import '../models/payments.dart';
 import '../models/service_request.dart';
 import '../theme/app_colors.dart';
+import 'receipt_screen.dart';
 
 /// Step 4 of the driver flow: success receipt after Submit.
 /// Pops `true` (Track Request → Requests tab), `'home'` (Back to Home),
@@ -11,6 +13,7 @@ class RequestSuccessScreen extends StatelessWidget {
   final AssistanceType serviceType;
   final String address;
   final String vehicleDisplay;
+  final TxnRecord? txn;
 
   const RequestSuccessScreen({
     super.key,
@@ -18,6 +21,7 @@ class RequestSuccessScreen extends StatelessWidget {
     required this.serviceType,
     required this.address,
     this.vehicleDisplay = 'No vehicle selected',
+    this.txn,
   });
 
   String get _refCode => refCode;
@@ -423,6 +427,34 @@ class RequestSuccessScreen extends StatelessWidget {
                   ),
                 ),
               ),
+              // Digital receipt
+              if (txn != null) ...[
+                const SizedBox(height: 2),
+                TextButton(
+                  onPressed: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => ReceiptScreen(record: txn!),
+                    ),
+                  ),
+                  child: const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.receipt_long_outlined,
+                          size: 18, color: AppColors.navy),
+                      SizedBox(width: 6),
+                      Text(
+                        'View Receipt',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.navy,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
               const SizedBox(height: 6),
 
               // Back home

@@ -9,6 +9,7 @@ import 'package:roadmate/screens/confirm_request_screen.dart';
 import 'package:roadmate/screens/payment_review_screen.dart';
 import 'package:roadmate/screens/request_success_screen.dart';
 import 'package:roadmate/services/assistance_service.dart';
+import 'package:roadmate/services/payment_service.dart';
 import 'package:roadmate/services/vehicle_service.dart';
 
 const _user = AppUser(
@@ -140,6 +141,7 @@ void main() {
           address: _address,
           assistanceService: AssistanceService(db: db),
           vehicleService: vehicles,
+          paymentService: PaymentService(db: db),
         ),
       ));
       await tester.pumpAndSettle();

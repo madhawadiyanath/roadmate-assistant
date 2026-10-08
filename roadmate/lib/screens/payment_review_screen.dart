@@ -2,11 +2,14 @@ import 'package:flutter/material.dart';
 
 import '../config/firebase_state.dart';
 import '../models/app_user.dart';
+import '../models/payments.dart';
 import '../models/service_request.dart';
 import '../services/assistance_service.dart';
 import '../services/auth_service.dart';
 import '../services/vehicle_service.dart';
+import '../services/payment_service.dart';
 import '../theme/app_colors.dart';
+import 'manage_methods_screen.dart';
 import 'request_success_screen.dart';
 
 /// Step 3b of the driver flow: review the charges and pick how to pay
@@ -19,6 +22,7 @@ class PaymentReviewScreen extends StatefulWidget {
   final String address;
   final AssistanceService? assistanceService;
   final VehicleService? vehicleService;
+  final PaymentService? paymentService;
 
   const PaymentReviewScreen({
     super.key,
@@ -27,6 +31,7 @@ class PaymentReviewScreen extends StatefulWidget {
     required this.address,
     this.assistanceService,
     this.vehicleService,
+    this.paymentService,
   });
 
   @override
@@ -34,11 +39,15 @@ class PaymentReviewScreen extends StatefulWidget {
 }
 
 class _PaymentReviewScreenState extends State<PaymentReviewScreen> {
-  String _method = 'card';
+  /// Selected method id (`cash` = pay on site) + display label.
+  String _methodId = 'cash';
+  String _methodLabel = 'Cash on Site';
   bool _submitting = false;
 
   AssistanceService get _assist =>
       widget.assistanceService ?? AssistanceService();
+  PaymentService get _pay =>
+      widget.paymentService ?? PaymentService();
 
   void _snack(String msg) {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
@@ -57,16 +66,32 @@ class _PaymentReviewScreenState extends State<PaymentReviewScreen> {
       // Snapshot of the user's default vehicle (none saved → left blank).
       final vehicle = await (widget.vehicleService ?? VehicleService())
           .getDefaultVehicle(widget.user.uid);
-      await _assist.createRequest(
+      final requestId = await _assist.createRequest(
         driverUid: widget.user.uid,
         driverName: widget.user.name,
         type: widget.serviceType,
         address: widget.address,
-        paymentMethod: _method,
+        paymentMethod: _methodLabel,
         totalFee: fee.total,
         vehicle: vehicle?.name ?? '',
         plate: vehicle?.plateNo ?? '',
         refCode: refCode,
+      );
+      final items = [
+        FeeLine(fee.line1, fee.fee1),
+        FeeLine(fee.line2, fee.fee2),
+      ];
+      final paidAtOnce = _methodId != 'cash';
+      final txnId = await _pay.createTransaction(
+        requestId: requestId,
+        refCode: refCode,
+        type: widget.serviceType.label,
+        payerUid: widget.user.uid,
+        payerName: widget.user.name,
+        amount: fee.total,
+        method: _methodLabel,
+        items: items,
+        paidAtOnce: paidAtOnce,
       );
       if (!mounted) return;
       final result = await Navigator.pushReplacement(
@@ -77,6 +102,19 @@ class _PaymentReviewScreenState extends State<PaymentReviewScreen> {
             serviceType: widget.serviceType,
             address: widget.address,
             vehicleDisplay: vehicle?.display ?? 'No vehicle selected',
+            txn: TxnRecord(
+              id: txnId,
+              requestId: requestId,
+              refCode: refCode,
+              type: widget.serviceType.label,
+              payerUid: widget.user.uid,
+              payerName: widget.user.name,
+              amount: fee.total,
+              method: _methodLabel,
+              status: paidAtOnce ? 'paid' : 'pending',
+              items: items,
+              createdAt: DateTime.now(),
+            ),
           ),
         ),
       );
@@ -347,29 +385,127 @@ class _PaymentReviewScreenState extends State<PaymentReviewScreen> {
                 ],
               ),
               const SizedBox(height: 8),
-              Row(
-                children: [
-                  Expanded(
-                    child: _MethodCard(
-                      selected: _method == 'card',
-                      onTap: () => setState(() => _method = 'card'),
-                      icon: Icons.credit_card_rounded,
-                      title: 'Card •• 4242',
-                      subtitle: 'VISA Exp 08/27',
+              if (!firebaseReady)
+                Row(
+                  children: [
+                    Expanded(
+                      child: _MethodCard(
+                        selected: _methodId == 'demo-card',
+                        onTap: () => setState(() {
+                          _methodId = 'demo-card';
+                          _methodLabel = 'Card •• 4242';
+                        }),
+                        icon: Icons.credit_card_rounded,
+                        title: 'Card •• 4242',
+                        subtitle: 'VISA Exp 08/27',
+                      ),
                     ),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: _MethodCard(
-                      selected: _method == 'cash',
-                      onTap: () => setState(() => _method = 'cash'),
-                      icon: Icons.money_outlined,
-                      title: 'Cash on Site',
-                      subtitle: 'Driver receipt',
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: _MethodCard(
+                        selected: _methodId == 'cash',
+                        onTap: () => setState(() {
+                          _methodId = 'cash';
+                          _methodLabel = 'Cash on Site';
+                        }),
+                        icon: Icons.money_outlined,
+                        title: 'Cash on Site',
+                        subtitle: 'Driver receipt',
+                      ),
                     ),
-                  ),
-                ],
-              ),
+                  ],
+                )
+              else
+                StreamBuilder<List<SavedMethod>>(
+                  stream: _pay.watchMethods(widget.user.uid),
+                  builder: (context, snap) {
+                    final methods = snap.data ?? [];
+                    // Keep a valid selection as the list loads.
+                    if (methods.isNotEmpty &&
+                        _methodId != 'cash' &&
+                        !methods.any((m) => m.id == _methodId)) {
+                      final dflt = methods.firstWhere(
+                        (m) => m.isDefault,
+                        orElse: () => methods.first,
+                      );
+                      WidgetsBinding.instance.addPostFrameCallback((_) {
+                        if (!mounted) return;
+                        setState(() {
+                          _methodId = dflt.id;
+                          _methodLabel = dflt.label;
+                        });
+                      });
+                    }
+                    if (snap.connectionState == ConnectionState.waiting &&
+                        methods.isEmpty) {
+                      return const Padding(
+                        padding: EdgeInsets.all(12),
+                        child: Center(
+                            child: CircularProgressIndicator()),
+                      );
+                    }
+                    return Column(
+                      children: [
+                        for (final m in methods) ...[
+                          _MethodCard(
+                            selected: _methodId == m.id,
+                            onTap: () => setState(() {
+                              _methodId = m.id;
+                              _methodLabel = m.label;
+                            }),
+                            icon: Icons.credit_card_rounded,
+                            title: m.label,
+                            subtitle: m.detail,
+                          ),
+                          const SizedBox(height: 10),
+                        ],
+                        _MethodCard(
+                          selected: _methodId == 'cash',
+                          onTap: () => setState(() {
+                            _methodId = 'cash';
+                            _methodLabel = 'Cash on Site';
+                          }),
+                          icon: Icons.money_outlined,
+                          title: 'Cash on Site',
+                          subtitle: 'Pay the patrol directly',
+                        ),
+                        const SizedBox(height: 10),
+                        SizedBox(
+                          width: double.infinity,
+                          child: OutlinedButton.icon(
+                            onPressed: () => Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => ManageMethodsScreen(
+                                  uid: widget.user.uid,
+                                  paymentService: widget.paymentService,
+                                ),
+                              ),
+                            ),
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: AppColors.navy,
+                              side: const BorderSide(
+                                  color: AppColors.navy, width: 1.4),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              padding: const EdgeInsets.symmetric(
+                                  vertical: 13),
+                            ),
+                            icon: const Icon(
+                                Icons.add_card_rounded,
+                                size: 20),
+                            label: const Text(
+                              'Add / Manage Cards',
+                              style: TextStyle(
+                                  fontWeight: FontWeight.w700),
+                            ),
+                          ),
+                        ),
+                      ],
+                    );
+                  },
+                ),
               const SizedBox(height: 14),
 
               // Complete & submit

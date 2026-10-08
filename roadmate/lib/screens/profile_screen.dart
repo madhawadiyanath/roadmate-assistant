@@ -11,8 +11,10 @@ import '../widgets/striped_placeholder.dart';
 import 'change_password_screen.dart';
 import 'coming_soon_screen.dart';
 import 'emergency_contacts_screen.dart';
+import 'manage_methods_screen.dart';
 import 'onboarding_screen.dart';
 import 'saved_vehicles_screen.dart';
+import 'transactions_screen.dart';
 
 /// Profile: photo, name, role and a menu (view mode); "Personal
 /// Information" opens the name/phone edit mode. Vehicles live in
@@ -174,14 +176,20 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ),
           ),
           const SizedBox(height: 8),
-          _RoleBadge(label: _isDriver ? 'Driver' : 'Mechanic'),
+          _RoleBadge(
+            label: switch (widget.user.role) {
+              AppRole.driver => 'Driver',
+              AppRole.mechanic => 'Mechanic',
+              AppRole.admin => 'ADMIN',
+            },
+          ),
           const SizedBox(height: 18),
           _MenuRow(
             icon: Icons.person_outline_rounded,
             title: 'Personal Information',
             onTap: () => setState(() => _editing = true),
           ),
-          if (!_isDriver)
+          if (widget.user.role == AppRole.mechanic)
             _MenuRow(
               icon: Icons.build_outlined,
               title: 'Services Offered',
@@ -206,6 +214,21 @@ class _ProfileScreenState extends State<ProfileScreen> {
               onTap: () => _push(EmergencyContactsScreen(
                 uid: widget.user.uid,
                 service: widget.contactService,
+              )),
+            ),
+          if (_isDriver)
+            _MenuRow(
+              icon: Icons.credit_card_outlined,
+              title: 'Payment Methods',
+              onTap: () => _push(ManageMethodsScreen(uid: widget.user.uid)),
+            ),
+          if (widget.user.role != AppRole.admin)
+            _MenuRow(
+              icon: Icons.receipt_long_outlined,
+              title: _isDriver ? 'Transaction History' : 'Income History',
+              onTap: () => _push(TransactionsScreen(
+                uid: widget.user.uid,
+                mode: _isDriver ? TxnMode.payer : TxnMode.payee,
               )),
             ),
           _MenuRow(

@@ -1,9 +1,15 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 /// User roles in RoadMate. Stored as string in Firestore (`users/{uid}.role`).
+///
+/// `admin` can NEVER be chosen in the app — the sign-up UI and the
+/// Firestore create-rule only allow driver/mechanic. Admins are created
+/// in the Firebase console (Auth user + `users/{uid}` doc with
+/// `role: "admin"`) and log in with email + password like everyone else.
 enum AppRole {
   driver('driver'),
-  mechanic('mechanic');
+  mechanic('mechanic'),
+  admin('admin');
 
   const AppRole(this.value);
   final String value;

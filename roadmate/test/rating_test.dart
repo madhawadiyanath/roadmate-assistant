@@ -16,6 +16,7 @@ import 'package:roadmate/screens/request_history_screen.dart';
 import 'package:roadmate/screens/request_success_screen.dart';
 import 'package:roadmate/services/assistance_service.dart';
 import 'package:roadmate/services/notification_service.dart';
+import 'package:roadmate/services/payment_service.dart';
 import 'package:roadmate/services/vehicle_service.dart';
 import 'package:roadmate/widgets/rating_widgets.dart';
 import 'package:roadmate/widgets/request_history_widgets.dart';
@@ -218,6 +219,7 @@ void main() {
           address: 'No. 25, Galle Road',
           assistanceService: service,
           vehicleService: VehicleService(db: db),
+          paymentService: PaymentService(db: db),
         ),
       ));
       await tester.pumpAndSettle();
@@ -410,6 +412,7 @@ void main() {
           user: mech,
           assistanceService: service,
           notificationService: NotificationService(db: db),
+          paymentService: PaymentService(db: db),
         ),
       ));
       await tester.pumpAndSettle();

@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 import '../models/app_user.dart';
 import '../services/auth_service.dart';
+import 'admin_dashboard_screen.dart';
 import 'driver_dashboard_screen.dart';
 import 'mechanic_dashboard_screen.dart';
 
-/// Landing page after login / sign-up. Shows driver or mechanic UI
+/// Landing page after login / sign-up. Shows driver, mechanic or admin UI
 /// based on the Firestore role.
 class RoleHome extends StatelessWidget {
   final AppUser user;
@@ -13,9 +14,13 @@ class RoleHome extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (user.role == AppRole.driver) {
-      return DriverDashboardScreen(user: user, authService: authService);
+    switch (user.role) {
+      case AppRole.driver:
+        return DriverDashboardScreen(user: user, authService: authService);
+      case AppRole.mechanic:
+        return MechanicDashboardScreen(user: user, authService: authService);
+      case AppRole.admin:
+        return AdminDashboardScreen(user: user, authService: authService);
     }
-    return MechanicDashboardScreen(user: user, authService: authService);
   }
 }
