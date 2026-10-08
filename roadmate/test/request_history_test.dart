@@ -246,6 +246,75 @@ void main() {
     expect(opened?.refCode, '#RM1058');
   });
 
+  testWidgets('pending request edits its address', (tester) async {
+    _phone(tester);
+    await db.collection('requests').doc('p1').set({
+      'driverUid': _uid,
+      'driverName': 'Kasun',
+      'type': 'flatTyre',
+      'status': 'pending',
+      'address': 'Old Road 1',
+      'refCode': '#RM2001',
+      'createdAt': DateTime(2026, 10, 1, 10, 0),
+    });
+    await tester.pumpWidget(
+        _app(RequestHistoryScreen(uid: _uid, service: service)));
+    await tester.pumpAndSettle();
+    expect(find.text('Edit address'), findsOneWidget);
+
+    await tester.tap(find.text('Edit address'));
+    await tester.pumpAndSettle();
+    final field = find.descendant(
+      of: find.byType(AlertDialog),
+      matching: find.byType(TextField),
+    );
+    expect(field, findsOneWidget);
+    await tester.enterText(field, 'New Road 99');
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Save'));
+    await tester.pumpAndSettle();
+    expect(find.text('Pickup address updated.'), findsOneWidget);
+
+    final stored = await db.collection('requests').doc('p1').get();
+    expect(stored.data()?['address'], 'New Road 99');
+  });
+
+  testWidgets('pending request deletes with its thread', (tester) async {
+    _phone(tester);
+    await db.collection('requests').doc('p1').set({
+      'driverUid': _uid,
+      'driverName': 'Kasun',
+      'type': 'flatTyre',
+      'status': 'pending',
+      'address': 'Old Road 1',
+      'refCode': '#RM2001',
+      'createdAt': DateTime(2026, 10, 1, 10, 0),
+    });
+    await db
+        .collection('requests')
+        .doc('p1')
+        .collection('messages')
+        .add({'text': 'hi', 'senderUid': _uid});
+    await tester.pumpWidget(
+        _app(RequestHistoryScreen(uid: _uid, service: service)));
+    await tester.pumpAndSettle();
+    expect(find.text('#RM2001'), findsOneWidget);
+
+    await tester.tap(find.text('Delete'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Delete').last);
+    await tester.pumpAndSettle();
+    expect(find.text('Request deleted.'), findsOneWidget);
+    expect(find.text('#RM2001'), findsNothing);
+
+    final thread = await db
+        .collection('requests')
+        .doc('p1')
+        .collection('messages')
+        .get();
+    expect(thread.docs, isEmpty);
+  });
+
   testWidgets('Requests tab links to the history page', (tester) async {
     _phone(tester);
     await _seedFigma(db);

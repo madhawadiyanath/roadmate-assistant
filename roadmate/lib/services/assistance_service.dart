@@ -96,6 +96,30 @@ class AssistanceService {
   Future<void> cancelRequest(String requestId) =>
       _requests.doc(requestId).update({'status': RequestStatus.cancelled.name});
 
+  /// Edit the pickup address of a pending request.
+  Future<void> updateAddress(String requestId, String address) async {
+    final a = address.trim();
+    if (a.isEmpty) return;
+    await _requests.doc(requestId).update({'address': a});
+  }
+
+  /// Permanently delete own request: cancel first, remove the doc, then
+  /// clean the chat thread. The thread-cleanup rule allows removing the
+  /// whole thread once its parent doc is gone; anything left behind is
+  /// invisible (orphans under a missing parent).
+  Future<void> deleteRequest(String requestId) async {
+    await cancelRequest(requestId);
+    final msgs = await _requests.doc(requestId).collection('messages').get();
+    await _requests.doc(requestId).delete();
+    for (final m in msgs.docs) {
+      try {
+        await m.reference.delete();
+      } catch (_) {
+        // Best-effort cleanup.
+      }
+    }
+  }
+
   /// Live list of EVERY request (admin oversight), newest first.
   Stream<List<ServiceRequest>> watchAllRequests() {
     return _requests

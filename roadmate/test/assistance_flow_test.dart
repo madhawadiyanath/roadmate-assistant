@@ -68,4 +68,40 @@ void main() {
     final reread = await service.watchDriverRequests('driver1').first;
     expect(reread.first.refCode, code);
   });
+
+  test('driver edits address and deletes own request with thread', () async {
+    final db = FakeFirebaseFirestore();
+    final service = AssistanceService(db: db);
+
+    final id = await service.createRequest(
+      driverUid: 'driver1',
+      driverName: 'Kasun',
+      type: AssistanceType.flatTyre,
+      address: 'Old Road 1',
+    );
+
+    // Edit pickup address.
+    await service.updateAddress(id, 'New Road 99');
+    var view = await service.watchDriverRequests('driver1').first;
+    expect(view.single.address, 'New Road 99');
+    // Blank edits are ignored.
+    await service.updateAddress(id, '   ');
+    view = await service.watchDriverRequests('driver1').first;
+    expect(view.single.address, 'New Road 99');
+
+    // A chat thread exists on the request.
+    await db
+        .collection('requests')
+        .doc(id)
+        .collection('messages')
+        .add({'text': 'hi', 'senderUid': 'driver1'});
+
+    // Delete removes the doc and its thread.
+    await service.deleteRequest(id);
+    view = await service.watchDriverRequests('driver1').first;
+    expect(view, isEmpty);
+    final thread =
+        await db.collection('requests').doc(id).collection('messages').get();
+    expect(thread.docs, isEmpty);
+  });
 }
