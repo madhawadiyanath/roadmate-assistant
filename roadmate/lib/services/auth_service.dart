@@ -49,12 +49,105 @@ class AuthService {
     try {
       await _users.doc(user.uid).set(user.toMap());
       await cred.user!.updateDisplayName(user.name);
-      return user;
     } catch (_) {
       await cred.user?.delete();
       rethrow;
     }
+    // Verification mail is best-effort: a failed send must not undo the
+    // sign-up — the verify screen has a "Resend email" button.
+    try {
+      await cred.user!.sendEmailVerification();
+    } catch (_) {}
+    return user;
   }
+
+  // ------------------------ Email verification ------------------------
+
+  /// Accounts created before this moment are never asked to verify their
+  /// email (they signed up before verification existed).
+  static final DateTime emailVerificationCutoff =
+      DateTime.utc(2026, 10, 7, 8, 0);
+
+  /// Whether [user] must verify their email before using the app: a
+  /// password account (Google accounts are already verified), not yet
+  /// verified, created after [emailVerificationCutoff].
+  static bool userNeedsEmailVerification(User? user) {
+    if (user == null || user.emailVerified) return false;
+    if (!user.providerData.any((p) => p.providerId == 'password')) {
+      return false;
+    }
+    final created = user.metadata.creationTime;
+    return created != null && created.isAfter(emailVerificationCutoff);
+  }
+
+  /// [userNeedsEmailVerification] for the currently signed-in user.
+  bool get needsEmailVerification =>
+      userNeedsEmailVerification(_auth.currentUser);
+
+  /// (Re)send the verification email to the signed-in user.
+  Future<void> sendVerificationEmail() async {
+    final user = _auth.currentUser;
+    if (user == null) {
+      throw FirebaseAuthException(
+        code: 'no-current-user',
+        message: 'You are signed out. Please sign in again.',
+      );
+    }
+    await user.sendEmailVerification();
+  }
+
+  /// Refresh the signed-in user from Firebase and report whether their
+  /// email is verified now (they may have just tapped the link).
+  Future<bool> isEmailVerified() async {
+    final user = _auth.currentUser;
+    if (user == null) return false;
+    await user.reload();
+    return _auth.currentUser?.emailVerified ?? false;
+  }
+
+  // --------------------------- Password reset ---------------------------
+
+  /// Send Firebase's password-reset email (the link opens Firebase's hosted
+  /// "set a new password" page).
+  Future<void> sendPasswordReset(String email) =>
+      _auth.sendPasswordResetEmail(email: email.trim());
+
+  // -------------------------- Change password --------------------------
+
+  /// Whether the signed-in account has a password (false for accounts that
+  /// only ever signed in with Google — they have none to change).
+  bool get hasPassword =>
+      _auth.currentUser?.providerData.any((p) => p.providerId == 'password') ??
+      false;
+
+  /// Change the signed-in user's password: re-authenticate with
+  /// [currentPassword] first, then set [newPassword].
+  ///
+  /// Throws [FirebaseAuthException]: `wrong-password` / `invalid-credential`
+  /// when the current password is wrong (see [isWrongPassword]),
+  /// `weak-password` when Firebase rejects the new one.
+  Future<void> changePassword({
+    required String currentPassword,
+    required String newPassword,
+  }) async {
+    final user = _auth.currentUser;
+    final email = user?.email;
+    if (user == null || email == null || email.isEmpty) {
+      throw FirebaseAuthException(
+        code: 'no-current-user',
+        message: 'You are signed out. Please sign in again.',
+      );
+    }
+    await user.reauthenticateWithCredential(
+      EmailAuthProvider.credential(email: email, password: currentPassword),
+    );
+    await user.updatePassword(newPassword);
+  }
+
+  /// True for the error codes Firebase uses when a password is wrong.
+  static bool isWrongPassword(Object e) =>
+      e is FirebaseAuthException &&
+      (e.code == 'wrong-password' || e.code == 'invalid-credential');
 
   /// Email/password login. Profile (with role) is read from `users/{uid}`.
   Future<AppUser> signIn({
@@ -94,19 +187,17 @@ class AuthService {
         );
   }
 
-  /// Update editable profile fields, return the fresh profile.
+  /// Update the editable profile fields (name and phone only — vehicles
+  /// live in `users/{uid}/vehicles`), return the fresh profile. Other
+  /// fields on the doc are left untouched.
   Future<AppUser> updateProfile({
     required String uid,
     required String name,
     required String phone,
-    String vehicle = '',
-    String plate = '',
   }) async {
     await _users.doc(uid).update({
       'name': name.trim(),
       'phone': phone.trim(),
-      'vehicle': vehicle.trim(),
-      'plate': plate.trim(),
     });
     final fresh = await getProfile(uid);
     return fresh ??
@@ -116,10 +207,63 @@ class AuthService {
           email: '',
           phone: phone.trim(),
           role: AppRole.driver,
-          vehicle: vehicle.trim(),
-          plate: plate.trim(),
         );
   }
+
+  // ------------------------- Google sign-in -------------------------
+
+  /// "Continue with Google" via Firebase's own provider flow (no extra
+  /// package). Returns the existing profile, or — for someone signing in
+  /// for the first time — a [GoogleSignInOutcome.newUser] that still needs
+  /// a role: nothing is written to `users/{uid}` until [createProfile] runs.
+  ///
+  /// If the Google email already has an email/password account Firebase
+  /// links them (default behaviour) and that account's profile is returned.
+  Future<GoogleSignInOutcome> signInWithGoogle() async {
+    final cred = await _auth.signInWithProvider(GoogleAuthProvider());
+    final fbUser = cred.user;
+    if (fbUser == null) {
+      throw FirebaseAuthException(
+        code: 'null-user',
+        message: 'Google sign-in did not return a user.',
+      );
+    }
+    final profile = await getProfile(fbUser.uid);
+    if (profile != null) return GoogleSignInOutcome.existing(profile);
+    return GoogleSignInOutcome.newUser(
+      uid: fbUser.uid,
+      name: fbUser.displayName ?? '',
+      email: fbUser.email ?? '',
+    );
+  }
+
+  /// Create the `users/{uid}` doc for a signed-in user that has none yet
+  /// (Google sign-in, after they picked a role).
+  Future<AppUser> createProfile({
+    required String uid,
+    required String name,
+    required String email,
+    required AppRole role,
+    String phone = '',
+  }) async {
+    final user = AppUser(
+      uid: uid,
+      name: name.trim(),
+      email: email.trim(),
+      phone: phone.trim(),
+      role: role,
+    );
+    await _users.doc(uid).set(user.toMap());
+    return user;
+  }
+
+  /// True when the user simply closed/cancelled the Google sheet.
+  static bool isCancelled(Object e) =>
+      e is FirebaseAuthException &&
+      (e.code == 'canceled' ||
+          e.code == 'web-context-canceled' ||
+          e.code == 'popup-closed-by-user' ||
+          e.code == 'cancelled-popup-request');
 
   Future<void> signOut() => _auth.signOut();
 
@@ -143,6 +287,12 @@ class AuthService {
           return 'Too many attempts. Try again in a minute.';
         case 'network-request-failed':
           return 'No internet connection. Check and retry.';
+        case 'account-exists-with-different-credential':
+          return 'An account already exists with this email. '
+              'Sign in with your password instead.';
+        case 'canceled':
+        case 'web-context-canceled':
+          return 'Sign-in was cancelled.';
         case 'permission-denied':
           return 'Database access denied. Check Firestore rules.';
         default:
@@ -154,4 +304,35 @@ class AuthService {
     }
     return 'Something went wrong. Try again.';
   }
+}
+
+/// Result of [AuthService.signInWithGoogle]: either a returning user
+/// ([profile] set) or a first-time user who still has to choose a role.
+class GoogleSignInOutcome {
+  final AppUser? profile;
+  final String uid;
+  final String name;
+  final String email;
+
+  const GoogleSignInOutcome._({
+    this.profile,
+    required this.uid,
+    required this.name,
+    required this.email,
+  });
+
+  factory GoogleSignInOutcome.existing(AppUser profile) => GoogleSignInOutcome._(
+        profile: profile,
+        uid: profile.uid,
+        name: profile.name,
+        email: profile.email,
+      );
+
+  const GoogleSignInOutcome.newUser({
+    required String uid,
+    required String name,
+    required String email,
+  }) : this._(uid: uid, name: name, email: email);
+
+  bool get isNewUser => profile == null;
 }

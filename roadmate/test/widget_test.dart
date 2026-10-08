@@ -90,7 +90,7 @@ void main() {
     expect(find.text('Flat Tyre'), findsOneWidget);
     expect(find.text('Jump Start'), findsOneWidget);
     expect(find.text('Fuel Drop'), findsOneWidget);
-    expect(find.text('Toyota Axio • ABC 1234'), findsOneWidget);
+    expect(find.text('No vehicle saved — tap to add'), findsOneWidget);
     expect(find.text('Recent Requests'), findsOneWidget);
     expect(find.text('Towing Service'), findsOneWidget);
 
@@ -237,7 +237,8 @@ void main() {
     await tester.tap(find.text('Continue to Payment'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Rate Your Experience'), findsOneWidget);
+    expect(find.text('Payment'), findsOneWidget);
+    expect(find.text('Rate Your Experience'), findsNothing); // rating is post-job
     expect(find.text('Payment Summary'), findsOneWidget);
     expect(find.text('Payment Method'), findsOneWidget);
     expect(find.text('Rs. 3,500.00'), findsOneWidget);
@@ -464,7 +465,7 @@ void main() {
     expect(all, hasLength(2));
   });
 
-  testWidgets('Profile page shows details, edits, guards save', (
+  testWidgets('Profile page shows menu, edits, guards save', (
     WidgetTester tester,
   ) async {
     const user = AppUser(
@@ -473,23 +474,22 @@ void main() {
       email: 'kasun@example.com',
       phone: '+94771234567',
       role: AppRole.driver,
-      vehicle: 'Toyota Axio',
-      plate: 'ABC 1234',
     );
     await tester.pumpWidget(
       const MaterialApp(home: ProfileScreen(user: user)),
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('Profile'), findsOneWidget);
     expect(find.text('Kasun Perera'), findsWidgets);
-    expect(find.text('Personal Details'), findsOneWidget);
-    expect(find.text('Vehicle Details'), findsOneWidget);
+    expect(find.text('Personal Information'), findsOneWidget);
+    expect(find.text('Vehicle Information'), findsOneWidget);
+    expect(find.text('Vehicle Details'), findsNothing); // no inline vehicle
     expect(find.text('Logout'), findsOneWidget);
 
-    // Edit mode enables fields; save without Firebase shows hint.
-    await tester.tap(find.byIcon(Icons.edit_outlined));
+    // Personal Information opens edit mode; save without Firebase shows hint.
+    await tester.tap(find.text('Personal Information'));
     await tester.pumpAndSettle();
+    expect(find.text('Personal Details'), findsOneWidget);
     expect(find.text('Save Changes'), findsOneWidget);
     await tester.ensureVisible(find.text('Save Changes'));
     await tester.pumpAndSettle();
@@ -514,10 +514,10 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('ADMIN'), findsOneWidget);
-    expect(find.text('Vehicle Details'), findsNothing);
+    expect(find.text('Vehicle Information'), findsNothing);
   });
 
-  testWidgets('Mechanic profile hides vehicle section', (
+  testWidgets('Mechanic profile has no vehicle entry', (
     WidgetTester tester,
   ) async {
     const mech = AppUser(
@@ -532,8 +532,10 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('MECHANIC'), findsOneWidget);
-    expect(find.text('Vehicle Details'), findsNothing);
+    expect(find.text('Mechanic'), findsOneWidget);
+    expect(find.text('Services Offered'), findsOneWidget);
+    expect(find.text('Vehicle Information'), findsNothing);
+    expect(find.text('Emergency Contacts'), findsNothing);
   });
 
   testWidgets('Driver avatar opens Profile page', (
@@ -553,8 +555,8 @@ void main() {
 
     await tester.tap(find.byType(CircleAvatar).first);
     await tester.pumpAndSettle();
-    expect(find.text('Profile'), findsOneWidget);
-    expect(find.text('Personal Details'), findsOneWidget);
+    expect(find.text('Personal Information'), findsOneWidget);
+    expect(find.text('Kasun Perera'), findsWidgets);
   });
 
   testWidgets('Admin dashboard shows stats and tabs', (

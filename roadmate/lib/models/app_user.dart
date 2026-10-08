@@ -18,10 +18,6 @@ enum AppRole {
       AppRole.values.firstWhere((r) => r.value == v, orElse: () => AppRole.driver);
 }
 
-/// Demo fallback until the driver saves their real vehicle.
-const demoVehicleName = 'Toyota Axio';
-const demoVehiclePlate = 'ABC 1234';
-
 /// App user profile — Auth uid is the Firestore doc id (`users/{uid}`).
 class AppUser {
   final String uid;
@@ -29,8 +25,6 @@ class AppUser {
   final String email;
   final String phone;
   final AppRole role;
-  final String vehicle;
-  final String plate;
   final DateTime? createdAt;
 
   const AppUser({
@@ -39,24 +33,14 @@ class AppUser {
     required this.email,
     required this.phone,
     required this.role,
-    this.vehicle = '',
-    this.plate = '',
     this.createdAt,
   });
-
-  /// Single source for every vehicle label in the app.
-  String get vehicleName => vehicle.isEmpty ? demoVehicleName : vehicle;
-  String get vehiclePlate => plate.isEmpty ? demoVehiclePlate : plate;
-  String get vehicleDisplay => '$vehicleName • $vehiclePlate';
-  String get vehicleParen => '$vehicleName ($vehiclePlate)';
 
   Map<String, dynamic> toMap() => {
         'name': name,
         'email': email,
         'phone': phone,
         'role': role.value,
-        'vehicle': vehicle,
-        'plate': plate,
         'createdAt': FieldValue.serverTimestamp(),
       };
 
@@ -66,8 +50,6 @@ class AppUser {
         email: (map['email'] ?? '') as String,
         phone: (map['phone'] ?? '') as String,
         role: AppRole.fromString(map['role'] as String?),
-        vehicle: (map['vehicle'] ?? '') as String,
-        plate: (map['plate'] ?? '') as String,
         createdAt: (map['createdAt'] as Timestamp?)?.toDate(),
       );
 }

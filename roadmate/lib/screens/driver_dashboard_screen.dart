@@ -2,17 +2,23 @@ import 'package:flutter/material.dart';
 
 import '../config/firebase_state.dart';
 import '../models/app_user.dart';
-import '../models/notification_item.dart';
 import '../models/service_request.dart';
+import '../models/vehicle.dart';
 import '../services/assistance_service.dart';
 import '../services/auth_service.dart';
 import '../services/notification_service.dart';
+import '../services/vehicle_service.dart';
 import '../theme/app_colors.dart';
+import '../widgets/notification_widgets.dart';
+import '../widgets/roadmate_top_bar.dart';
 import '../widgets/tow_truck_illustration.dart';
 import 'chat_screen.dart';
 import 'location_screen.dart';
+import 'notifications_screen.dart';
 import 'onboarding_screen.dart';
 import 'profile_screen.dart';
+import 'request_history_screen.dart';
+import 'saved_vehicles_screen.dart';
 import 'select_service_screen.dart';
 import 'track_request_screen.dart';
 
@@ -23,12 +29,16 @@ class DriverDashboardScreen extends StatefulWidget {
   final AppUser user;
   final AuthService? authService;
   final AssistanceService? assistanceService;
+  final VehicleService? vehicleService;
+  final NotificationService? notificationService;
 
   const DriverDashboardScreen({
     super.key,
     required this.user,
     this.authService,
     this.assistanceService,
+    this.vehicleService,
+    this.notificationService,
   });
 
   @override
@@ -158,6 +168,9 @@ class _DriverDashboardScreenState extends State<DriverDashboardScreen> {
               onViewAll: () => setState(() => _tab = 1),
               onAvatarTap: _openProfile,
               assistance: _assist,
+              vehicleService: widget.vehicleService,
+              notificationService: widget.notificationService,
+              onLogout: _logout,
               onTab: (i) => setState(() => _tab = i),
             ),
             _RequestsTab(
@@ -165,7 +178,18 @@ class _DriverDashboardScreenState extends State<DriverDashboardScreen> {
               user: _user,
               onTab: (i) => setState(() => _tab = i),
             ),
-            _GarageTab(user: _user, onLogout: _logout),
+            Column(
+              children: [
+                RoadMateTopBar(onAvatarTap: _openProfile),
+                Expanded(
+                  child: SavedVehiclesView(
+                    uid: _user.uid,
+                    service: widget.vehicleService,
+                    onBack: () => setState(() => _tab = 0),
+                  ),
+                ),
+              ],
+            ),
             _ChatTab(user: _user, assistance: _assist),
           ],
         ),
@@ -190,6 +214,9 @@ class _HomeTab extends StatelessWidget {
   final VoidCallback onViewAll;
   final VoidCallback onAvatarTap;
   final AssistanceService assistance;
+  final VehicleService? vehicleService;
+  final NotificationService? notificationService;
+  final VoidCallback onLogout;
   final ValueChanged<int> onTab;
 
   const _HomeTab({
@@ -202,73 +229,19 @@ class _HomeTab extends StatelessWidget {
     required this.onViewAll,
     required this.onAvatarTap,
     required this.assistance,
+    required this.vehicleService,
+    required this.notificationService,
+    required this.onLogout,
     required this.onTab,
   });
 
   void _showNotifications(BuildContext context) {
-    final service = NotificationService();
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (_) => Container(
-        height: 420,
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-        ),
-        child: StreamBuilder<List<AppNotificationItem>>(
-          stream: service.watchUserNotifications(user.uid),
-          builder: (context, snap) {
-            if (snap.connectionState == ConnectionState.waiting) {
-              return const Center(child: CircularProgressIndicator());
-            }
-            final items = snap.data ?? const <AppNotificationItem>[];
-            if (items.isEmpty) {
-              return const Center(
-                child: Padding(
-                  padding: EdgeInsets.all(24),
-                  child: Text('No notifications yet.'),
-                ),
-              );
-            }
-            return ListView.separated(
-              padding: const EdgeInsets.all(18),
-              itemCount: items.length,
-              separatorBuilder: (_, _) => const SizedBox(height: 10),
-              itemBuilder: (_, i) {
-                final n = items[i];
-                return Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: AppColors.fieldFill,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        n.title,
-                        style: const TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w800,
-                          color: AppColors.navy,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        n.body,
-                        style: const TextStyle(
-                          fontSize: 12.5,
-                          color: AppColors.greyText,
-                        ),
-                      ),
-                    ],
-                  ),
-                );
-              },
-            );
-          },
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => NotificationsScreen(
+          uid: user.uid,
+          service: notificationService,
         ),
       ),
     );
@@ -374,29 +347,10 @@ class _HomeTab extends StatelessWidget {
                   ),
                 ],
               ),
-              Stack(
-                children: [
-                  IconButton(
-                    onPressed: () => _showNotifications(context),
-                    icon: const Icon(
-                      Icons.notifications_outlined,
-                      color: AppColors.navy,
-                      size: 26,
-                    ),
-                  ),
-                  Positioned(
-                    right: 12,
-                    top: 12,
-                    child: Container(
-                      width: 9,
-                      height: 9,
-                      decoration: const BoxDecoration(
-                        color: AppColors.orange,
-                        shape: BoxShape.circle,
-                      ),
-                    ),
-                  ),
-                ],
+              NotificationBellButton(
+                uid: user.uid,
+                service: notificationService,
+                onPressed: () => _showNotifications(context),
               ),
             ],
           ),
@@ -546,7 +500,11 @@ class _HomeTab extends StatelessWidget {
           const SizedBox(height: 12),
 
           // Registered vehicle
-          _VehicleCard(user: user),
+          _VehicleCard(
+            user: user,
+            service: vehicleService,
+            onTap: () => onTab(2),
+          ),
           const SizedBox(height: 16),
 
           // Recent requests
@@ -585,6 +543,26 @@ class _HomeTab extends StatelessWidget {
             assistance: assistance,
             driverUid: user.uid,
             onTab: onTab,
+          ),
+          const SizedBox(height: 16),
+
+          // Logout
+          SizedBox(
+            width: double.infinity,
+            height: 50,
+            child: OutlinedButton.icon(
+              onPressed: onLogout,
+              style: OutlinedButton.styleFrom(
+                foregroundColor: Colors.red,
+                side: const BorderSide(color: Colors.red),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+              icon: const Icon(Icons.logout_rounded, size: 20),
+              label: const Text('Logout',
+                  style: TextStyle(fontWeight: FontWeight.w700)),
+            ),
           ),
           const SizedBox(height: 16),
         ],
@@ -831,82 +809,141 @@ class _QuickCard extends StatelessWidget {
   }
 }
 
-class _VehicleCard extends StatelessWidget {
+/// Home-tab vehicle card: shows the driver's default saved vehicle, or
+/// invites them to add one when there is none (or Firebase is not
+/// connected).
+class _VehicleCard extends StatefulWidget {
   final AppUser user;
-  const _VehicleCard({required this.user});
+  final VehicleService? service;
+  final VoidCallback onTap;
+  const _VehicleCard({required this.user, this.service, required this.onTap});
+
+  @override
+  State<_VehicleCard> createState() => _VehicleCardState();
+}
+
+class _VehicleCardState extends State<_VehicleCard> {
+  Stream<Vehicle?>? _stream;
+
+  @override
+  void initState() {
+    super.initState();
+    _subscribe();
+  }
+
+  @override
+  void didUpdateWidget(_VehicleCard old) {
+    super.didUpdateWidget(old);
+    if (old.user.uid != widget.user.uid || old.service != widget.service) {
+      _subscribe();
+    }
+  }
+
+  void _subscribe() {
+    _stream = widget.service != null || firebaseReady
+        ? (widget.service ?? VehicleService())
+            .watchDefaultVehicle(widget.user.uid)
+        : null;
+  }
+
+  static const _none = 'No vehicle saved — tap to add';
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFFEDF1F7), width: 1.2),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 44,
-            height: 44,
-            decoration: BoxDecoration(
-              color: AppColors.navy.withValues(alpha: 0.08),
-              borderRadius: BorderRadius.circular(12),
+    final stream = _stream;
+    if (stream == null) return _card(_none, active: false);
+    return StreamBuilder<Vehicle?>(
+      stream: stream,
+      builder: (context, snap) {
+        if (snap.hasError) return _card('Vehicle unavailable', active: false);
+        if (snap.connectionState == ConnectionState.waiting) {
+          return _card('Loading…');
+        }
+        final v = snap.data;
+        return v != null ? _card(v.display) : _card(_none, active: false);
+      },
+    );
+  }
+
+  Widget _card(String text, {bool active = true}) {
+    return GestureDetector(
+      onTap: widget.onTap,
+      child: Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: const Color(0xFFEDF1F7), width: 1.2),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 44,
+              height: 44,
+              decoration: BoxDecoration(
+                color: AppColors.navy.withValues(alpha: 0.08),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: const Icon(
+                Icons.directions_car_filled_rounded,
+                color: AppColors.navy,
+                size: 24,
+              ),
             ),
-            child: const Icon(
-              Icons.directions_car_filled_rounded,
-              color: AppColors.navy,
-              size: 24,
-            ),
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'REGISTERED VEHICLE',
-                  style: TextStyle(
-                    fontSize: 10,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: 0.7,
-                    color: AppColors.greyText,
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'REGISTERED VEHICLE',
+                    style: TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 0.7,
+                      color: AppColors.greyText,
+                    ),
                   ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  user.vehicleDisplay,
-                  style: const TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w800,
-                    color: AppColors.navy,
+                  const SizedBox(height: 2),
+                  Text(
+                    text,
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w800,
+                      color: AppColors.navy,
+                    ),
                   ),
+                ],
+              ),
+            ),
+            if (active)
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFE6F7EE),
+                  borderRadius: BorderRadius.circular(20),
                 ),
-              ],
-            ),
-          ),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-            decoration: BoxDecoration(
-              color: const Color(0xFFE6F7EE),
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: const Row(
-              children: [
-                Icon(Icons.circle, size: 7, color: Color(0xFF22B573)),
-                SizedBox(width: 5),
-                Text(
-                  'Active',
-                  style: TextStyle(
-                    fontSize: 11.5,
-                    fontWeight: FontWeight.w700,
-                    color: Color(0xFF22B573),
-                  ),
+                child: const Row(
+                  children: [
+                    Icon(Icons.circle, size: 7, color: Color(0xFF22B573)),
+                    SizedBox(width: 5),
+                    Text(
+                      'Active',
+                      style: TextStyle(
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.w700,
+                        color: Color(0xFF22B573),
+                      ),
+                    ),
+                  ],
                 ),
-              ],
-            ),
-          ),
-        ],
+              )
+            else
+              const Icon(Icons.add_circle_outline_rounded,
+                  color: AppColors.orange, size: 24),
+          ],
+        ),
       ),
     );
   }
@@ -1045,13 +1082,36 @@ class _RequestsTab extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const SizedBox(height: 14),
-          const Text(
-            'My Requests',
-            style: TextStyle(
-              fontSize: 22,
-              fontWeight: FontWeight.w800,
-              color: AppColors.navy,
-            ),
+          Row(
+            children: [
+              const Expanded(
+                child: Text(
+                  'My Requests',
+                  style: TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.w800,
+                    color: AppColors.navy,
+                  ),
+                ),
+              ),
+              RequestHistoryLink(
+                onTap: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => RequestHistoryScreen(
+                      uid: user.uid,
+                      // Only hand over the service when Firebase is live,
+                      // otherwise the screen shows "not connected".
+                      service: firebaseReady ? assistance : null,
+                      onOpen: (ctx, r) => openTracking(ctx, r, (i) {
+                        Navigator.pop(ctx);
+                        onTab(i);
+                      }),
+                    ),
+                  ),
+                ),
+              ),
+            ],
           ),
           const SizedBox(height: 4),
           const Text(
@@ -1325,92 +1385,7 @@ String formatDate(DateTime? d) {
   return '${d.day} ${months[d.month - 1]} ${d.year}';
 }
 
-// ============================== GARAGE / CHAT ==============================
-
-class _GarageTab extends StatelessWidget {
-  final AppUser user;
-  final VoidCallback onLogout;
-  const _GarageTab({required this.user, required this.onLogout});
-
-  @override
-  Widget build(BuildContext context) {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.symmetric(horizontal: 18),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const SizedBox(height: 14),
-          const Text(
-            'My Garage',
-            style: TextStyle(
-              fontSize: 22,
-              fontWeight: FontWeight.w800,
-              color: AppColors.navy,
-            ),
-          ),
-          const SizedBox(height: 14),
-          _VehicleCard(user: user),
-          const SizedBox(height: 12),
-          _DetailRow(label: 'Owner', value: user.name.isEmpty ? '—' : user.name),
-          _DetailRow(label: 'Plate No', value: user.vehiclePlate),
-          _DetailRow(label: 'Make / Model', value: user.vehicleName),
-          _DetailRow(label: 'Phone', value: user.phone.isEmpty ? '—' : user.phone),
-          const SizedBox(height: 20),
-          SizedBox(
-            width: double.infinity,
-            height: 50,
-            child: OutlinedButton.icon(
-              onPressed: onLogout,
-              style: OutlinedButton.styleFrom(
-                foregroundColor: Colors.red,
-                side: const BorderSide(color: Colors.red),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-              ),
-              icon: const Icon(Icons.logout_rounded, size: 20),
-              label: const Text('Logout',
-                  style: TextStyle(fontWeight: FontWeight.w700)),
-            ),
-          ),
-          const SizedBox(height: 16),
-        ],
-      ),
-    );
-  }
-}
-
-class _DetailRow extends StatelessWidget {
-  final String label;
-  final String value;
-  const _DetailRow({required this.label, required this.value});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFEDF1F7), width: 1.2),
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(label,
-              style:
-                  const TextStyle(fontSize: 13, color: AppColors.greyText)),
-          Text(value,
-              style: const TextStyle(
-                  fontSize: 13.5,
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.navyDark)),
-        ],
-      ),
-    );
-  }
-}
+// ============================== CHAT ==============================
 
 /// Driver chat list: active jobs (mechanic assigned) open a thread.
 class _ChatTab extends StatelessWidget {

@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../config/firebase_state.dart';
 import '../models/app_user.dart';
-import '../models/notification_item.dart';
+import '../models/rating_summary.dart';
 import '../models/payments.dart';
 import '../models/service_request.dart';
 import '../services/assistance_service.dart';
@@ -10,8 +10,10 @@ import '../services/auth_service.dart';
 import '../services/notification_service.dart';
 import '../services/payment_service.dart';
 import '../theme/app_colors.dart';
+import '../widgets/notification_widgets.dart';
 import 'chat_screen.dart';
 import 'job_details_screen.dart';
+import 'notifications_screen.dart';
 import 'profile_screen.dart';
 import 'receipt_screen.dart';
 
@@ -22,12 +24,16 @@ class MechanicDashboardScreen extends StatefulWidget {
   final AppUser user;
   final AuthService? authService;
   final AssistanceService? assistanceService;
+  final NotificationService? notificationService;
+  final PaymentService? paymentService;
 
   const MechanicDashboardScreen({
     super.key,
     required this.user,
     this.authService,
     this.assistanceService,
+    this.notificationService,
+    this.paymentService,
   });
 
   @override
@@ -75,69 +81,12 @@ class _MechanicDashboardScreenState extends State<MechanicDashboardScreen> {
   }
 
   void _showNotifications() {
-    final service = NotificationService();
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (_) => Container(
-        height: 420,
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-        ),
-        child: StreamBuilder<List<AppNotificationItem>>(
-          stream: service.watchUserNotifications(_user.uid),
-          builder: (context, snap) {
-            if (snap.connectionState == ConnectionState.waiting) {
-              return const Center(child: CircularProgressIndicator());
-            }
-            final items = snap.data ?? const <AppNotificationItem>[];
-            if (items.isEmpty) {
-              return const Center(
-                child: Padding(
-                  padding: EdgeInsets.all(24),
-                  child: Text('No notifications yet.'),
-                ),
-              );
-            }
-            return ListView.separated(
-              padding: const EdgeInsets.all(18),
-              itemCount: items.length,
-              separatorBuilder: (_, _) => const SizedBox(height: 10),
-              itemBuilder: (_, i) {
-                final n = items[i];
-                return Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: AppColors.fieldFill,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        n.title,
-                        style: const TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w800,
-                          color: AppColors.navy,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        n.body,
-                        style: const TextStyle(
-                          fontSize: 12.5,
-                          color: AppColors.greyText,
-                        ),
-                      ),
-                    ],
-                  ),
-                );
-              },
-            );
-          },
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => NotificationsScreen(
+          uid: _user.uid,
+          service: widget.notificationService,
         ),
       ),
     );
@@ -174,7 +123,7 @@ class _MechanicDashboardScreenState extends State<MechanicDashboardScreen> {
       await _assist.updateStatus(r.id, next);
       if (next == RequestStatus.completed) {
         // Cash collected on site → settle this job's transactions.
-        await PaymentService().collectCash(r.id);
+        await (widget.paymentService ?? PaymentService()).collectCash(r.id);
       }
       if (!mounted) return;
       _snack(next == RequestStatus.completed
@@ -203,6 +152,7 @@ class _MechanicDashboardScreenState extends State<MechanicDashboardScreen> {
               onAvatarTap: _openProfile,
               onViewRequests: () => setState(() => _tab = 1),
               onShowNotifications: _showNotifications,
+              notificationService: widget.notificationService,
               assistance: _assist,
               mechanicUid: _user.uid,
             ),
@@ -216,7 +166,7 @@ class _MechanicDashboardScreenState extends State<MechanicDashboardScreen> {
               onAdvance: _advance,
               onTabSelect: (i) => setState(() => _tab = i),
             ),
-            _EarningsTab(user: widget.user),
+            _EarningsTab(user: widget.user, paymentService: widget.paymentService),
             _MechChatTab(user: _user, assistance: _assist),
           ],
         ),
@@ -267,6 +217,7 @@ class _MechHomeTab extends StatelessWidget {
   final VoidCallback onAvatarTap;
   final VoidCallback onViewRequests;
   final VoidCallback onShowNotifications;
+  final NotificationService? notificationService;
   final AssistanceService assistance;
   final String mechanicUid;
 
@@ -277,6 +228,7 @@ class _MechHomeTab extends StatelessWidget {
     required this.onAvatarTap,
     required this.onViewRequests,
     required this.onShowNotifications,
+    required this.notificationService,
     required this.assistance,
     required this.mechanicUid,
   });
@@ -400,10 +352,11 @@ class _MechHomeTab extends StatelessWidget {
                   ),
                 ),
               ),
-              IconButton(
+              NotificationBellButton(
+                uid: mechanicUid,
+                service: notificationService,
+                iconSize: 24,
                 onPressed: onShowNotifications,
-                icon: const Icon(Icons.notifications_outlined,
-                    color: AppColors.navy, size: 24),
               ),
             ],
           ),
@@ -445,8 +398,8 @@ class _MechHomeTab extends StatelessWidget {
                   iconColor: Color(0xFF22B573),
                 ),
                 _StatCard(
-                  value: '4.8',
-                  label: 'Rating',
+                  value: '—',
+                  label: 'No ratings yet',
                   icon: Icons.star_rounded,
                   iconBg: Color(0xFFFFF3DC),
                   iconColor: AppColors.orange,
@@ -472,6 +425,7 @@ class _MechHomeTab extends StatelessWidget {
                       .where(
                           (r) => r.status == RequestStatus.completed)
                       .length;
+                  final rating = RatingSummary.from(myJobs);
                   return GridView.count(
                     crossAxisCount: 2,
                     shrinkWrap: true,
@@ -501,11 +455,13 @@ class _MechHomeTab extends StatelessWidget {
                         iconBg: const Color(0xFFE6F7EE),
                         iconColor: const Color(0xFF22B573),
                       ),
-                      const _StatCard(
-                        value: '4.8',
-                        label: 'Rating',
+                      _StatCard(
+                        value: rating.averageText,
+                        label: rating.hasRatings
+                            ? 'Rating (${rating.count})'
+                            : 'No ratings yet',
                         icon: Icons.star_rounded,
-                        iconBg: Color(0xFFFFF3DC),
+                        iconBg: const Color(0xFFFFF3DC),
                         iconColor: AppColors.orange,
                       ),
                     ],
@@ -1272,11 +1228,12 @@ class _FilterChip extends StatelessWidget {
 /// mechanic, with total + per-job list opening digital receipts.
 class _EarningsTab extends StatelessWidget {
   final AppUser user;
-  const _EarningsTab({required this.user});
+  final PaymentService? paymentService;
+  const _EarningsTab({required this.user, this.paymentService});
 
   @override
   Widget build(BuildContext context) {
-    final pay = PaymentService();
+    final pay = paymentService ?? PaymentService();
     return SingleChildScrollView(
       padding: const EdgeInsets.symmetric(horizontal: 18),
       child: Column(
