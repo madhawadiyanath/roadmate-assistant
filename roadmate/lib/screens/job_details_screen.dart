@@ -4,6 +4,7 @@ import '../config/firebase_state.dart';
 import '../models/service_request.dart';
 import '../services/assistance_service.dart';
 import '../services/auth_service.dart';
+import '../services/chat_service.dart';
 import '../theme/app_colors.dart';
 import '../widgets/mini_map_illustration.dart';
 import 'chat_screen.dart';
@@ -16,6 +17,7 @@ class JobDetailsScreen extends StatefulWidget {
   final String mechanicUid;
   final String mechanicName;
   final AssistanceService? assistanceService;
+  final ChatService? chatService;
 
   const JobDetailsScreen({
     super.key,
@@ -23,6 +25,7 @@ class JobDetailsScreen extends StatefulWidget {
     required this.mechanicUid,
     required this.mechanicName,
     this.assistanceService,
+    this.chatService,
   });
 
   @override
@@ -298,6 +301,7 @@ class _JobDetailsScreenState extends State<JobDetailsScreen> {
                                 senderName: widget.mechanicName,
                                 senderRole: 'mechanic',
                                 peerName: r.driverName,
+                                chatService: widget.chatService,
                               ),
                             ),
                           ),

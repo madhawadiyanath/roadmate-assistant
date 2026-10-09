@@ -40,12 +40,34 @@ class _ChatScreenState extends State<ChatScreen> {
 
   ChatService get _chat => widget.chatService ?? ChatService();
 
+  /// Peer message ids already marked seen (one write each, no repeats).
+  final Set<String> _marked = {};
+
+  @override
+  void initState() {
+    super.initState();
+    // Opening the thread counts as seen up to now; anything newer
+    // from the peer is marked as it arrives below.
+    _chat.markSeen(uid: widget.senderUid, requestId: widget.request.id);
+  }
+
   @override
   void dispose() {
     _input.dispose();
     _editController.dispose();
     _scroll.dispose();
     super.dispose();
+  }
+
+  /// Marks fresh peer messages seen (once each).
+  void _markIncomingSeen(List<ChatMessage> msgs) {
+    for (final m in msgs) {
+      if (m.senderUid != widget.senderUid && _marked.add(m.id)) {
+        _chat.markSeen(
+            uid: widget.senderUid, requestId: widget.request.id);
+        break;
+      }
+    }
   }
 
   void _snack(String msg) {
@@ -281,6 +303,7 @@ class _ChatScreenState extends State<ChatScreen> {
                     ),
                   );
                 }
+                _markIncomingSeen(msgs);
                 WidgetsBinding.instance
                     .addPostFrameCallback((_) => _scrollToBottom());
                 return ListView.builder(

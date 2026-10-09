@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:fake_cloud_firestore/fake_cloud_firestore.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:roadmate/models/service_request.dart';
 import 'package:roadmate/services/chat_service.dart';
 import 'package:roadmate/services/notification_service.dart';
 
@@ -91,5 +92,75 @@ void main() {
     await chat.remove(requestId: reqId, messageId: id);
     msgs = await chat.watch(reqId).first;
     expect(msgs, isEmpty);
+  });
+
+  test('send stamps thread preview; seen tracking drives hasUnread',
+      () async {
+    final db = FakeFirebaseFirestore();
+    final chat = ChatService(db: db);
+    const reqId = 'req1';
+    await db.collection('requests').doc(reqId).set({
+      'driverUid': 'driver1',
+      'driverName': 'Kasun',
+      'mechanicUid': 'mech1',
+      'mechanicName': 'Nimal',
+      'status': 'accepted',
+      'type': 'flatTyre',
+      'refCode': '#RM1058',
+      'createdAt': DateTime(2026, 9, 28, 18, 40),
+    });
+    await db.collection('users').doc('driver1').set({
+      'name': 'Kasun',
+      'email': 'kasun@example.com',
+      'phone': '',
+      'role': 'driver',
+    });
+
+    await chat.send(
+      requestId: reqId,
+      senderUid: 'mech1',
+      senderName: 'Nimal',
+      senderRole: 'mechanic',
+      text: 'On my way, 10 mins',
+    );
+
+    final parent =
+        (await db.collection('requests').doc(reqId).get()).data()!;
+    expect(parent['lastMessageText'], 'On my way, 10 mins');
+    expect(parent['lastMessageSenderUid'], 'mech1');
+    expect(parent['lastMessageAt'], isNotNull);
+
+    ServiceRequest thread() => ServiceRequest(
+          id: reqId,
+          driverUid: 'driver1',
+          driverName: 'Kasun',
+          type: AssistanceType.flatTyre,
+          status: RequestStatus.accepted,
+          lastMessageText: 'On my way, 10 mins',
+          lastMessageAt: DateTime(2026, 10, 1, 10, 0),
+          lastMessageSenderUid: 'mech1',
+        );
+
+    // Nobody has seen it yet: unread for the driver, not for Nimal.
+    var seen = await chat.watchSeen('driver1').first;
+    expect(seen, isEmpty);
+    expect(thread().hasUnread('driver1', seen), isTrue);
+    expect(thread().hasUnread('mech1', seen), isFalse);
+
+    // Driver opens the thread → badge clears.
+    await chat.markSeen(uid: 'driver1', requestId: reqId);
+    seen = await chat.watchSeen('driver1').first;
+    expect(seen[reqId], isNotNull);
+    expect(thread().hasUnread('driver1', seen), isFalse);
+
+    // A thread with no messages is never unread.
+    const quiet = ServiceRequest(
+      id: 'req2',
+      driverUid: 'driver1',
+      driverName: 'Kasun',
+      type: AssistanceType.flatTyre,
+      status: RequestStatus.accepted,
+    );
+    expect(quiet.hasUnread('driver1', seen), isFalse);
   });
 }

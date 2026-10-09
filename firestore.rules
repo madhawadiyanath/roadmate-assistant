@@ -138,6 +138,12 @@ service cloud.firestore {
             && request.resource.data.mechanicUid == request.auth.uid
             && request.resource.data.status
               in ['accepted', 'onTheWay', 'completed'])
+          // Either party stamps the chat preview on send — and nothing
+          // else on the doc may change in that write.
+          || ((resource.data.driverUid == request.auth.uid
+            || resource.data.mechanicUid == request.auth.uid)
+            && request.resource.data.diff(resource.data).changedKeys()
+              .hasOnly(['lastMessageText', 'lastMessageAt', 'lastMessageSenderUid']))
           // Admin oversight (reassign / cancel any request).
           || isAdmin()
         );

@@ -6,6 +6,7 @@ import '../models/service_request.dart';
 import '../models/vehicle.dart';
 import '../services/assistance_service.dart';
 import '../services/auth_service.dart';
+import '../services/chat_service.dart';
 import '../services/notification_service.dart';
 import '../services/vehicle_service.dart';
 import '../theme/app_colors.dart';
@@ -31,6 +32,7 @@ class DriverDashboardScreen extends StatefulWidget {
   final AssistanceService? assistanceService;
   final VehicleService? vehicleService;
   final NotificationService? notificationService;
+  final ChatService? chatService;
 
   const DriverDashboardScreen({
     super.key,
@@ -39,6 +41,7 @@ class DriverDashboardScreen extends StatefulWidget {
     this.assistanceService,
     this.vehicleService,
     this.notificationService,
+    this.chatService,
   });
 
   @override
@@ -190,7 +193,11 @@ class _DriverDashboardScreenState extends State<DriverDashboardScreen> {
                 ),
               ],
             ),
-            _ChatTab(user: _user, assistance: _assist),
+            _ChatTab(
+              user: _user,
+              assistance: _assist,
+              chatService: widget.chatService,
+            ),
           ],
         ),
       ),
@@ -1391,7 +1398,14 @@ String formatDate(DateTime? d) {
 class _ChatTab extends StatelessWidget {
   final AppUser user;
   final AssistanceService assistance;
-  const _ChatTab({required this.user, required this.assistance});
+  final ChatService? chatService;
+  const _ChatTab({
+    required this.user,
+    required this.assistance,
+    this.chatService,
+  });
+
+  ChatService get _chat => chatService ?? ChatService();
 
   @override
   Widget build(BuildContext context) {
@@ -1438,31 +1452,47 @@ class _ChatTab extends StatelessWidget {
                 if (items.isEmpty) {
                   return const _EmptyChatBox();
                 }
-                return Column(
-                  children: [
-                    for (final r in items) ...[
-                      _ThreadRow(
-                        title: r.mechanicName.isEmpty
-                            ? 'Your Patrol'
-                            : r.mechanicName,
-                        subtitle:
-                            '${r.type.label} • ${r.refCode}',
-                        onTap: () => Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => ChatScreen(
-                              request: r,
-                              senderUid: user.uid,
-                              senderName: user.name,
-                              senderRole: 'driver',
-                              peerName: r.mechanicName,
+                return StreamBuilder<Map<String, DateTime>>(
+                  stream: _chat.watchSeen(user.uid),
+                  builder: (context, seenSnap) {
+                    final seen = seenSnap.data ?? const {};
+                    // Unread threads float to the top.
+                    final ordered = items.toList()
+                      ..sort((a, b) {
+                        final an = a.hasUnread(user.uid, seen) ? 0 : 1;
+                        final bn = b.hasUnread(user.uid, seen) ? 0 : 1;
+                        return an.compareTo(bn);
+                      });
+                    return Column(
+                      children: [
+                        for (final r in ordered) ...[
+                          _ThreadRow(
+                            title: r.mechanicName.isEmpty
+                                ? 'Your Patrol'
+                                : r.mechanicName,
+                            subtitle: r.lastMessageText.isEmpty
+                                ? '${r.type.label} • ${r.refCode}'
+                                : r.lastMessageText,
+                            hasNew: r.hasUnread(user.uid, seen),
+                            onTap: () => Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => ChatScreen(
+                                  request: r,
+                                  senderUid: user.uid,
+                                  senderName: user.name,
+                                  senderRole: 'driver',
+                                  peerName: r.mechanicName,
+                                  chatService: _chat,
+                                ),
+                              ),
                             ),
                           ),
-                        ),
-                      ),
-                      const SizedBox(height: 10),
-                    ],
-                  ],
+                          const SizedBox(height: 10),
+                        ],
+                      ],
+                    );
+                  },
                 );
               },
             ),
@@ -1498,10 +1528,12 @@ class _EmptyChatBox extends StatelessWidget {
 class _ThreadRow extends StatelessWidget {
   final String title;
   final String subtitle;
+  final bool hasNew;
   final VoidCallback onTap;
   const _ThreadRow({
     required this.title,
     required this.subtitle,
+    this.hasNew = false,
     required this.onTap,
   });
 
@@ -1536,29 +1568,71 @@ class _ThreadRow extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    title,
-                    style: const TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w800,
-                      color: AppColors.navyDark,
-                    ),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          title,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w800,
+                            color: AppColors.navyDark,
+                          ),
+                        ),
+                      ),
+                      if (hasNew)
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 8, vertical: 3),
+                          decoration: BoxDecoration(
+                            color: AppColors.orange,
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: const Text(
+                            'New',
+                            style: TextStyle(
+                              fontSize: 10.5,
+                              fontWeight: FontWeight.w800,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ),
+                    ],
                   ),
                   Text(
                     subtitle,
-                    style: const TextStyle(
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
                       fontSize: 12.5,
-                      color: AppColors.greyText,
+                      fontWeight:
+                          hasNew ? FontWeight.w700 : FontWeight.w400,
+                      color: hasNew
+                          ? AppColors.navyDark
+                          : AppColors.greyText,
                     ),
                   ),
                 ],
               ),
             ),
-            const Icon(
-              Icons.arrow_forward_ios_rounded,
-              size: 15,
-              color: AppColors.greyText,
-            ),
+            if (hasNew)
+              Container(
+                width: 10,
+                height: 10,
+                margin: const EdgeInsets.only(left: 8),
+                decoration: const BoxDecoration(
+                  color: AppColors.orange,
+                  shape: BoxShape.circle,
+                ),
+              )
+            else
+              const Icon(
+                Icons.arrow_forward_ios_rounded,
+                size: 15,
+                color: AppColors.greyText,
+              ),
           ],
         ),
       ),

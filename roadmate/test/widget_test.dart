@@ -17,6 +17,8 @@ import 'package:roadmate/screens/chat_screen.dart';
 import 'package:roadmate/screens/profile_screen.dart';
 import 'package:roadmate/screens/confirm_request_screen.dart';
 import 'package:roadmate/services/chat_service.dart';
+import 'package:roadmate/services/notification_service.dart';
+import 'package:roadmate/services/vehicle_service.dart';
 import 'package:roadmate/screens/payment_review_screen.dart';
 import 'package:roadmate/screens/request_success_screen.dart';
 import 'package:roadmate/screens/track_request_screen.dart';
@@ -414,6 +416,82 @@ void main() {
     await tester.pumpAndSettle();
     // firebaseReady is false in tests → straight to onboarding.
     expect(find.text('Help on the road, always with you.'), findsOneWidget);
+  });
+
+  testWidgets('Chat list badges unread threads until opened', (
+    WidgetTester tester,
+  ) async {
+    firebaseReady = true;
+    addTearDown(() => firebaseReady = false);
+
+    final db = FakeFirebaseFirestore();
+    final now = DateTime.now();
+    await db.collection('requests').doc('r1').set({
+      'driverUid': 'd1',
+      'driverName': 'Kasun',
+      'type': 'flatTyre',
+      'status': 'accepted',
+      'refCode': '#RM1058',
+      'mechanicUid': 'm1',
+      'mechanicName': 'Nimal',
+      'lastMessageText': 'On my way',
+      'lastMessageSenderUid': 'm1',
+      'lastMessageAt': now,
+      'createdAt': now,
+    });
+    await db.collection('users').doc('d1').set({
+      'name': 'Kasun',
+      'email': 'kasun@example.com',
+      'phone': '',
+      'role': 'driver',
+    });
+    await db
+        .collection('requests')
+        .doc('r1')
+        .collection('messages')
+        .add({
+      'senderUid': 'm1',
+      'senderName': 'Nimal',
+      'senderRole': 'mechanic',
+      'text': 'On my way',
+      'createdAt': now,
+    });
+    const driver = AppUser(
+      uid: 'd1',
+      name: 'Kasun',
+      email: 'kasun@example.com',
+      phone: '',
+      role: AppRole.driver,
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: DriverDashboardScreen(
+          user: driver,
+          assistanceService: AssistanceService(db: db),
+          chatService: ChatService(db: db),
+          vehicleService: VehicleService(db: db),
+          notificationService: NotificationService(db: db),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Chat'));
+    await tester.pumpAndSettle();
+
+    // Unread thread: preview + New badge, sorted on top.
+    expect(find.text('On my way'), findsOneWidget);
+    expect(find.text('New'), findsOneWidget);
+
+    // Opening the thread marks it seen → badge clears on return.
+    await tester.tap(find.text('Nimal').first);
+    await tester.pumpAndSettle();
+    expect(find.text('On my way'), findsWidgets);
+    await tester.tap(find.byIcon(Icons.arrow_back_rounded));
+    await tester.pumpAndSettle();
+    expect(find.text('New'), findsNothing);
+    expect(find.text('On my way'), findsOneWidget);
   });
 
   testWidgets('Chat thread shows messages and sends', (

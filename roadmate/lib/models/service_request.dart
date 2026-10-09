@@ -62,6 +62,12 @@ class ServiceRequest {
   /// stored in the doc (never recomputed — `String.hashCode` is not
   /// stable across app restarts).
   final String refCode;
+
+  /// Latest chat preview, stamped on every send so thread lists can show
+  /// unread badges without opening N message streams.
+  final String lastMessageText;
+  final DateTime? lastMessageAt;
+  final String lastMessageSenderUid;
   final DateTime? createdAt;
 
   const ServiceRequest({
@@ -84,8 +90,23 @@ class ServiceRequest {
     this.vehicle = '',
     this.plate = '',
     this.refCode = '',
+    this.lastMessageText = '',
+    this.lastMessageAt,
+    this.lastMessageSenderUid = '',
     this.createdAt,
   });
+
+  /// True when [viewerUid] has an unread message on this thread:
+  /// the latest message exists, isn't theirs, and is newer than what
+  /// they've seen (`seen` maps requestId → seen timestamp).
+  bool hasUnread(String viewerUid, Map<String, DateTime> seen) {
+    final at = lastMessageAt;
+    if (at == null || lastMessageSenderUid.isEmpty) return false;
+    if (lastMessageSenderUid == viewerUid) return false;
+    final seenAt = seen[id];
+    if (seenAt == null) return true;
+    return at.isAfter(seenAt);
+  }
 
   /// Display for the request's vehicle ("Toyota Corolla • CAK 1234").
   String get vehicleDisplay {
@@ -116,6 +137,10 @@ class ServiceRequest {
         'vehicle': vehicle,
         'plate': plate,
         'refCode': refCode,
+        'lastMessageText': lastMessageText,
+        'lastMessageSenderUid': lastMessageSenderUid,
+        if (lastMessageAt != null)
+          'lastMessageAt': Timestamp.fromDate(lastMessageAt!),
         'createdAt': FieldValue.serverTimestamp(),
       };
 
@@ -145,6 +170,10 @@ class ServiceRequest {
       // Old docs written before refCode existed fall back to the legacy
       // id-derived code so they still display something.
       refCode: stored.isEmpty ? legacyRefCode(doc.id) : stored,
+      lastMessageText: (m['lastMessageText'] ?? '') as String,
+      lastMessageAt: (m['lastMessageAt'] as Timestamp?)?.toDate(),
+      lastMessageSenderUid:
+          (m['lastMessageSenderUid'] ?? '') as String,
       createdAt: (m['createdAt'] as Timestamp?)?.toDate(),
     );
   }
