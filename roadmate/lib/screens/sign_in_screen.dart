@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import '../config/firebase_state.dart';
 import '../services/auth_service.dart';
 import '../theme/app_colors.dart';
 import '../widgets/auth_widgets.dart';
@@ -18,8 +17,8 @@ class SignInScreen extends StatefulWidget {
 }
 
 class _SignInScreenState extends State<SignInScreen> {
-  final _email = TextEditingController(text: 'as@gmail.com');
-  final _password = TextEditingController(text: '123456');
+  final _email = TextEditingController(text: 'alex.driver@example.com');
+  final _password = TextEditingController(text: 'password123');
   bool _loading = false;
   bool _googleBusy = false;
 
@@ -50,10 +49,7 @@ class _SignInScreenState extends State<SignInScreen> {
   }
 
   Future<void> _login() async {
-    if (!firebaseReady) {
-      _show('Firebase not connected yet. Add google-services files first.');
-      return;
-    }
+    FocusScope.of(context).unfocus();
     if (_email.text.trim().isEmpty || !_email.text.contains('@')) {
       _show('Please enter a valid email address.');
       return;
@@ -74,7 +70,7 @@ class _SignInScreenState extends State<SignInScreen> {
         MaterialPageRoute(
           builder: (_) => needsVerify
               ? VerifyEmailScreen(user: user, authService: _auth)
-              : RoleHome(user: user),
+              : RoleHome(user: user, authService: _auth),
         ),
         (_) => false,
       );

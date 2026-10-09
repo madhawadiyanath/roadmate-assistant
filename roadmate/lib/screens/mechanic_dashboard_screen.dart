@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import '../config/firebase_state.dart';
 import '../models/app_user.dart';
 import '../models/rating_summary.dart';
-import '../models/payments.dart';
 import '../models/service_request.dart';
 import '../services/assistance_service.dart';
 import '../services/auth_service.dart';
@@ -12,10 +11,10 @@ import '../services/payment_service.dart';
 import '../theme/app_colors.dart';
 import '../widgets/notification_widgets.dart';
 import 'chat_screen.dart';
+import 'earnings_dashboard_screen.dart';
 import 'job_details_screen.dart';
 import 'notifications_screen.dart';
 import 'profile_screen.dart';
-import 'receipt_screen.dart';
 
 /// Mechanic home matching the RoadMate design:
 /// greeting + online pill, hero card, live stat grid, earnings,
@@ -166,7 +165,7 @@ class _MechanicDashboardScreenState extends State<MechanicDashboardScreen> {
               onAdvance: _advance,
               onTabSelect: (i) => setState(() => _tab = i),
             ),
-            _EarningsTab(user: widget.user, paymentService: widget.paymentService),
+            _EarningsTab(mechanicUid: _user.uid),
             _MechChatTab(user: _user, assistance: _assist),
           ],
         ),
@@ -1224,204 +1223,15 @@ class _FilterChip extends StatelessWidget {
 
 // ============================== EARNINGS / CHAT ==============================
 
-/// Income / earnings history: paid transactions assigned to this
-/// mechanic, with total + per-job list opening digital receipts.
 class _EarningsTab extends StatelessWidget {
-  final AppUser user;
-  final PaymentService? paymentService;
-  const _EarningsTab({required this.user, this.paymentService});
+  final String mechanicUid;
+  const _EarningsTab({this.mechanicUid = ''});
 
   @override
   Widget build(BuildContext context) {
-    final pay = paymentService ?? PaymentService();
-    return SingleChildScrollView(
-      padding: const EdgeInsets.symmetric(horizontal: 18),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const SizedBox(height: 14),
-          const Text(
-            'Earnings',
-            style: TextStyle(
-              fontSize: 22,
-              fontWeight: FontWeight.w800,
-              color: AppColors.navy,
-            ),
-          ),
-          const SizedBox(height: 12),
-          if (!firebaseReady)
-            const Column(
-              children: [
-                _EarningsCard(total: 12500, jobs: 12),
-                SizedBox(height: 12),
-                _EmptyBox(
-                    text: 'Per-job payouts will list here.'),
-              ],
-            )
-          else
-            StreamBuilder<List<TxnRecord>>(
-              stream: pay.watchPayeeTransactions(user.uid),
-              builder: (context, snap) {
-                if (snap.connectionState == ConnectionState.waiting) {
-                  return const Padding(
-                    padding: EdgeInsets.all(20),
-                    child: Center(child: CircularProgressIndicator()),
-                  );
-                }
-                if (snap.hasError) {
-                  return _ErrorBox(error: snap.error);
-                }
-                final paid = (snap.data ?? [])
-                    .where((t) => t.isPaid)
-                    .toList();
-                final total =
-                    paid.fold<double>(0, (s, t) => s + t.amount);
-                return Column(
-                  children: [
-                    _EarningsCard(
-                        total: total, jobs: paid.length),
-                    const SizedBox(height: 12),
-                    if (paid.isEmpty)
-                      const _EmptyBox(
-                          text:
-                              'Completed, paid jobs appear here.'),
-                    for (final t in paid) ...[
-                      _EarningRow(
-                        txn: t,
-                        onTap: () => Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) =>
-                                ReceiptScreen(record: t),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 10),
-                    ],
-                  ],
-                );
-              },
-            ),
-          const SizedBox(height: 20),
-        ],
-      ),
-    );
-  }
-}
-
-class _EarningsCard extends StatelessWidget {
-  final double total;
-  final int jobs;
-  const _EarningsCard({required this.total, required this.jobs});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: AppColors.navy,
-        borderRadius: BorderRadius.circular(18),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            "Today's Earnings",
-            style: TextStyle(fontSize: 13, color: Colors.white70),
-          ),
-          const SizedBox(height: 4),
-          Row(
-            children: [
-              Text(
-                'Rs. ${total.toStringAsFixed(0)}',
-                style: const TextStyle(
-                  fontSize: 28,
-                  fontWeight: FontWeight.w800,
-                  color: Colors.white,
-                ),
-              ),
-              const SizedBox(width: 8),
-              const _GainPill(text: '+12%'),
-            ],
-          ),
-          const SizedBox(height: 4),
-          Text(
-            '$jobs jobs completed',
-            style:
-                const TextStyle(fontSize: 12.5, color: Colors.white70),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _EarningRow extends StatelessWidget {
-  final TxnRecord txn;
-  final VoidCallback onTap;
-  const _EarningRow({required this.txn, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      behavior: HitTestBehavior.opaque,
-      child: Container(
-        padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: const Color(0xFFEDF1F7), width: 1.2),
-        ),
-        child: Row(
-          children: [
-            Container(
-              width: 44,
-              height: 44,
-              decoration: BoxDecoration(
-                color: const Color(0xFFE6F7EE),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: const Icon(
-                Icons.payments_outlined,
-                color: Color(0xFF22B573),
-                size: 22,
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    '${txn.type} • ${txn.refCode}',
-                    style: const TextStyle(
-                      fontSize: 14.5,
-                      fontWeight: FontWeight.w800,
-                      color: AppColors.navyDark,
-                    ),
-                  ),
-                  Text(
-                    txn.payerName.isEmpty ? 'Driver' : txn.payerName,
-                    style: const TextStyle(
-                      fontSize: 12.5,
-                      color: AppColors.greyText,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            Text(
-              'Rs. ${txn.amount.toStringAsFixed(0)}',
-              style: const TextStyle(
-                fontSize: 15,
-                fontWeight: FontWeight.w800,
-                color: Color(0xFF22B573),
-              ),
-            ),
-          ],
-        ),
-      ),
+    return EarningsDashboardScreen(
+      showBack: false,
+      mechanicUid: mechanicUid,
     );
   }
 }

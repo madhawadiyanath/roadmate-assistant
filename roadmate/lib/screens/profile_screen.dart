@@ -11,10 +11,11 @@ import '../widgets/striped_placeholder.dart';
 import 'change_password_screen.dart';
 import 'coming_soon_screen.dart';
 import 'emergency_contacts_screen.dart';
-import 'manage_methods_screen.dart';
+import 'mechanic_transaction_history_screen.dart';
 import 'onboarding_screen.dart';
+import 'payment_history_screen.dart';
+import 'payment_methods_screen.dart';
 import 'saved_vehicles_screen.dart';
-import 'transactions_screen.dart';
 
 /// Profile: photo, name, role and a menu (view mode); "Personal
 /// Information" opens the name/phone edit mode. Vehicles live in
@@ -220,16 +221,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
             _MenuRow(
               icon: Icons.credit_card_outlined,
               title: 'Payment Methods',
-              onTap: () => _push(ManageMethodsScreen(uid: widget.user.uid)),
+              onTap: () =>
+                  _push(PaymentMethodsScreen(userUid: widget.user.uid)),
             ),
           if (widget.user.role != AppRole.admin)
             _MenuRow(
               icon: Icons.receipt_long_outlined,
               title: _isDriver ? 'Transaction History' : 'Income History',
-              onTap: () => _push(TransactionsScreen(
-                uid: widget.user.uid,
-                mode: _isDriver ? TxnMode.payer : TxnMode.payee,
-              )),
+              onTap: () => _push(_isDriver
+                  ? PaymentHistoryScreen(driverUid: widget.user.uid)
+                  : MechanicTransactionHistoryScreen(
+                      mechanicUid: widget.user.uid,
+                    )),
             ),
           _MenuRow(
             icon: Icons.description_outlined,

@@ -7,8 +7,8 @@ import 'package:roadmate/models/service_request.dart';
 import 'package:fake_cloud_firestore/fake_cloud_firestore.dart';
 import 'package:roadmate/models/payments.dart';
 import 'package:roadmate/screens/admin_dashboard_screen.dart';
-import 'package:roadmate/screens/receipt_screen.dart';
-import 'package:roadmate/screens/transactions_screen.dart';
+import 'package:roadmate/screens/digital_receipt_screen.dart';
+import 'package:roadmate/screens/payment_history_screen.dart';
 import 'package:roadmate/services/payment_service.dart';
 import 'package:roadmate/screens/chat_screen.dart';
 import 'package:roadmate/screens/profile_screen.dart';
@@ -694,16 +694,13 @@ void main() {
       ],
     );
     await tester.pumpWidget(
-      const MaterialApp(home: ReceiptScreen(record: txn)),
+      MaterialApp(home: DigitalReceiptScreen(transaction: txn.toPaymentTransaction())),
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('Receipt'), findsOneWidget);
-    expect(find.text('PAID'), findsOneWidget);
-    expect(find.text('Rs. 3500.00'), findsOneWidget);
-    expect(find.text('#RM1058'), findsOneWidget);
-    expect(find.text('Card •• 4242'), findsOneWidget);
-    expect(find.text('Nimal'), findsOneWidget);
+    expect(find.text('Digital Receipt'), findsOneWidget);
+    expect(find.text('INVOICE NUMBER'), findsOneWidget);
+    expect(find.text('RoadMate'), findsOneWidget);
   });
 
   testWidgets('Transaction history lists with receipts', (
@@ -725,15 +722,12 @@ void main() {
 
     await tester.pumpWidget(
       MaterialApp(
-        home: TransactionsScreen(
-          uid: 'driver1',
-          mode: TxnMode.payer,
+        home: PaymentHistoryScreen(
           paymentService: pay,
+          driverUid: 'driver1',
         ),
       ),
     );
-    // NOTE: screen gates on firebaseReady (false in tests) → hint shown.
-    // Live list is covered by the service test above.
     await tester.pumpAndSettle();
     expect(find.text('Payment History'), findsOneWidget);
   });

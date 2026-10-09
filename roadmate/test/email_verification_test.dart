@@ -489,7 +489,10 @@ void main() {
 
       expect(find.byType(ForgotPasswordScreen), findsOneWidget);
       expect(find.text('Send Reset Link'), findsOneWidget);
-      expect(find.text('as@gmail.com'), findsOneWidget); // from the login form
+      // The login form's pre-filled email is carried over.
+      expect(find.byWidgetPredicate((w) =>
+          w is EditableText && w.controller.text == 'alex.driver@example.com'),
+          findsOneWidget);
     });
 
     testWidgets('invalid email is rejected locally', (tester) async {

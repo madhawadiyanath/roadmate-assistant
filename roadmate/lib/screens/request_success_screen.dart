@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 
+import '../models/payment_transaction.dart';
 import '../models/payments.dart';
 import '../models/service_request.dart';
 import '../theme/app_colors.dart';
-import 'receipt_screen.dart';
+import 'digital_receipt_screen.dart';
 
 /// Step 4 of the driver flow: success receipt after Submit.
 /// Pops `true` (Track Request → Requests tab), `'home'` (Back to Home),
@@ -13,6 +14,7 @@ class RequestSuccessScreen extends StatelessWidget {
   final AssistanceType serviceType;
   final String address;
   final String vehicleDisplay;
+  final PaymentTransaction? transaction;
   final TxnRecord? txn;
 
   const RequestSuccessScreen({
@@ -21,6 +23,7 @@ class RequestSuccessScreen extends StatelessWidget {
     required this.serviceType,
     required this.address,
     this.vehicleDisplay = 'No vehicle selected',
+    this.transaction,
     this.txn,
   });
 
@@ -428,15 +431,20 @@ class RequestSuccessScreen extends StatelessWidget {
                 ),
               ),
               // Digital receipt
-              if (txn != null) ...[
+              if (transaction != null || txn != null) ...[
                 const SizedBox(height: 2),
                 TextButton(
-                  onPressed: () => Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => ReceiptScreen(record: txn!),
-                    ),
-                  ),
+                  onPressed: () {
+                    final tx = transaction ?? txn?.toPaymentTransaction();
+                    if (tx != null) {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => DigitalReceiptScreen(transaction: tx),
+                        ),
+                      );
+                    }
+                  },
                   child: const Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [

@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
-import '../config/firebase_state.dart';
 import '../models/app_user.dart';
 import '../services/auth_service.dart';
 import '../theme/app_colors.dart';
 import '../widgets/auth_widgets.dart';
 import '../widgets/role_selector.dart';
 import 'google_sign_in_flow.dart';
+import 'role_home.dart';
 import 'verify_email_screen.dart';
 import 'sign_in_screen.dart';
 
@@ -68,10 +68,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
   }
 
   Future<void> _signUp() async {
-    if (!firebaseReady) {
-      _show('Firebase not connected yet. Add google-services files first.');
-      return;
-    }
+    FocusScope.of(context).unfocus();
     final error = _validate();
     if (error != null) {
       _show(error);
@@ -87,13 +84,16 @@ class _SignUpScreenState extends State<SignUpScreen> {
         role: _role,
       );
       if (!mounted) return;
+      final needsVerify = _auth.needsEmailVerification;
       Navigator.of(context).pushAndRemoveUntil(
         MaterialPageRoute(
-          builder: (_) => VerifyEmailScreen(
-            user: user,
-            authService: _auth,
-            justSent: true,
-          ),
+          builder: (_) => needsVerify
+              ? VerifyEmailScreen(
+                  user: user,
+                  authService: _auth,
+                  justSent: true,
+                )
+              : RoleHome(user: user, authService: _auth),
         ),
         (_) => false,
       );

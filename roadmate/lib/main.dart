@@ -1,6 +1,7 @@
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'config/firebase_state.dart';
 import 'firebase_options.dart';
 import 'screens/auth_gate.dart';
@@ -17,10 +18,15 @@ Future<void> main() async {
   // Firebase console (see FIREBASE_SETUP below). Missing config must not
   // crash the app or widget tests.
   try {
-    await Firebase.initializeApp(
-      options: DefaultFirebaseOptions.currentPlatform,
-    );
-    firebaseReady = true;
+    if (!DefaultFirebaseOptions.isPlaceholder) {
+      await Firebase.initializeApp(
+        options: DefaultFirebaseOptions.currentPlatform,
+      );
+      firebaseReady = true;
+    } else {
+      debugPrint('Running in mock/local mode (placeholder Firebase options).');
+      firebaseReady = false;
+    }
   } catch (e) {
     debugPrint('Firebase not initialised (add config files): $e');
     firebaseReady = false;
@@ -39,7 +45,7 @@ class MyApp extends StatelessWidget {
       theme: ThemeData(
         useMaterial3: true,
         scaffoldBackgroundColor: Colors.white,
-        fontFamily: 'Roboto',
+        textTheme: GoogleFonts.plusJakartaSansTextTheme(),
         colorScheme: ColorScheme.fromSeed(
           seedColor: const Color(0xFF0A2A66),
         ),

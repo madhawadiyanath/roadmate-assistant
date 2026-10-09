@@ -9,8 +9,8 @@ import '../services/auth_service.dart';
 import '../services/payment_service.dart';
 import '../theme/app_colors.dart';
 import '../widgets/admin_charts.dart';
+import 'digital_receipt_screen.dart';
 import 'profile_screen.dart';
-import 'receipt_screen.dart';
 
 /// Admin home: platform stats, every request, every user.
 /// Admins log in with email + password like everyone else — the account
@@ -1268,7 +1268,9 @@ class _AdminTxnRow extends StatelessWidget {
       onTap: () => Navigator.push(
         context,
         MaterialPageRoute(
-          builder: (_) => ReceiptScreen(record: txn),
+          builder: (_) => DigitalReceiptScreen(
+            transaction: txn.toPaymentTransaction(),
+          ),
         ),
       ),
       behavior: HitTestBehavior.opaque,

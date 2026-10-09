@@ -44,6 +44,24 @@ class AppUser {
         'createdAt': FieldValue.serverTimestamp(),
       };
 
+  AppUser copyWith({
+    String? uid,
+    String? name,
+    String? email,
+    String? phone,
+    AppRole? role,
+    DateTime? createdAt,
+  }) {
+    return AppUser(
+      uid: uid ?? this.uid,
+      name: name ?? this.name,
+      email: email ?? this.email,
+      phone: phone ?? this.phone,
+      role: role ?? this.role,
+      createdAt: createdAt ?? this.createdAt,
+    );
+  }
+
   factory AppUser.fromMap(String uid, Map<String, dynamic> map) => AppUser(
         uid: uid,
         name: (map['name'] ?? '') as String,
