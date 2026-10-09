@@ -73,8 +73,52 @@ class AssistanceService {
         .map((s) => _newestFirst(s.docs.map(ServiceRequest.fromDoc)));
   }
 
+  /// The driver rates a finished request (1–5 stars, optional feedback
+  /// and quick tags). Firestore rules allow this once, on their own
+  /// completed request, and only these fields.
+  Future<void> rateRequest({
+    required String requestId,
+    required int rating,
+    String feedback = '',
+    List<String> tags = const [],
+  }) {
+    if (rating < 1 || rating > 5) {
+      throw ArgumentError.value(rating, 'rating', 'must be between 1 and 5');
+    }
+    return _requests.doc(requestId).update({
+      'rating': rating,
+      'feedback': feedback.trim(),
+      'tags': tags,
+      'ratedAt': FieldValue.serverTimestamp(),
+    });
+  }
+
   Future<void> cancelRequest(String requestId) =>
       _requests.doc(requestId).update({'status': RequestStatus.cancelled.name});
+
+  /// Edit the pickup address of a pending request.
+  Future<void> updateAddress(String requestId, String address) async {
+    final a = address.trim();
+    if (a.isEmpty) return;
+    await _requests.doc(requestId).update({'address': a});
+  }
+
+  /// Permanently delete own request: cancel first, remove the doc, then
+  /// clean the chat thread. The thread-cleanup rule allows removing the
+  /// whole thread once its parent doc is gone; anything left behind is
+  /// invisible (orphans under a missing parent).
+  Future<void> deleteRequest(String requestId) async {
+    await cancelRequest(requestId);
+    final msgs = await _requests.doc(requestId).collection('messages').get();
+    await _requests.doc(requestId).delete();
+    for (final m in msgs.docs) {
+      try {
+        await m.reference.delete();
+      } catch (_) {
+        // Best-effort cleanup.
+      }
+    }
+  }
 
   /// Live list of EVERY request (admin oversight), newest first.
   Stream<List<ServiceRequest>> watchAllRequests() {
@@ -154,6 +198,7 @@ class AssistanceService {
       await NotificationService(db: _db).createRequestAccepted(
         driverUid: resolvedDriverUid,
         mechanicName: mechanicName,
+        senderUid: mechanicUid,
         requestId: requestId,
       );
     }

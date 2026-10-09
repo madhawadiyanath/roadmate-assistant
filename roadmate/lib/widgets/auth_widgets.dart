@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../theme/app_colors.dart';
 
 class AuthTextField extends StatefulWidget {
@@ -8,6 +9,10 @@ class AuthTextField extends StatefulWidget {
   final TextInputType keyboardType;
   final TextEditingController? controller;
   final bool showToggle;
+  final String? errorText;
+  final TextCapitalization textCapitalization;
+  final List<TextInputFormatter>? inputFormatters;
+  final ValueChanged<String>? onChanged;
 
   const AuthTextField({
     super.key,
@@ -17,6 +22,10 @@ class AuthTextField extends StatefulWidget {
     this.keyboardType = TextInputType.text,
     this.controller,
     this.showToggle = false,
+    this.errorText,
+    this.textCapitalization = TextCapitalization.none,
+    this.inputFormatters,
+    this.onChanged,
   });
 
   @override
@@ -38,9 +47,13 @@ class _AuthTextFieldState extends State<AuthTextField> {
       controller: widget.controller,
       obscureText: _hidden,
       keyboardType: widget.keyboardType,
+      textCapitalization: widget.textCapitalization,
+      inputFormatters: widget.inputFormatters,
+      onChanged: widget.onChanged,
       style: const TextStyle(fontSize: 14.5, color: AppColors.navyDark),
       decoration: InputDecoration(
         hintText: widget.hint,
+        errorText: widget.errorText,
         hintStyle: const TextStyle(color: AppColors.fieldHint, fontSize: 14),
         prefixIcon: Icon(widget.prefix, size: 20, color: AppColors.greyText),
         suffixIcon: widget.showToggle
@@ -68,6 +81,14 @@ class _AuthTextFieldState extends State<AuthTextField> {
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
           borderSide: const BorderSide(color: AppColors.navy, width: 1.2),
+        ),
+        errorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: Color(0xFFE5484D), width: 1.2),
+        ),
+        focusedErrorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: Color(0xFFE5484D), width: 1.2),
         ),
       ),
     );

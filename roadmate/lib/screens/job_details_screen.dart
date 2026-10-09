@@ -277,21 +277,13 @@ class _JobDetailsScreenState extends State<JobDetailsScreen> {
                                   color: AppColors.navyDark,
                                 ),
                               ),
-                              const Row(
-                                children: [
-                                  Icon(Icons.star_rounded,
-                                      size: 15,
-                                      color: AppColors.orange),
-                                  SizedBox(width: 4),
-                                  Text(
-                                    '4.8 (12 reviews)',
-                                    style: TextStyle(
-                                      fontSize: 12.5,
-                                      color: AppColors.orange,
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  ),
-                                ],
+                              const Text(
+                                'Customer',
+                                style: TextStyle(
+                                  fontSize: 12.5,
+                                  color: AppColors.greyText,
+                                  fontWeight: FontWeight.w600,
+                                ),
                               ),
                             ],
                           ),

@@ -59,4 +59,37 @@ void main() {
     expect(mechAlerts.first.title, 'New chat message');
     expect(mechAlerts.first.body, contains('Kasun'));
   });
+
+  test('own message can be edited and deleted', () async {
+    final db = FakeFirebaseFirestore();
+    final chat = ChatService(db: db);
+    const reqId = 'req1';
+
+    await chat.send(
+      requestId: reqId,
+      senderUid: 'driver1',
+      senderName: 'Kasun',
+      senderRole: 'driver',
+      text: 'Hello',
+    );
+    var msgs = await chat.watch(reqId).first;
+    expect(msgs, hasLength(1));
+    final id = msgs.first.id;
+
+    // Edit marks the message edited with new text.
+    await chat.edit(requestId: reqId, messageId: id, newText: 'Hello!!');
+    msgs = await chat.watch(reqId).first;
+    expect(msgs.first.text, 'Hello!!');
+    expect(msgs.first.edited, isTrue);
+
+    // Blank edits are ignored.
+    await chat.edit(requestId: reqId, messageId: id, newText: '   ');
+    msgs = await chat.watch(reqId).first;
+    expect(msgs.first.text, 'Hello!!');
+
+    // Delete removes it.
+    await chat.remove(requestId: reqId, messageId: id);
+    msgs = await chat.watch(reqId).first;
+    expect(msgs, isEmpty);
+  });
 }

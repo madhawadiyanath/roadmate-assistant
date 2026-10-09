@@ -61,6 +61,27 @@ class ChatService {
         .map((s) => _oldestFirst(s.docs.map(ChatMessage.fromDoc)));
   }
 
+  /// Edit own message text. Empty text is ignored.
+  Future<void> edit({
+    required String requestId,
+    required String messageId,
+    required String newText,
+  }) async {
+    final text = newText.trim();
+    if (text.isEmpty) return;
+    await _messages(requestId).doc(messageId).update({
+      'text': text,
+      'edited': true,
+    });
+  }
+
+  /// Delete own message.
+  Future<void> remove({
+    required String requestId,
+    required String messageId,
+  }) =>
+      _messages(requestId).doc(messageId).delete();
+
   static List<ChatMessage> _oldestFirst(Iterable<ChatMessage> items) {
     final list = items.toList();
     list.sort((a, b) {

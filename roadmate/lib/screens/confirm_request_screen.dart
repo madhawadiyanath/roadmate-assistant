@@ -1,11 +1,15 @@
 import 'package:flutter/material.dart';
 
+import '../config/firebase_state.dart';
 import '../models/app_user.dart';
 import '../models/service_request.dart';
+import '../models/vehicle.dart';
 import '../services/assistance_service.dart';
+import '../services/vehicle_service.dart';
 import '../theme/app_colors.dart';
 import '../widgets/auth_widgets.dart';
 import 'payment_review_screen.dart';
+import 'saved_vehicles_screen.dart';
 
 /// Step 3 of the driver flow: review service, location, vehicle and
 /// contact, then submit. Pops `true` when the request was created,
@@ -15,6 +19,7 @@ class ConfirmRequestScreen extends StatefulWidget {
   final AssistanceType serviceType;
   final String address;
   final AssistanceService? assistanceService;
+  final VehicleService? vehicleService;
 
   const ConfirmRequestScreen({
     super.key,
@@ -22,6 +27,7 @@ class ConfirmRequestScreen extends StatefulWidget {
     required this.serviceType,
     required this.address,
     this.assistanceService,
+    this.vehicleService,
   });
 
   @override
@@ -29,6 +35,19 @@ class ConfirmRequestScreen extends StatefulWidget {
 }
 
 class _ConfirmRequestScreenState extends State<ConfirmRequestScreen> {
+  /// The user's default vehicle (null stream = Firebase not connected).
+  late final Stream<Vehicle?>? _vehicle = widget.vehicleService != null ||
+          firebaseReady
+      ? (widget.vehicleService ?? VehicleService())
+          .watchDefaultVehicle(widget.user.uid)
+      : null;
+
+  String _vehicleTitle(AsyncSnapshot<Vehicle?> s) {
+    if (s.connectionState == ConnectionState.waiting) return 'Loading…';
+    final v = s.data;
+    return v == null ? 'No vehicle selected' : '${v.name} (${v.plateNo})';
+  }
+
   String get _contact {
     final p = widget.user.phone.trim();
     return p.isEmpty ? '077 123 4567' : p;
@@ -36,6 +55,20 @@ class _ConfirmRequestScreenState extends State<ConfirmRequestScreen> {
 
   void _snack(String msg) {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+  }
+
+  /// Same page as Profile → Vehicle Information, so a driver with no
+  /// default vehicle can add one. The row above updates live on return.
+  void _openGarage() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => SavedVehiclesScreen(
+          uid: widget.user.uid,
+          service: widget.vehicleService,
+        ),
+      ),
+    );
   }
 
   /// Review payment + rating first. That page creates the request,
@@ -49,6 +82,7 @@ class _ConfirmRequestScreenState extends State<ConfirmRequestScreen> {
           serviceType: widget.serviceType,
           address: widget.address,
           assistanceService: widget.assistanceService,
+          vehicleService: widget.vehicleService,
         ),
       ),
     );
@@ -195,14 +229,19 @@ class _ConfirmRequestScreenState extends State<ConfirmRequestScreen> {
                       subtitleOk: true,
                     ),
                     const Divider(height: 1, color: Color(0xFFEDF1F7)),
-                    _DetailRow(
-                      icon: Icons.directions_car_outlined,
-                      iconBg: AppColors.fieldFill,
-                      iconColor: AppColors.navy,
-                      label: 'VEHICLE',
-                      title: widget.user.vehicleParen,
-                      chevron: true,
-                      onTap: () => _snack('Vehicle editing coming soon.'),
+                    StreamBuilder<Vehicle?>(
+                      stream: _vehicle,
+                      builder: (context, snap) => _DetailRow(
+                        icon: Icons.directions_car_outlined,
+                        iconBg: AppColors.fieldFill,
+                        iconColor: AppColors.navy,
+                        label: 'VEHICLE',
+                        title: _vehicle == null
+                            ? 'No vehicle selected'
+                            : _vehicleTitle(snap),
+                        chevron: true,
+                        onTap: _openGarage,
+                      ),
                     ),
                     const Divider(height: 1, color: Color(0xFFEDF1F7)),
                     _DetailRow(
