@@ -19,12 +19,14 @@ class AdminDashboardScreen extends StatefulWidget {
   final AppUser user;
   final AuthService? authService;
   final AssistanceService? assistanceService;
+  final PaymentService? paymentService;
 
   const AdminDashboardScreen({
     super.key,
     required this.user,
     this.authService,
     this.assistanceService,
+    this.paymentService,
   });
 
   @override
@@ -37,7 +39,8 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   AssistanceService get _assist =>
       widget.assistanceService ?? AssistanceService();
   AuthService get _auth => widget.authService ?? AuthService();
-  PaymentService get _pay => PaymentService();
+  PaymentService get _pay =>
+      widget.paymentService ?? PaymentService();
 
   String get _firstName {
     final n = widget.user.name.trim();
@@ -750,6 +753,91 @@ class _AdminRequestsTab extends StatelessWidget {
   final AssistanceService assistance;
   const _AdminRequestsTab({required this.assistance});
 
+  void _snack(BuildContext context, String msg) {
+    // Replace any current message so fresh feedback is never queued
+    // invisibly behind a stale snackbar.
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(content: Text(msg)));
+  }
+
+  /// Manage sheet: cancel an active request or delete it permanently.
+  Future<void> _manage(BuildContext context, ServiceRequest r) async {
+    final active = r.status != RequestStatus.completed &&
+        r.status != RequestStatus.cancelled;
+    final action = await showModalBottomSheet<String>(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (_) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              title: Text(
+                '${r.type.label} • ${r.refCode.isEmpty ? '—' : r.refCode}',
+                style: const TextStyle(fontWeight: FontWeight.w800),
+              ),
+              subtitle: Text('Status: ${r.status.label}'),
+            ),
+            if (active)
+              ListTile(
+                leading: const Icon(Icons.cancel_outlined,
+                    color: AppColors.orange),
+                title: const Text('Cancel request'),
+                onTap: () => Navigator.pop(context, 'cancel'),
+              ),
+            ListTile(
+              leading: const Icon(Icons.delete_outline_rounded,
+                  color: Colors.red),
+              title: const Text('Delete request',
+                  style: TextStyle(color: Colors.red)),
+              onTap: () => Navigator.pop(context, 'delete'),
+            ),
+            const SizedBox(height: 8),
+          ],
+        ),
+      ),
+    );
+    if (!context.mounted) return;
+    try {
+      if (action == 'cancel') {
+        await assistance.cancelRequest(r.id);
+        if (!context.mounted) return;
+        _snack(context, 'Request cancelled.');
+      } else if (action == 'delete') {
+        final yes = await showDialog<bool>(
+          context: context,
+          builder: (_) => AlertDialog(
+            title: const Text('Delete request?'),
+            content: const Text(
+                'This permanently removes the request and its chat.'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: const Text('Keep'),
+              ),
+              TextButton(
+                onPressed: () => Navigator.pop(context, true),
+                style:
+                    TextButton.styleFrom(foregroundColor: Colors.red),
+                child: const Text('Delete'),
+              ),
+            ],
+          ),
+        );
+        if (yes != true || !context.mounted) return;
+        await assistance.deleteRequest(r.id);
+        if (!context.mounted) return;
+        _snack(context, 'Request deleted.');
+      }
+    } catch (e) {
+      if (!context.mounted) return;
+      _snack(context, AuthService.friendlyMessage(e));
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return SingleChildScrollView(
@@ -808,6 +896,7 @@ class _AdminRequestsTab extends StatelessWidget {
                             '${r.driverName.isEmpty ? 'Driver' : r.driverName}'
                             '${r.mechanicName.isEmpty ? '' : ' → ${r.mechanicName}'}'
                             ' • ${r.status.label}',
+                        onTap: () => _manage(context, r),
                       ),
                       const SizedBox(height: 10),
                     ],
@@ -825,56 +914,74 @@ class _AdminRequestsTab extends StatelessWidget {
 class _AdminRequestRow extends StatelessWidget {
   final String title;
   final String subtitle;
-  const _AdminRequestRow({required this.title, required this.subtitle});
+  final VoidCallback? onTap;
+  const _AdminRequestRow({
+    required this.title,
+    required this.subtitle,
+    this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFFEDF1F7), width: 1.2),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 44,
-            height: 44,
-            decoration: BoxDecoration(
-              color: AppColors.navy.withValues(alpha: 0.08),
-              borderRadius: BorderRadius.circular(12),
+    return GestureDetector(
+      onTap: onTap,
+      behavior: HitTestBehavior.opaque,
+      child: Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: const Color(0xFFEDF1F7), width: 1.2),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 44,
+              height: 44,
+              decoration: BoxDecoration(
+                color: AppColors.navy.withValues(alpha: 0.08),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: const Icon(
+                Icons.receipt_long_outlined,
+                color: AppColors.navy,
+                size: 22,
+              ),
             ),
-            child: const Icon(
-              Icons.receipt_long_outlined,
-              color: AppColors.navy,
-              size: 22,
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: const TextStyle(
-                    fontSize: 14.5,
-                    fontWeight: FontWeight.w800,
-                    color: AppColors.navyDark,
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: const TextStyle(
+                      fontSize: 14.5,
+                      fontWeight: FontWeight.w800,
+                      color: AppColors.navyDark,
+                    ),
                   ),
-                ),
-                Text(
-                  subtitle,
-                  style: const TextStyle(
-                    fontSize: 12.5,
-                    color: AppColors.greyText,
+                  Text(
+                    subtitle,
+                    style: const TextStyle(
+                      fontSize: 12.5,
+                      color: AppColors.greyText,
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
-        ],
+            if (onTap != null)
+              const Padding(
+                padding: EdgeInsets.only(left: 8),
+                child: Icon(
+                  Icons.more_vert_rounded,
+                  color: AppColors.greyText,
+                  size: 20,
+                ),
+              ),
+          ],
+        ),
       ),
     );
   }
@@ -885,6 +992,69 @@ class _AdminRequestRow extends StatelessWidget {
 class _AdminUsersTab extends StatelessWidget {
   final AuthService auth;
   const _AdminUsersTab({required this.auth});
+
+  void _snack(BuildContext context, String msg) {
+    // Replace any current message so fresh feedback is never queued
+    // invisibly behind a stale snackbar.
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(content: Text(msg)));
+  }
+
+  /// Change a user's role (driver / mechanic / admin).
+  Future<void> _changeRole(BuildContext context, AppUser user) async {
+    final picked = await showModalBottomSheet<AppRole>(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (_) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              title: Text(
+                user.name.isEmpty ? user.email : user.name,
+                style: const TextStyle(fontWeight: FontWeight.w800),
+              ),
+              subtitle: Text('Current: ${user.role.value}'),
+            ),
+            for (final r in AppRole.values)
+              ListTile(
+                leading: Icon(
+                  r == AppRole.admin
+                      ? Icons.shield_rounded
+                      : r == AppRole.mechanic
+                          ? Icons.build_rounded
+                          : Icons.directions_car_filled_rounded,
+                  color: r == user.role
+                      ? AppColors.orange
+                      : AppColors.greyText,
+                ),
+                title: Text(
+                    '${r.value[0].toUpperCase()}${r.value.substring(1)}'),
+                trailing: r == user.role
+                    ? const Icon(Icons.check_rounded,
+                        color: AppColors.orange)
+                    : null,
+                onTap: () => Navigator.pop(context, r),
+              ),
+            const SizedBox(height: 8),
+          ],
+        ),
+      ),
+    );
+    if (picked == null || !context.mounted) return;
+    if (picked == user.role) return;
+    try {
+      await auth.adminUpdateRole(uid: user.uid, role: picked);
+      if (!context.mounted) return;
+      _snack(context, 'Role changed to ${picked.value}.');
+    } catch (e) {
+      if (!context.mounted) return;
+      _snack(context, AuthService.friendlyMessage(e));
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -948,6 +1118,7 @@ class _AdminUsersTab extends StatelessWidget {
                         name: u.name.isEmpty ? '—' : u.name,
                         email: u.email,
                         role: u.role.value,
+                        onTap: () => _changeRole(context, u),
                       ),
                       const SizedBox(height: 10),
                     ],
@@ -966,10 +1137,12 @@ class _AdminUserRow extends StatelessWidget {
   final String name;
   final String email;
   final String role;
+  final VoidCallback? onTap;
   const _AdminUserRow({
     required this.name,
     required this.email,
     required this.role,
+    this.onTap,
   });
 
   Color get _roleColor => switch (role) {
@@ -980,26 +1153,29 @@ class _AdminUserRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFFEDF1F7), width: 1.2),
-      ),
-      child: Row(
-        children: [
-          CircleAvatar(
-            radius: 20,
-            backgroundColor: AppColors.navy.withValues(alpha: 0.1),
-            child: Text(
-              name.isEmpty ? '?' : name[0].toUpperCase(),
-              style: const TextStyle(
-                color: AppColors.navy,
-                fontWeight: FontWeight.w800,
+    return GestureDetector(
+      onTap: onTap,
+      behavior: HitTestBehavior.opaque,
+      child: Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: const Color(0xFFEDF1F7), width: 1.2),
+        ),
+        child: Row(
+          children: [
+            CircleAvatar(
+              radius: 20,
+              backgroundColor: AppColors.navy.withValues(alpha: 0.1),
+              child: Text(
+                name.isEmpty ? '?' : name[0].toUpperCase(),
+                style: const TextStyle(
+                  color: AppColors.navy,
+                  fontWeight: FontWeight.w800,
+                ),
               ),
             ),
-          ),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
@@ -1040,7 +1216,17 @@ class _AdminUserRow extends StatelessWidget {
               ),
             ),
           ),
+          if (onTap != null)
+            const Padding(
+              padding: EdgeInsets.only(left: 8),
+              child: Icon(
+                Icons.arrow_forward_ios_rounded,
+                size: 15,
+                color: AppColors.greyText,
+              ),
+            ),
         ],
+        ),
       ),
     );
   }

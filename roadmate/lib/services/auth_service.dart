@@ -354,6 +354,30 @@ class AuthService {
     return updated;
   }
 
+  /// Admin user management: change anyone's role (incl. promoting /
+  /// demoting admins). Rules allow admins only; user docs are never
+  /// deleted (the Auth account would recreate one on next login).
+  Future<void> adminUpdateRole({
+    required String uid,
+    required AppRole role,
+  }) async {
+    if (_isLiveFirebase) {
+      try {
+        await _users.doc(uid).update({'role': role.value});
+      } catch (_) {}
+    }
+
+    for (final entry in _mockUsers.entries) {
+      if (entry.value.uid == uid) {
+        _mockUsers[entry.key] = entry.value.copyWith(role: role);
+        break;
+      }
+    }
+    if (_currentUser?.uid == uid) {
+      _currentUser = _currentUser!.copyWith(role: role);
+    }
+  }
+
   // ------------------------- Google sign-in -------------------------
 
   /// "Continue with Google" via Firebase's own provider flow (no extra
