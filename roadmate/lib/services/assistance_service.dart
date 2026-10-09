@@ -73,6 +73,26 @@ class AssistanceService {
         .map((s) => _newestFirst(s.docs.map(ServiceRequest.fromDoc)));
   }
 
+  /// The driver rates a finished request (1–5 stars, optional feedback
+  /// and quick tags). Firestore rules allow this once, on their own
+  /// completed request, and only these fields.
+  Future<void> rateRequest({
+    required String requestId,
+    required int rating,
+    String feedback = '',
+    List<String> tags = const [],
+  }) {
+    if (rating < 1 || rating > 5) {
+      throw ArgumentError.value(rating, 'rating', 'must be between 1 and 5');
+    }
+    return _requests.doc(requestId).update({
+      'rating': rating,
+      'feedback': feedback.trim(),
+      'tags': tags,
+      'ratedAt': FieldValue.serverTimestamp(),
+    });
+  }
+
   Future<void> cancelRequest(String requestId) =>
       _requests.doc(requestId).update({'status': RequestStatus.cancelled.name});
 
@@ -154,6 +174,7 @@ class AssistanceService {
       await NotificationService(db: _db).createRequestAccepted(
         driverUid: resolvedDriverUid,
         mechanicName: mechanicName,
+        senderUid: mechanicUid,
         requestId: requestId,
       );
     }

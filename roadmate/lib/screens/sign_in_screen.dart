@@ -3,8 +3,11 @@ import '../config/firebase_state.dart';
 import '../services/auth_service.dart';
 import '../theme/app_colors.dart';
 import '../widgets/auth_widgets.dart';
+import 'forgot_password_screen.dart';
+import 'google_sign_in_flow.dart';
 import 'role_home.dart';
 import 'sign_up_screen.dart';
+import 'verify_email_screen.dart';
 
 class SignInScreen extends StatefulWidget {
   final AuthService? authService;
@@ -18,6 +21,7 @@ class _SignInScreenState extends State<SignInScreen> {
   final _email = TextEditingController(text: 'as@gmail.com');
   final _password = TextEditingController(text: '123456');
   bool _loading = false;
+  bool _googleBusy = false;
 
   AuthService get _auth => widget.authService ?? AuthService();
 
@@ -26,6 +30,17 @@ class _SignInScreenState extends State<SignInScreen> {
     _email.dispose();
     _password.dispose();
     super.dispose();
+  }
+
+  void _forgotPassword() {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => ForgotPasswordScreen(
+          initialEmail: _email.text.trim(),
+          authService: widget.authService,
+        ),
+      ),
+    );
   }
 
   void _goSignUp() {
@@ -54,14 +69,29 @@ class _SignInScreenState extends State<SignInScreen> {
         password: _password.text,
       );
       if (!mounted) return;
+      final needsVerify = _auth.needsEmailVerification;
       Navigator.of(context).pushAndRemoveUntil(
-        MaterialPageRoute(builder: (_) => RoleHome(user: user)),
+        MaterialPageRoute(
+          builder: (_) => needsVerify
+              ? VerifyEmailScreen(user: user, authService: _auth)
+              : RoleHome(user: user),
+        ),
         (_) => false,
       );
     } catch (e) {
       _show(AuthService.friendlyMessage(e));
     } finally {
       if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _google() async {
+    if (_googleBusy) return;
+    setState(() => _googleBusy = true);
+    try {
+      await continueWithGoogle(context, auth: _auth);
+    } finally {
+      if (mounted) setState(() => _googleBusy = false);
     }
   }
 
@@ -117,7 +147,7 @@ class _SignInScreenState extends State<SignInScreen> {
                     AuthLabel(
                       text: 'Password',
                       trailing: GestureDetector(
-                        onTap: () {},
+                        onTap: _forgotPassword,
                         child: const Text(
                           'Forgot Password?',
                           style: TextStyle(
@@ -142,18 +172,10 @@ class _SignInScreenState extends State<SignInScreen> {
                       onPressed: _login,
                     ),
                     const OrDivider(),
-                    const SocialAuthButton(
+                    SocialAuthButton(
                       text: 'Continue with Google',
-                      icon: GoogleBadge(),
-                    ),
-                    const SizedBox(height: 10),
-                    const SocialAuthButton(
-                      text: 'Continue with Apple',
-                      icon: Icon(
-                        Icons.apple,
-                        size: 22,
-                        color: AppColors.navyDark,
-                      ),
+                      icon: const GoogleBadge(),
+                      onPressed: _google,
                     ),
                   ],
                 ),
