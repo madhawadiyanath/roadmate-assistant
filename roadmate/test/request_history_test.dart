@@ -7,6 +7,7 @@ import 'package:roadmate/models/service_request.dart';
 import 'package:roadmate/screens/driver_dashboard_screen.dart';
 import 'package:roadmate/screens/request_history_screen.dart';
 import 'package:roadmate/services/assistance_service.dart';
+import 'package:roadmate/services/chat_service.dart';
 import 'package:roadmate/services/notification_service.dart';
 import 'package:roadmate/services/vehicle_service.dart';
 import 'package:roadmate/widgets/request_history_widgets.dart';
@@ -326,6 +327,7 @@ void main() {
       assistanceService: service,
       vehicleService: VehicleService(db: db),
       notificationService: NotificationService(db: db),
+      chatService: ChatService(db: db),
     )));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Requests'));

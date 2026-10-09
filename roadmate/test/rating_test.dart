@@ -10,6 +10,7 @@ import 'package:roadmate/models/rating_summary.dart';
 import 'package:roadmate/models/service_request.dart';
 import 'package:roadmate/screens/job_details_screen.dart';
 import 'package:roadmate/screens/mechanic_dashboard_screen.dart';
+import 'package:roadmate/services/chat_service.dart';
 import 'package:roadmate/screens/payment_review_screen.dart';
 import 'package:roadmate/screens/rate_request_screen.dart';
 import 'package:roadmate/screens/request_history_screen.dart';
@@ -413,6 +414,7 @@ void main() {
           assistanceService: service,
           notificationService: NotificationService(db: db),
           paymentService: PaymentService(db: db),
+          chatService: ChatService(db: db),
         ),
       ));
       await tester.pumpAndSettle();

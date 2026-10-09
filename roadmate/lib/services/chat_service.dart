@@ -34,6 +34,19 @@ class ChatService {
       text: msg,
     ).toMap());
 
+    // Stamp the thread preview on the parent request so chat lists can
+    // show unread badges from the request stream alone.
+    try {
+      await _db.collection('requests').doc(requestId).update({
+        'lastMessageText':
+            msg.length > 120 ? '${msg.substring(0, 120)}…' : msg,
+        'lastMessageAt': FieldValue.serverTimestamp(),
+        'lastMessageSenderUid': senderUid,
+      });
+    } catch (_) {
+      // Preview stamping is best-effort; the message itself is saved.
+    }
+
     final requestDoc = await _db.collection('requests').doc(requestId).get();
     final data = requestDoc.data() ?? {};
     String recipientUid = '';
@@ -59,6 +72,38 @@ class ChatService {
         .limit(100)
         .snapshots()
         .map((s) => _oldestFirst(s.docs.map(ChatMessage.fromDoc)));
+  }
+
+  /// Record that [uid] has seen the thread (stored on their own user doc
+  /// as `chatSeen: {requestId: timestamp}`).
+  Future<void> markSeen({
+    required String uid,
+    required String requestId,
+  }) async {
+    if (uid.isEmpty || requestId.isEmpty) return;
+    try {
+      await _db.collection('users').doc(uid).update({
+        'chatSeen.$requestId': FieldValue.serverTimestamp(),
+      });
+    } catch (_) {
+      // Seen-tracking is best-effort.
+    }
+  }
+
+  /// Live map of requestId → seen timestamp for one user.
+  Stream<Map<String, DateTime>> watchSeen(String uid) {
+    if (uid.isEmpty) return Stream.value(const <String, DateTime>{});
+    return _db.collection('users').doc(uid).snapshots().map((doc) {
+      final out = <String, DateTime>{};
+      final raw =
+          (doc.data()?['chatSeen'] as Map?) ?? const <String, dynamic>{};
+      raw.forEach((key, value) {
+        if (value is Timestamp) {
+          out['$key'] = value.toDate();
+        }
+      });
+      return out;
+    });
   }
 
   /// Edit own message text. Empty text is ignored.

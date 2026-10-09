@@ -7,6 +7,7 @@ import '../models/service_request.dart';
 import 'chat_screen.dart';
 import '../services/assistance_service.dart';
 import '../services/auth_service.dart';
+import '../services/chat_service.dart';
 import '../theme/app_colors.dart';
 
 /// Live tracking for an accepted / on-the-way request.
@@ -14,11 +15,13 @@ import '../theme/app_colors.dart';
 class TrackRequestScreen extends StatefulWidget {
   final ServiceRequest request;
   final AssistanceService? assistanceService;
+  final ChatService? chatService;
 
   const TrackRequestScreen({
     super.key,
     required this.request,
     this.assistanceService,
+    this.chatService,
   });
 
   @override
@@ -91,6 +94,7 @@ class _TrackRequestScreenState extends State<TrackRequestScreen> {
         updatedSecs: _updatedSecs,
         onCancel: _cancel,
         onHelp: () => _snack('Calling 1-800-ROADMATE…'),
+        chatService: widget.chatService,
       );
     }
     return StreamBuilder<ServiceRequest?>(
@@ -110,6 +114,7 @@ class _TrackRequestScreenState extends State<TrackRequestScreen> {
           updatedSecs: _updatedSecs,
           onCancel: _cancel,
           onHelp: () => _snack('Calling 1-800-ROADMATE…'),
+          chatService: widget.chatService,
         );
       },
     );
@@ -121,11 +126,13 @@ class _Body extends StatelessWidget {
   final int updatedSecs;
   final VoidCallback onCancel;
   final VoidCallback onHelp;
+  final ChatService? chatService;
   const _Body({
     required this.request,
     required this.updatedSecs,
     required this.onCancel,
     required this.onHelp,
+    this.chatService,
   });
 
   String get _mechName =>
@@ -419,6 +426,7 @@ class _Body extends StatelessWidget {
                             senderName: request.driverName,
                             senderRole: 'driver',
                             peerName: request.mechanicName,
+                            chatService: chatService,
                           ),
                         ),
                       ),

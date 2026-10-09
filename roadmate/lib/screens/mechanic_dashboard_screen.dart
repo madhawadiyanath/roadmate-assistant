@@ -6,6 +6,7 @@ import '../models/rating_summary.dart';
 import '../models/service_request.dart';
 import '../services/assistance_service.dart';
 import '../services/auth_service.dart';
+import '../services/chat_service.dart';
 import '../services/notification_service.dart';
 import '../services/payment_service.dart';
 import '../theme/app_colors.dart';
@@ -25,6 +26,7 @@ class MechanicDashboardScreen extends StatefulWidget {
   final AssistanceService? assistanceService;
   final NotificationService? notificationService;
   final PaymentService? paymentService;
+  final ChatService? chatService;
 
   const MechanicDashboardScreen({
     super.key,
@@ -33,6 +35,7 @@ class MechanicDashboardScreen extends StatefulWidget {
     this.assistanceService,
     this.notificationService,
     this.paymentService,
+    this.chatService,
   });
 
   @override
@@ -166,7 +169,11 @@ class _MechanicDashboardScreenState extends State<MechanicDashboardScreen> {
               onTabSelect: (i) => setState(() => _tab = i),
             ),
             _EarningsTab(mechanicUid: _user.uid),
-            _MechChatTab(user: _user, assistance: _assist),
+            _MechChatTab(
+              user: _user,
+              assistance: _assist,
+              chatService: widget.chatService,
+            ),
           ],
         ),
       ),
@@ -1240,7 +1247,14 @@ class _EarningsTab extends StatelessWidget {
 class _MechChatTab extends StatelessWidget {
   final AppUser user;
   final AssistanceService assistance;
-  const _MechChatTab({required this.user, required this.assistance});
+  final ChatService? chatService;
+  const _MechChatTab({
+    required this.user,
+    required this.assistance,
+    this.chatService,
+  });
+
+  ChatService get _chat => chatService ?? ChatService();
 
   @override
   Widget build(BuildContext context) {
@@ -1288,28 +1302,48 @@ class _MechChatTab extends StatelessWidget {
                   return const _EmptyBox(
                       text: 'Driver chat threads will appear here.');
                 }
-                return Column(
-                  children: [
-                    for (final r in items) ...[
-                      _ChatThreadRow(
-                        title: r.driverName.isEmpty ? 'Driver' : r.driverName,
-                        subtitle: '${r.type.label} • ${r.refCode}',
-                        onTap: () => Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => ChatScreen(
-                              request: r,
-                              senderUid: user.uid,
-                              senderName: user.name,
-                              senderRole: 'mechanic',
-                              peerName: r.driverName,
+                return StreamBuilder<Map<String, DateTime>>(
+                  stream: _chat.watchSeen(user.uid),
+                  builder: (context, seenSnap) {
+                    final seen = seenSnap.data ?? const {};
+                    // Unread threads float to the top.
+                    final ordered = items.toList()
+                      ..sort((a, b) {
+                        final an = a.hasUnread(user.uid, seen) ? 0 : 1;
+                        final bn = b.hasUnread(user.uid, seen) ? 0 : 1;
+                        return an.compareTo(bn);
+                      });
+                    return Column(
+                      children: [
+                        for (final r in ordered) ...[
+                          _ChatThreadRow(
+                            title: r.driverName.isEmpty
+                                ? 'Driver'
+                                : r.driverName,
+                            subtitle: r.lastMessageText.isEmpty
+                                ? '${r.type.label} • ${r.refCode}'
+                                : r.lastMessageText,
+                            hasNew:
+                                r.hasUnread(user.uid, seen),
+                            onTap: () => Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => ChatScreen(
+                                  request: r,
+                                  senderUid: user.uid,
+                                  senderName: user.name,
+                                  senderRole: 'mechanic',
+                                  peerName: r.driverName,
+                                  chatService: _chat,
+                                ),
+                              ),
                             ),
                           ),
-                        ),
-                      ),
-                      const SizedBox(height: 10),
-                    ],
-                  ],
+                          const SizedBox(height: 10),
+                        ],
+                      ],
+                    );
+                  },
                 );
               },
             ),
@@ -1323,10 +1357,12 @@ class _MechChatTab extends StatelessWidget {
 class _ChatThreadRow extends StatelessWidget {
   final String title;
   final String subtitle;
+  final bool hasNew;
   final VoidCallback onTap;
   const _ChatThreadRow({
     required this.title,
     required this.subtitle,
+    this.hasNew = false,
     required this.onTap,
   });
 
@@ -1361,29 +1397,71 @@ class _ChatThreadRow extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    title,
-                    style: const TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w800,
-                      color: AppColors.navyDark,
-                    ),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          title,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w800,
+                            color: AppColors.navyDark,
+                          ),
+                        ),
+                      ),
+                      if (hasNew)
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 8, vertical: 3),
+                          decoration: BoxDecoration(
+                            color: AppColors.orange,
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: const Text(
+                            'New',
+                            style: TextStyle(
+                              fontSize: 10.5,
+                              fontWeight: FontWeight.w800,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ),
+                    ],
                   ),
                   Text(
                     subtitle,
-                    style: const TextStyle(
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
                       fontSize: 12.5,
-                      color: AppColors.greyText,
+                      fontWeight:
+                          hasNew ? FontWeight.w700 : FontWeight.w400,
+                      color: hasNew
+                          ? AppColors.navyDark
+                          : AppColors.greyText,
                     ),
                   ),
                 ],
               ),
             ),
-            const Icon(
-              Icons.arrow_forward_ios_rounded,
-              size: 15,
-              color: AppColors.greyText,
-            ),
+            if (hasNew)
+              Container(
+                width: 10,
+                height: 10,
+                margin: const EdgeInsets.only(left: 8),
+                decoration: const BoxDecoration(
+                  color: AppColors.orange,
+                  shape: BoxShape.circle,
+                ),
+              )
+            else
+              const Icon(
+                Icons.arrow_forward_ios_rounded,
+                size: 15,
+                color: AppColors.greyText,
+              ),
           ],
         ),
       ),
