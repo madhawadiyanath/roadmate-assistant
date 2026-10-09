@@ -2,14 +2,17 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:roadmate/main.dart';
+import 'package:roadmate/config/firebase_state.dart';
 import 'package:roadmate/models/app_user.dart';
+import 'package:roadmate/services/assistance_service.dart';
+import 'package:roadmate/services/auth_service.dart';
+import 'package:roadmate/services/payment_service.dart';
 import 'package:roadmate/models/service_request.dart';
 import 'package:fake_cloud_firestore/fake_cloud_firestore.dart';
 import 'package:roadmate/models/payments.dart';
 import 'package:roadmate/screens/admin_dashboard_screen.dart';
 import 'package:roadmate/screens/digital_receipt_screen.dart';
 import 'package:roadmate/screens/payment_history_screen.dart';
-import 'package:roadmate/services/payment_service.dart';
 import 'package:roadmate/screens/chat_screen.dart';
 import 'package:roadmate/screens/profile_screen.dart';
 import 'package:roadmate/screens/confirm_request_screen.dart';
@@ -671,6 +674,113 @@ void main() {
     expect(find.text('Paid vs Pending'), findsOneWidget);
     expect(find.text('Revenue by Method'), findsOneWidget);
     expect(find.text('Daily Revenue'), findsOneWidget);
+  });
+
+  testWidgets('Admin changes a user role', (tester) async {
+    final db = FakeFirebaseFirestore();
+    await db.collection('users').doc('u1').set({
+      'name': 'Kasun Perera',
+      'email': 'kasun@example.com',
+      'phone': '',
+      'role': 'driver',
+    });
+    const admin = AppUser(
+      uid: 'a1',
+      name: 'Admin Perera',
+      email: 'admin@roadmate.lk',
+      phone: '',
+      role: AppRole.admin,
+    );
+    firebaseReady = true;
+    addTearDown(() => firebaseReady = false);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: AdminDashboardScreen(
+          user: admin,
+          authService: AuthService(db: db),
+          assistanceService: AssistanceService(db: db),
+          paymentService: PaymentService(db: db),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Users'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Kasun Perera'));
+    await tester.pumpAndSettle();
+    expect(find.text('Current: driver'), findsOneWidget);
+
+    await tester.tap(find.text('Mechanic'));
+    await tester.pumpAndSettle();
+    expect(find.text('Role changed to mechanic.'), findsOneWidget);
+
+    final doc = await db.collection('users').doc('u1').get();
+    expect(doc.data()?['role'], 'mechanic');
+  });
+
+  testWidgets('Admin cancels then deletes a request', (tester) async {
+    final db = FakeFirebaseFirestore();
+    await db.collection('requests').doc('r1').set({
+      'driverUid': 'd1',
+      'driverName': 'Kasun',
+      'type': 'flatTyre',
+      'status': 'pending',
+      'address': 'Old Road 1',
+      'refCode': '#RM3001',
+      'createdAt': DateTime(2026, 10, 2, 10, 0),
+    });
+    const admin = AppUser(
+      uid: 'a1',
+      name: 'Admin Perera',
+      email: 'admin@roadmate.lk',
+      phone: '',
+      role: AppRole.admin,
+    );
+    firebaseReady = true;
+    addTearDown(() => firebaseReady = false);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: AdminDashboardScreen(
+          user: admin,
+          authService: AuthService(db: db),
+          assistanceService: AssistanceService(db: db),
+          paymentService: PaymentService(db: db),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Requests'));
+    await tester.pumpAndSettle();
+    expect(find.text('Flat Tyre • #RM3001'), findsOneWidget);
+
+    // Cancel the pending request.
+    await tester.tap(find.text('Flat Tyre • #RM3001'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Cancel request'));
+    await tester.pumpAndSettle();
+    expect(find.text('Request cancelled.'), findsOneWidget);
+    var doc = await db.collection('requests').doc('r1').get();
+    expect(doc.data()?['status'], 'cancelled');
+
+    // Delete it permanently.
+    await tester.tap(find.text('Flat Tyre • #RM3001'));
+    await tester.pumpAndSettle();
+    expect(find.text('Cancel request'), findsNothing);
+    await tester.tap(find.text('Delete request'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Delete'));
+    // Let the multi-step async delete finish while the snackbar is up.
+    await tester.pump(const Duration(milliseconds: 500));
+    await tester.pump(const Duration(milliseconds: 500));
+    expect(find.text('Request deleted.'), findsOneWidget);
+    await tester.pumpAndSettle();
+    expect(find.text('Flat Tyre • #RM3001'), findsNothing);
+    doc = await db.collection('requests').doc('r1').get();
+    expect(doc.exists, isFalse);
   });
 
   testWidgets('Receipt shows invoice with PAID stamp', (

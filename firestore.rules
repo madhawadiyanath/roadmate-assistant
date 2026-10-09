@@ -26,6 +26,10 @@ service cloud.firestore {
       allow update: if signedIn()
         && request.auth.uid == uid
         && request.resource.data.role in ['driver', 'mechanic'];
+      // Admin user management: change any profile (incl. roles).
+      // User docs are never deleted (the Auth account would recreate one
+      // on next login) — demote/disable via role instead.
+      allow update: if isAdmin();
       allow delete: if false;
 
       // Saved vehicles (the driver's garage). Owner only.
