@@ -374,43 +374,48 @@ class _MechHomeTab extends StatelessWidget {
           const _MechHeroCard(),
           const SizedBox(height: 14),
 
-          // Live stat grid (demo numbers until Firebase connects)
+          // Live stat row (all 4 metrics in one single line)
           if (!firebaseReady)
-            GridView.count(
-              crossAxisCount: 2,
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              mainAxisSpacing: 10,
-              crossAxisSpacing: 10,
-              childAspectRatio: 1.55,
-              children: const [
-                _StatCard(
-                  value: '3',
-                  label: 'New Requests',
-                  icon: Icons.shield_outlined,
-                  iconBg: Color(0xFFFFEDE0),
-                  iconColor: AppColors.orange,
+            const Row(
+              children: [
+                Expanded(
+                  child: _StatCard(
+                    value: '4',
+                    label: 'Requests',
+                    icon: Icons.shield_outlined,
+                    iconBg: Color(0xFFFFEDE0),
+                    iconColor: AppColors.orange,
+                  ),
                 ),
-                _StatCard(
-                  value: '1',
-                  label: 'Active Job',
-                  icon: Icons.work_outline_rounded,
-                  iconBg: Color(0xFFE3EEFF),
-                  iconColor: Color(0xFF2F7DE1),
+                SizedBox(width: 8),
+                Expanded(
+                  child: _StatCard(
+                    value: '5',
+                    label: 'Active',
+                    icon: Icons.work_outline_rounded,
+                    iconBg: Color(0xFFE3EEFF),
+                    iconColor: Color(0xFF2F7DE1),
+                  ),
                 ),
-                _StatCard(
-                  value: '12',
-                  label: 'Completed',
-                  icon: Icons.check_circle_outline_rounded,
-                  iconBg: Color(0xFFE6F7EE),
-                  iconColor: Color(0xFF22B573),
+                SizedBox(width: 8),
+                Expanded(
+                  child: _StatCard(
+                    value: '16',
+                    label: 'Completed',
+                    icon: Icons.check_circle_outline_rounded,
+                    iconBg: Color(0xFFE6F7EE),
+                    iconColor: Color(0xFF22B573),
+                  ),
                 ),
-                _StatCard(
-                  value: '—',
-                  label: 'No ratings yet',
-                  icon: Icons.star_rounded,
-                  iconBg: Color(0xFFFFF3DC),
-                  iconColor: AppColors.orange,
+                SizedBox(width: 8),
+                Expanded(
+                  child: _StatCard(
+                    value: '—',
+                    label: 'Rating',
+                    icon: Icons.star_rounded,
+                    iconBg: Color(0xFFFFF3DC),
+                    iconColor: Color(0xFFF59E0B),
+                  ),
                 ),
               ],
             )
@@ -434,43 +439,48 @@ class _MechHomeTab extends StatelessWidget {
                           (r) => r.status == RequestStatus.completed)
                       .length;
                   final rating = RatingSummary.from(myJobs);
-                  return GridView.count(
-                    crossAxisCount: 2,
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    mainAxisSpacing: 10,
-                    crossAxisSpacing: 10,
-                    childAspectRatio: 1.55,
+                  return Row(
                     children: [
-                      _StatCard(
-                        value: '$pendingCount',
-                        label: 'New Requests',
-                        icon: Icons.shield_outlined,
-                        iconBg: const Color(0xFFFFEDE0),
-                        iconColor: AppColors.orange,
+                      Expanded(
+                        child: _StatCard(
+                          value: '$pendingCount',
+                          label: 'Requests',
+                          icon: Icons.shield_outlined,
+                          iconBg: const Color(0xFFFFEDE0),
+                          iconColor: AppColors.orange,
+                        ),
                       ),
-                      _StatCard(
-                        value: '$activeCount',
-                        label: 'Active Job',
-                        icon: Icons.work_outline_rounded,
-                        iconBg: const Color(0xFFE3EEFF),
-                        iconColor: const Color(0xFF2F7DE1),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: _StatCard(
+                          value: '$activeCount',
+                          label: 'Active',
+                          icon: Icons.work_outline_rounded,
+                          iconBg: const Color(0xFFE3EEFF),
+                          iconColor: const Color(0xFF2F7DE1),
+                        ),
                       ),
-                      _StatCard(
-                        value: '$completedCount',
-                        label: 'Completed',
-                        icon: Icons.check_circle_outline_rounded,
-                        iconBg: const Color(0xFFE6F7EE),
-                        iconColor: const Color(0xFF22B573),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: _StatCard(
+                          value: '$completedCount',
+                          label: 'Completed',
+                          icon: Icons.check_circle_outline_rounded,
+                          iconBg: const Color(0xFFE6F7EE),
+                          iconColor: const Color(0xFF22B573),
+                        ),
                       ),
-                      _StatCard(
-                        value: rating.averageText,
-                        label: rating.hasRatings
-                            ? 'Rating (${rating.count})'
-                            : 'No ratings yet',
-                        icon: Icons.star_rounded,
-                        iconBg: const Color(0xFFFFF3DC),
-                        iconColor: AppColors.orange,
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: _StatCard(
+                          value: rating.averageText,
+                          label: rating.hasRatings
+                              ? '★ ${rating.count}'
+                              : 'Rating',
+                          icon: Icons.star_rounded,
+                          iconBg: const Color(0xFFFFF3DC),
+                          iconColor: const Color(0xFFF59E0B),
+                        ),
                       ),
                     ],
                   );
@@ -825,48 +835,75 @@ class _StatCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    String displayLabel = label;
+    if (label.toLowerCase().contains('request')) {
+      displayLabel = 'Requests';
+    } else if (label.toLowerCase().contains('active')) {
+      displayLabel = 'Active';
+    } else if (label.toLowerCase().contains('complete')) {
+      displayLabel = 'Completed';
+    } else if (label.toLowerCase().contains('rating')) {
+      displayLabel = 'Rating';
+    }
+
     return Container(
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 4),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFFEDF1F7), width: 1.2),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: const Color(0xFFE8EEF5),
+          width: 1.2,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF0F172A).withValues(alpha: 0.035),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
-      child: Row(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        mainAxisAlignment: MainAxisAlignment.center,
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           Container(
-            width: 42,
-            height: 42,
+            width: 36,
+            height: 36,
             decoration: BoxDecoration(
               color: iconBg,
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(11),
+              border: Border.all(
+                color: iconColor.withValues(alpha: 0.18),
+                width: 1,
+              ),
             ),
-            child: Icon(icon, color: iconColor, size: 22),
+            child: Icon(icon, color: iconColor, size: 18),
           ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  value,
-                  style: const TextStyle(
-                    fontSize: 19,
-                    fontWeight: FontWeight.w800,
-                    color: AppColors.navyDark,
-                  ),
-                ),
-                Text(
-                  label,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    fontSize: 11,
-                    color: AppColors.greyText,
-                  ),
-                ),
-              ],
+          const SizedBox(height: 8),
+          Text(
+            value,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              fontSize: 17,
+              fontWeight: FontWeight.w800,
+              color: AppColors.navyDark,
+              letterSpacing: -0.3,
+            ),
+          ),
+          const SizedBox(height: 3),
+          Text(
+            displayLabel,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              fontSize: 10.5,
+              fontWeight: FontWeight.w600,
+              color: Color(0xFF64748B),
+              letterSpacing: 0.1,
             ),
           ),
         ],
