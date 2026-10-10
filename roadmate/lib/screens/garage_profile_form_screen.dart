@@ -205,7 +205,7 @@ class _GarageProfileFormScreenState extends State<GarageProfileFormScreen> {
       is24Hours: _is24Hours,
       isOpen: _isOpen,
       facilities: _facilities,
-      imageUrls: _imageUrls,
+      imageUrls: _imageUrls.take(4).toList(),
     );
 
     try {
@@ -276,7 +276,7 @@ class _GarageProfileFormScreenState extends State<GarageProfileFormScreen> {
                                 ),
                               ),
                               Text(
-                                '${_imageUrls.length} photo(s) selected for your garage',
+                                '${_imageUrls.length}/4 photo(s) selected (Max 4)',
                                 style: const TextStyle(
                                   fontSize: 12,
                                   color: AppColors.greyText,
@@ -312,6 +312,10 @@ class _GarageProfileFormScreenState extends State<GarageProfileFormScreen> {
                         final isSelected = _imageUrls.contains(item.url);
                         return GestureDetector(
                           onTap: () {
+                            if (!isSelected && _imageUrls.length >= 4) {
+                              _snack('Maximum 4 photos allowed');
+                              return;
+                            }
                             setState(() {
                               if (isSelected) {
                                 _imageUrls.remove(item.url);
@@ -495,6 +499,10 @@ class _GarageProfileFormScreenState extends State<GarageProfileFormScreen> {
                               onPressed: () {
                                 final url = _imageUrlController.text.trim();
                                 if (url.isNotEmpty) {
+                                  if (_imageUrls.length >= 4) {
+                                    _snack('Maximum 4 photos allowed');
+                                    return;
+                                  }
                                   setState(() {
                                     if (!_imageUrls.contains(url)) {
                                       _imageUrls.add(url);
@@ -531,7 +539,7 @@ class _GarageProfileFormScreenState extends State<GarageProfileFormScreen> {
                               padding: const EdgeInsets.symmetric(vertical: 12),
                             ),
                             child: Text(
-                              'Done (${_imageUrls.length} Selected)',
+                              'Done (${_imageUrls.length}/4 Selected)',
                               style:
                                   const TextStyle(fontWeight: FontWeight.w700),
                             ),
@@ -943,9 +951,10 @@ class _GarageProfileFormScreenState extends State<GarageProfileFormScreen> {
                                         'https://images.unsplash.com/photo-1613214149922-f1809c99b414?w=800&auto=format&fit=crop',
                                         'https://images.unsplash.com/photo-1486006920555-c77dce18193b?w=800&auto=format&fit=crop',
                                         'https://images.unsplash.com/photo-1580273916550-e323be2ae537?w=800&auto=format&fit=crop',
+                                        'https://images.unsplash.com/photo-1517524008697-84bbe3c3fd98?w=800&auto=format&fit=crop',
                                       ];
                                     });
-                                    _snack('Loaded 3 showcase photos');
+                                    _snack('Loaded 4 showcase photos (Max 4)');
                                   },
                                   icon: const Icon(Icons.auto_awesome,
                                       size: 15, color: AppColors.orange),
@@ -974,13 +983,13 @@ class _GarageProfileFormScreenState extends State<GarageProfileFormScreen> {
                       ),
                     ),
 
-                    // Selected photos horizontal carousel
+                    // Selected photos horizontal carousel (Compact & Sleek)
                     if (_imageUrls.isNotEmpty) ...[
                       const SizedBox(height: 14),
                       Row(
                         children: [
                           Text(
-                            'Selected Photos (${_imageUrls.length})',
+                            'Selected Photos (${_imageUrls.length}/4)',
                             style: const TextStyle(
                               fontSize: 12,
                               fontWeight: FontWeight.w700,
@@ -989,7 +998,7 @@ class _GarageProfileFormScreenState extends State<GarageProfileFormScreen> {
                           ),
                           const Spacer(),
                           const Text(
-                            '1st photo is Cover Photo',
+                            '1st photo is Cover • Max 4 photos',
                             style: TextStyle(
                               fontSize: 11,
                               color: AppColors.greyText,
@@ -1000,36 +1009,38 @@ class _GarageProfileFormScreenState extends State<GarageProfileFormScreen> {
                       ),
                       const SizedBox(height: 8),
                       SizedBox(
-                        height: 100,
+                        height: 88,
                         child: ListView.separated(
                           scrollDirection: Axis.horizontal,
-                          itemCount: _imageUrls.length + 1,
+                          itemCount: _imageUrls.length < 4
+                              ? _imageUrls.length + 1
+                              : _imageUrls.length,
                           separatorBuilder: (_, __) =>
-                              const SizedBox(width: 10),
+                              const SizedBox(width: 8),
                           itemBuilder: (context, idx) {
                             if (idx == _imageUrls.length) {
-                              // Add More button tile
+                              // Add More button tile (only if < 4)
                               return InkWell(
                                 onTap: _openPhotoGalleryPicker,
-                                borderRadius: BorderRadius.circular(12),
+                                borderRadius: BorderRadius.circular(10),
                                 child: Container(
-                                  width: 90,
-                                  height: 100,
+                                  width: 80,
+                                  height: 88,
                                   decoration: BoxDecoration(
                                     color: AppColors.fieldFill,
-                                    borderRadius: BorderRadius.circular(12),
+                                    borderRadius: BorderRadius.circular(10),
                                     border: Border.all(color: Colors.black12),
                                   ),
                                   child: const Column(
                                     mainAxisAlignment: MainAxisAlignment.center,
                                     children: [
                                       Icon(Icons.add_photo_alternate_rounded,
-                                          color: AppColors.navy, size: 24),
+                                          color: AppColors.navy, size: 22),
                                       SizedBox(height: 4),
                                       Text(
                                         'Add More',
                                         style: TextStyle(
-                                          fontSize: 11,
+                                          fontSize: 10,
                                           fontWeight: FontWeight.w600,
                                           color: AppColors.navy,
                                         ),
@@ -1045,15 +1056,15 @@ class _GarageProfileFormScreenState extends State<GarageProfileFormScreen> {
                             return Stack(
                               children: [
                                 ClipRRect(
-                                  borderRadius: BorderRadius.circular(12),
+                                  borderRadius: BorderRadius.circular(10),
                                   child: Image.network(
                                     url,
-                                    width: 120,
-                                    height: 100,
+                                    width: 105,
+                                    height: 88,
                                     fit: BoxFit.cover,
                                     errorBuilder: (_, __, ___) => Container(
-                                      width: 120,
-                                      height: 100,
+                                      width: 105,
+                                      height: 88,
                                       color: AppColors.fieldFill,
                                       child: const Icon(
                                         Icons.broken_image_rounded,
@@ -1064,20 +1075,20 @@ class _GarageProfileFormScreenState extends State<GarageProfileFormScreen> {
                                 ),
                                 if (isCover)
                                   Positioned(
-                                    bottom: 6,
-                                    left: 6,
+                                    bottom: 4,
+                                    left: 4,
                                     child: Container(
                                       padding: const EdgeInsets.symmetric(
-                                          horizontal: 6, vertical: 2),
+                                          horizontal: 5, vertical: 1.5),
                                       decoration: BoxDecoration(
                                         color: AppColors.orange,
-                                        borderRadius: BorderRadius.circular(6),
+                                        borderRadius: BorderRadius.circular(5),
                                       ),
                                       child: const Text(
                                         'COVER',
                                         style: TextStyle(
                                           color: Colors.white,
-                                          fontSize: 9,
+                                          fontSize: 8.5,
                                           fontWeight: FontWeight.w800,
                                           letterSpacing: 0.5,
                                         ),
@@ -1085,8 +1096,8 @@ class _GarageProfileFormScreenState extends State<GarageProfileFormScreen> {
                                     ),
                                   ),
                                 Positioned(
-                                  top: 5,
-                                  right: 5,
+                                  top: 4,
+                                  right: 4,
                                   child: GestureDetector(
                                     onTap: () {
                                       setState(() {
@@ -1094,14 +1105,14 @@ class _GarageProfileFormScreenState extends State<GarageProfileFormScreen> {
                                       });
                                     },
                                     child: Container(
-                                      padding: const EdgeInsets.all(4),
+                                      padding: const EdgeInsets.all(3.5),
                                       decoration: const BoxDecoration(
                                         color: Colors.black54,
                                         shape: BoxShape.circle,
                                       ),
                                       child: const Icon(
                                         Icons.close,
-                                        size: 13,
+                                        size: 12,
                                         color: Colors.white,
                                       ),
                                     ),

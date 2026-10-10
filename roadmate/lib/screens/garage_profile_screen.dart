@@ -102,6 +102,63 @@ class _GarageProfileScreenState extends State<GarageProfileScreen> {
     }
   }
 
+  void _openPhotoDialog(
+      BuildContext context, List<String> images, int initialIndex) {
+    showDialog(
+      context: context,
+      builder: (ctx) => Dialog(
+        backgroundColor: Colors.transparent,
+        insetPadding: const EdgeInsets.all(16),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: Colors.black.withOpacity(0.7),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    'Photo ${initialIndex + 1} of ${images.length}',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+                IconButton(
+                  onPressed: () => Navigator.pop(ctx),
+                  icon: const Icon(Icons.close_rounded, color: Colors.white),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(16),
+              child: Image.network(
+                images[initialIndex],
+                fit: BoxFit.contain,
+                errorBuilder: (_, __, ___) => Container(
+                  height: 200,
+                  color: AppColors.fieldFill,
+                  child: const Center(
+                    child: Icon(Icons.broken_image_rounded,
+                        color: AppColors.greyText, size: 40),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -292,7 +349,7 @@ class _GarageProfileScreenState extends State<GarageProfileScreen> {
             ),
           ),
 
-          // Workshop Gallery Carousel
+          // Compact & Sleek Workshop Gallery Preview
           if (profile.imageUrls.isNotEmpty) ...[
             const SizedBox(height: 16),
             Row(
@@ -301,15 +358,15 @@ class _GarageProfileScreenState extends State<GarageProfileScreen> {
                 const Text(
                   'Workshop Gallery',
                   style: TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w800,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
                     color: AppColors.navy,
                   ),
                 ),
                 Text(
-                  '${profile.imageUrls.length} Photos',
+                  '${profile.imageUrls.length} Photos • Tap to view',
                   style: const TextStyle(
-                    fontSize: 12,
+                    fontSize: 11,
                     fontWeight: FontWeight.w600,
                     color: AppColors.greyText,
                   ),
@@ -318,30 +375,70 @@ class _GarageProfileScreenState extends State<GarageProfileScreen> {
             ),
             const SizedBox(height: 8),
             SizedBox(
-              height: 140,
+              height: 92,
               child: ListView.separated(
                 scrollDirection: Axis.horizontal,
                 itemCount: profile.imageUrls.length,
-                separatorBuilder: (_, __) => const SizedBox(width: 10),
+                separatorBuilder: (_, __) => const SizedBox(width: 8),
                 itemBuilder: (context, i) {
                   final img = profile.imageUrls[i];
-                  return ClipRRect(
-                    borderRadius: BorderRadius.circular(14),
-                    child: Image.network(
-                      img,
-                      width: 210,
-                      height: 140,
-                      fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) => Container(
-                        width: 210,
-                        height: 140,
-                        decoration: BoxDecoration(
-                          color: AppColors.fieldFill,
-                          borderRadius: BorderRadius.circular(14),
+                  return GestureDetector(
+                    onTap: () =>
+                        _openPhotoDialog(context, profile.imageUrls, i),
+                    child: Container(
+                      width: 110,
+                      height: 92,
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: AppColors.navy.withOpacity(0.12),
+                          width: 1,
                         ),
-                        child: const Center(
-                          child: Icon(Icons.broken_image_rounded,
-                              color: AppColors.greyText, size: 34),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.04),
+                            blurRadius: 4,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(11),
+                        child: Stack(
+                          fit: StackFit.expand,
+                          children: [
+                            Image.network(
+                              img,
+                              fit: BoxFit.cover,
+                              errorBuilder: (_, __, ___) => Container(
+                                color: AppColors.fieldFill,
+                                child: const Center(
+                                  child: Icon(Icons.broken_image_rounded,
+                                      color: AppColors.greyText, size: 24),
+                                ),
+                              ),
+                            ),
+                            Positioned(
+                              bottom: 4,
+                              right: 4,
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 5, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: Colors.black.withOpacity(0.65),
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                                child: Text(
+                                  '${i + 1}/${profile.imageUrls.length}',
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 9,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                     ),
