@@ -26,6 +26,7 @@ void main() {
       is24Hours: false,
       isOpen: true,
       facilities: ['Hydraulic Lift', 'Wheel Alignment'],
+      imageUrls: ['https://example.com/workshop1.jpg'],
     );
 
     await service.saveGarageProfile(uid, profile);
@@ -42,6 +43,8 @@ void main() {
     expect(saved.hasLocation, isTrue);
     expect(saved.isOpen, isTrue);
     expect(saved.facilities.length, 2);
+    expect(saved.imageUrls.length, 1);
+    expect(saved.imageUrls.first, 'https://example.com/workshop1.jpg');
 
     // 4. Watch Stream
     final streamVal = await service.watchGarageProfile(uid).first;

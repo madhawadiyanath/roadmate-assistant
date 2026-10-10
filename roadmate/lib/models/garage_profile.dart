@@ -13,6 +13,7 @@ class GarageProfile {
   final bool is24Hours;
   final bool isOpen;
   final List<String> facilities;
+  final List<String> imageUrls;
   final DateTime? updatedAt;
 
   const GarageProfile({
@@ -27,6 +28,7 @@ class GarageProfile {
     this.is24Hours = false,
     this.isOpen = true,
     this.facilities = const [],
+    this.imageUrls = const [],
     this.updatedAt,
   });
 
@@ -50,6 +52,7 @@ class GarageProfile {
     bool? is24Hours,
     bool? isOpen,
     List<String>? facilities,
+    List<String>? imageUrls,
     DateTime? updatedAt,
   }) {
     return GarageProfile(
@@ -64,6 +67,7 @@ class GarageProfile {
       is24Hours: is24Hours ?? this.is24Hours,
       isOpen: isOpen ?? this.isOpen,
       facilities: facilities ?? this.facilities,
+      imageUrls: imageUrls ?? this.imageUrls,
       updatedAt: updatedAt ?? this.updatedAt,
     );
   }
@@ -80,6 +84,7 @@ class GarageProfile {
         'is24Hours': is24Hours,
         'isOpen': isOpen,
         'facilities': facilities,
+        'imageUrls': imageUrls,
         'updatedAt': FieldValue.serverTimestamp(),
       };
 
@@ -96,6 +101,7 @@ class GarageProfile {
       is24Hours: (map['is24Hours'] as bool?) ?? false,
       isOpen: (map['isOpen'] as bool?) ?? true,
       facilities: List<String>.from(map['facilities'] ?? const []),
+      imageUrls: List<String>.from(map['imageUrls'] ?? const []),
       updatedAt: (map['updatedAt'] as Timestamp?)?.toDate(),
     );
   }

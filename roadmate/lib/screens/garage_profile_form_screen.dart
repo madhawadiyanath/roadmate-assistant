@@ -44,10 +44,12 @@ class _GarageProfileFormScreenState extends State<GarageProfileFormScreen> {
   late final TextEditingController _lat;
   late final TextEditingController _lng;
   late final TextEditingController _hours;
+  late final TextEditingController _imageUrlController;
 
   late bool _is24Hours;
   late bool _isOpen;
   late List<String> _facilities;
+  late List<String> _imageUrls;
 
   String? _nameError, _hotlineError, _addressError;
   bool _saving = false;
@@ -68,9 +70,11 @@ class _GarageProfileFormScreenState extends State<GarageProfileFormScreen> {
         text: p?.longitude != null ? '${p!.longitude}' : '79.8612');
     _hours = TextEditingController(
         text: p?.operatingHours ?? '08:00 AM - 07:00 PM');
+    _imageUrlController = TextEditingController();
     _is24Hours = p?.is24Hours ?? false;
     _isOpen = p?.isOpen ?? true;
     _facilities = List<String>.from(p?.facilities ?? ['Battery Booster & Charger', 'OBD2 Diagnostic Scanner']);
+    _imageUrls = List<String>.from(p?.imageUrls ?? []);
   }
 
   @override
@@ -82,6 +86,7 @@ class _GarageProfileFormScreenState extends State<GarageProfileFormScreen> {
     _lat.dispose();
     _lng.dispose();
     _hours.dispose();
+    _imageUrlController.dispose();
     super.dispose();
   }
 
@@ -126,6 +131,7 @@ class _GarageProfileFormScreenState extends State<GarageProfileFormScreen> {
       is24Hours: _is24Hours,
       isOpen: _isOpen,
       facilities: _facilities,
+      imageUrls: _imageUrls,
     );
 
     try {
@@ -427,6 +433,145 @@ class _GarageProfileFormScreenState extends State<GarageProfileFormScreen> {
                         );
                       }).toList(),
                     ),
+                    const SizedBox(height: 20),
+
+                    // Workshop Photos Gallery
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text(
+                          'Workshop & Garage Photos',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.navy,
+                          ),
+                        ),
+                        TextButton.icon(
+                          onPressed: () {
+                            setState(() {
+                              _imageUrls = [
+                                'https://images.unsplash.com/photo-1613214149922-f1809c99b414?w=600&auto=format&fit=crop',
+                                'https://images.unsplash.com/photo-1486006920555-c77dce18193b?w=600&auto=format&fit=crop',
+                                'https://images.unsplash.com/photo-1580273916550-e323be2ae537?w=600&auto=format&fit=crop',
+                              ];
+                            });
+                          },
+                          icon: const Icon(Icons.auto_awesome,
+                              size: 16, color: AppColors.orange),
+                          label: const Text(
+                            'Sample Photos',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.orange,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 6),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: TextField(
+                            controller: _imageUrlController,
+                            decoration: InputDecoration(
+                              hintText: 'Paste Image URL (e.g. https://...)',
+                              prefixIcon: const Icon(Icons.image_outlined,
+                                  color: AppColors.navy),
+                              filled: true,
+                              fillColor: AppColors.fieldFill,
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide: BorderSide.none,
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        ElevatedButton(
+                          onPressed: () {
+                            final url = _imageUrlController.text.trim();
+                            if (url.isNotEmpty) {
+                              setState(() {
+                                _imageUrls.add(url);
+                                _imageUrlController.clear();
+                              });
+                            }
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.navy,
+                            foregroundColor: Colors.white,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 16, vertical: 14),
+                          ),
+                          child: const Text('Add'),
+                        ),
+                      ],
+                    ),
+                    if (_imageUrls.isNotEmpty) ...[
+                      const SizedBox(height: 12),
+                      SizedBox(
+                        height: 90,
+                        child: ListView.separated(
+                          scrollDirection: Axis.horizontal,
+                          itemCount: _imageUrls.length,
+                          separatorBuilder: (_, __) => const SizedBox(width: 10),
+                          itemBuilder: (context, idx) {
+                            final url = _imageUrls[idx];
+                            return Stack(
+                              children: [
+                                ClipRRect(
+                                  borderRadius: BorderRadius.circular(10),
+                                  child: Image.network(
+                                    url,
+                                    width: 110,
+                                    height: 90,
+                                    fit: BoxFit.cover,
+                                    errorBuilder: (_, __, ___) => Container(
+                                      width: 110,
+                                      height: 90,
+                                      color: AppColors.fieldFill,
+                                      child: const Icon(
+                                        Icons.broken_image_rounded,
+                                        color: AppColors.greyText,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                Positioned(
+                                  top: 4,
+                                  right: 4,
+                                  child: GestureDetector(
+                                    onTap: () {
+                                      setState(() {
+                                        _imageUrls.removeAt(idx);
+                                      });
+                                    },
+                                    child: Container(
+                                      padding: const EdgeInsets.all(3),
+                                      decoration: const BoxDecoration(
+                                        color: Colors.black54,
+                                        shape: BoxShape.circle,
+                                      ),
+                                      child: const Icon(
+                                        Icons.close,
+                                        size: 14,
+                                        color: Colors.white,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            );
+                          },
+                        ),
+                      ),
+                    ],
                     const SizedBox(height: 20),
 
                     // Open / Closed Status Toggle

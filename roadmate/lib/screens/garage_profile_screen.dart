@@ -52,6 +52,11 @@ class _GarageProfileScreenState extends State<GarageProfileScreen> {
       'Battery Booster & Charger',
       'Wheel Alignment',
     ],
+    imageUrls: [
+      'https://images.unsplash.com/photo-1613214149922-f1809c99b414?w=600&auto=format&fit=crop',
+      'https://images.unsplash.com/photo-1486006920555-c77dce18193b?w=600&auto=format&fit=crop',
+      'https://images.unsplash.com/photo-1580273916550-e323be2ae537?w=600&auto=format&fit=crop',
+    ],
   );
 
   @override
@@ -286,6 +291,66 @@ class _GarageProfileScreenState extends State<GarageProfileScreen> {
               ],
             ),
           ),
+
+          // Workshop Gallery Carousel
+          if (profile.imageUrls.isNotEmpty) ...[
+            const SizedBox(height: 16),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text(
+                  'Workshop Gallery',
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w800,
+                    color: AppColors.navy,
+                  ),
+                ),
+                Text(
+                  '${profile.imageUrls.length} Photos',
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.greyText,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            SizedBox(
+              height: 140,
+              child: ListView.separated(
+                scrollDirection: Axis.horizontal,
+                itemCount: profile.imageUrls.length,
+                separatorBuilder: (_, __) => const SizedBox(width: 10),
+                itemBuilder: (context, i) {
+                  final img = profile.imageUrls[i];
+                  return ClipRRect(
+                    borderRadius: BorderRadius.circular(14),
+                    child: Image.network(
+                      img,
+                      width: 210,
+                      height: 140,
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, __, ___) => Container(
+                        width: 210,
+                        height: 140,
+                        decoration: BoxDecoration(
+                          color: AppColors.fieldFill,
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                        child: const Center(
+                          child: Icon(Icons.broken_image_rounded,
+                              color: AppColors.greyText, size: 34),
+                        ),
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+          ],
+
           const SizedBox(height: 16),
 
           // Quick Toggle Switch Bar

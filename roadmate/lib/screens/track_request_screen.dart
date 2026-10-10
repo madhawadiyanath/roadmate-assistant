@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import '../config/firebase_state.dart';
 import '../models/service_request.dart';
 import 'chat_screen.dart';
+import 'garage_profile_screen.dart';
 import '../services/assistance_service.dart';
 import '../services/auth_service.dart';
 import '../services/chat_service.dart';
@@ -411,6 +412,37 @@ class _Body extends StatelessWidget {
                                 ),
                               ),
                             ],
+                          ),
+                          const SizedBox(height: 4),
+                          InkWell(
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => GarageProfileScreen(
+                                    uid: request.mechanicUid.isNotEmpty
+                                        ? request.mechanicUid
+                                        : 'demo_owner',
+                                  ),
+                                ),
+                              );
+                            },
+                            child: const Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.garage_outlined,
+                                    size: 14, color: AppColors.orange),
+                                SizedBox(width: 4),
+                                Text(
+                                  'Garage Info & Photos',
+                                  style: TextStyle(
+                                    fontSize: 11.5,
+                                    fontWeight: FontWeight.w700,
+                                    color: AppColors.orange,
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
                         ],
                       ),
