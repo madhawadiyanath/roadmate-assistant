@@ -229,16 +229,13 @@ class _ServicesOfferedScreenState extends State<ServicesOfferedScreen> {
           ],
         ),
       ),
-      floatingActionButton: FloatingActionButton.extended(
+      floatingActionButton: FloatingActionButton(
         onPressed: _add,
         backgroundColor: AppColors.orange,
         foregroundColor: Colors.white,
         elevation: 4,
-        icon: const Icon(Icons.add_rounded),
-        label: const Text(
-          'Add Service',
-          style: TextStyle(fontWeight: FontWeight.w800),
-        ),
+        tooltip: 'Add Service',
+        child: const Icon(Icons.add_rounded, size: 28),
       ),
     );
   }

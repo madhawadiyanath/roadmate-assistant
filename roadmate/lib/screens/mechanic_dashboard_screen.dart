@@ -695,128 +695,87 @@ class _GainPill extends StatelessWidget {
 class _MechHeroCard extends StatelessWidget {
   const _MechHeroCard();
 
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: AppColors.navy,
-        borderRadius: BorderRadius.circular(18),
-      ),
-      child: const Row(
-        children: [
-          Expanded(
-            flex: 5,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  "Let's keep\nSri Lanka moving!",
-                  style: TextStyle(
-                    fontSize: 19,
-                    fontWeight: FontWeight.w800,
-                    height: 1.3,
-                    color: Colors.white,
-                  ),
-                ),
-                SizedBox(height: 6),
-                Text(
-                  'Accept requests and help drivers in need.',
-                  style: TextStyle(
-                    fontSize: 12.5,
-                    color: Colors.white70,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          SizedBox(width: 8),
-          Expanded(
-            flex: 3,
-            child: SizedBox(
-              height: 96,
-              child: _MechanicArt(),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-/// Small flat mechanic figure for the hero card.
-class _MechanicArt extends StatelessWidget {
-  const _MechanicArt();
+  static const _photo = 'assets/images/mechanic_hero.jpg';
 
   @override
   Widget build(BuildContext context) {
-    return CustomPaint(
-      painter: _MechanicArtPainter(),
-      child: const SizedBox.expand(),
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(18),
+      child: SizedBox(
+        height: 150,
+        width: double.infinity,
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            Image.asset(
+              _photo,
+              fit: BoxFit.cover,
+              errorBuilder: (_, _, _) => Container(
+                color: AppColors.navy,
+              ),
+            ),
+            // Gradient overlay for high text contrast
+            Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.centerLeft,
+                  end: Alignment.centerRight,
+                  colors: [
+                    const Color(0xFF0A2A66).withValues(alpha: 0.94),
+                    const Color(0xFF0A2A66).withValues(alpha: 0.70),
+                    const Color(0xFF0A2A66).withValues(alpha: 0.25),
+                  ],
+                  stops: const [0.0, 0.58, 1.0],
+                ),
+              ),
+            ),
+            const FractionallySizedBox(
+              widthFactor: 0.72,
+              alignment: Alignment.centerLeft,
+              child: Padding(
+                padding: EdgeInsets.all(18),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      'ROADSIDE PARTNER',
+                      style: TextStyle(
+                        fontSize: 10.5,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 0.8,
+                        color: AppColors.orange,
+                      ),
+                    ),
+                    SizedBox(height: 5),
+                    Text(
+                      "Let's keep\nSri Lanka moving!",
+                      style: TextStyle(
+                        fontSize: 19,
+                        fontWeight: FontWeight.w800,
+                        height: 1.25,
+                        color: Colors.white,
+                      ),
+                    ),
+                    SizedBox(height: 5),
+                    Text(
+                      'Accept requests and help drivers in need.',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 12.5,
+                        color: Colors.white70,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
-}
-
-class _MechanicArtPainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final w = size.width;
-    final h = size.height;
-    final skin = Paint()..color = const Color(0xFFF0C8A0);
-    final shirt = Paint()..color = const Color(0xFF2F7DE1);
-    final vest = Paint()..color = const Color(0xFFFF8A1E);
-    final pants = Paint()..color = const Color(0xFF1A2340);
-
-    // Legs
-    canvas.drawRRect(
-      RRect.fromLTRBR(w * 0.38, h * 0.60, w * 0.48, h * 0.95,
-          const Radius.circular(4)),
-      pants,
-    );
-    canvas.drawRRect(
-      RRect.fromLTRBR(w * 0.52, h * 0.60, w * 0.62, h * 0.95,
-          const Radius.circular(4)),
-      pants,
-    );
-    // Torso + vest
-    canvas.drawRRect(
-      RRect.fromLTRBR(w * 0.32, h * 0.30, w * 0.68, h * 0.64,
-          const Radius.circular(10)),
-      shirt,
-    );
-    canvas.drawRRect(
-      RRect.fromLTRBR(w * 0.38, h * 0.30, w * 0.62, h * 0.64,
-          const Radius.circular(6)),
-      vest,
-    );
-    // Arm waving
-    canvas.drawLine(
-      Offset(w * 0.66, h * 0.36),
-      Offset(w * 0.90, h * 0.18),
-      Paint()
-        ..color = const Color(0xFF2F7DE1)
-        ..strokeWidth = w * 0.09
-        ..strokeCap = StrokeCap.round,
-    );
-    canvas.drawCircle(Offset(w * 0.90, h * 0.16), w * 0.06, skin);
-    // Head + cap
-    canvas.drawCircle(Offset(w * 0.50, h * 0.18), w * 0.11, skin);
-    canvas.drawArc(
-      Rect.fromCenter(
-          center: Offset(w * 0.50, h * 0.17),
-          width: w * 0.26,
-          height: w * 0.26),
-      3.14,
-      3.14,
-      false,
-      Paint()
-        ..color = const Color(0xFF0A2A66)
-        ..style = PaintingStyle.fill,
-    );
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
 
 class _StatCard extends StatelessWidget {
