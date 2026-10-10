@@ -695,96 +695,83 @@ class _GainPill extends StatelessWidget {
 class _MechHeroCard extends StatelessWidget {
   const _MechHeroCard();
 
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: AppColors.navy,
-        borderRadius: BorderRadius.circular(18),
-      ),
-      child: const Row(
-        children: [
-          Expanded(
-            flex: 5,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  "Let's keep\nSri Lanka moving!",
-                  style: TextStyle(
-                    fontSize: 19,
-                    fontWeight: FontWeight.w800,
-                    height: 1.3,
-                    color: Colors.white,
-                  ),
-                ),
-                SizedBox(height: 6),
-                Text(
-                  'Accept requests and help drivers in need.',
-                  style: TextStyle(
-                    fontSize: 12.5,
-                    color: Colors.white70,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          SizedBox(width: 8),
-          Expanded(
-            flex: 3,
-            child: SizedBox(
-              height: 96,
-              child: _MechanicArt(),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-/// Professional photo for the mechanic hero card.
-class _MechanicArt extends StatelessWidget {
-  const _MechanicArt();
-
   static const _photo = 'assets/images/mechanic_hero.jpg';
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: Colors.white.withValues(alpha: 0.15),
-          width: 1.5,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.25),
-            blurRadius: 8,
-            offset: const Offset(0, 3),
-          ),
-        ],
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(15),
-        child: Image.asset(
-          _photo,
-          fit: BoxFit.cover,
-          errorBuilder: (_, _, _) => Container(
-            decoration: BoxDecoration(
-              color: const Color(0xFF16325C),
-              borderRadius: BorderRadius.circular(15),
-            ),
-            child: const Center(
-              child: Icon(
-                Icons.car_repair_rounded,
-                color: AppColors.orange,
-                size: 40,
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(18),
+      child: SizedBox(
+        height: 150,
+        width: double.infinity,
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            Image.asset(
+              _photo,
+              fit: BoxFit.cover,
+              errorBuilder: (_, _, _) => Container(
+                color: AppColors.navy,
               ),
             ),
-          ),
+            // Gradient overlay for high text contrast
+            Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.centerLeft,
+                  end: Alignment.centerRight,
+                  colors: [
+                    const Color(0xFF0A2A66).withValues(alpha: 0.94),
+                    const Color(0xFF0A2A66).withValues(alpha: 0.70),
+                    const Color(0xFF0A2A66).withValues(alpha: 0.25),
+                  ],
+                  stops: const [0.0, 0.58, 1.0],
+                ),
+              ),
+            ),
+            const FractionallySizedBox(
+              widthFactor: 0.72,
+              alignment: Alignment.centerLeft,
+              child: Padding(
+                padding: EdgeInsets.all(18),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      'ROADSIDE PARTNER',
+                      style: TextStyle(
+                        fontSize: 10.5,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 0.8,
+                        color: AppColors.orange,
+                      ),
+                    ),
+                    SizedBox(height: 5),
+                    Text(
+                      "Let's keep\nSri Lanka moving!",
+                      style: TextStyle(
+                        fontSize: 19,
+                        fontWeight: FontWeight.w800,
+                        height: 1.25,
+                        color: Colors.white,
+                      ),
+                    ),
+                    SizedBox(height: 5),
+                    Text(
+                      'Accept requests and help drivers in need.',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 12.5,
+                        color: Colors.white70,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );
