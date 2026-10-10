@@ -5,7 +5,9 @@ import '../models/garage_profile.dart';
 import '../services/auth_service.dart';
 import '../services/garage_service.dart';
 import '../theme/app_colors.dart';
+import '../widgets/real_map_widget.dart';
 import '../widgets/roadmate_top_bar.dart';
+import 'garage_location_picker_screen.dart';
 
 const _availableFacilities = [
   'Hydraulic Lift',
@@ -180,6 +182,31 @@ class _GarageProfileFormScreenState extends State<GarageProfileFormScreen> {
     return _nameError == null &&
         _hotlineError == null &&
         _addressError == null;
+  }
+
+  Future<void> _openLocationPicker() async {
+    final currentLat = double.tryParse(_lat.text.trim()) ?? 6.9271;
+    final currentLng = double.tryParse(_lng.text.trim()) ?? 79.8612;
+    final result = await Navigator.push<LocationPickResult>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => GarageLocationPickerScreen(
+          initialLat: currentLat,
+          initialLng: currentLng,
+          initialAddress: _address.text.trim(),
+        ),
+      ),
+    );
+    if (result != null && mounted) {
+      setState(() {
+        _lat.text = result.latitude.toStringAsFixed(4);
+        _lng.text = result.longitude.toStringAsFixed(4);
+        if (result.address.isNotEmpty) {
+          _address.text = result.address;
+        }
+      });
+      _snack('Location updated from real map');
+    }
   }
 
   Future<void> _save() async {
@@ -700,16 +727,86 @@ class _GarageProfileFormScreenState extends State<GarageProfileFormScreen> {
                     ),
                     const SizedBox(height: 16),
 
-                    // GPS Coordinates
-                    const Text(
-                      'GPS Location (Coordinates)',
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w700,
-                        color: AppColors.navy,
-                      ),
+                    // Real Map & GPS Location
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text(
+                          'Workshop Location (GPS & Map)',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.navy,
+                          ),
+                        ),
+                        TextButton.icon(
+                          onPressed: _openLocationPicker,
+                          icon: const Icon(Icons.pin_drop_rounded,
+                              size: 16, color: AppColors.orange),
+                          label: const Text(
+                            'Pick on Map',
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.orange,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                     const SizedBox(height: 6),
+
+                    // Interactive Real Map Preview
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(14),
+                      child: SizedBox(
+                        width: double.infinity,
+                        height: 190,
+                        child: Stack(
+                          children: [
+                            RealMapWidget(
+                              latitude:
+                                  double.tryParse(_lat.text.trim()) ?? 6.9271,
+                              longitude:
+                                  double.tryParse(_lng.text.trim()) ?? 79.8612,
+                              initialZoom: 15.0,
+                              isInteractive: true,
+                              onTap: (point) {
+                                setState(() {
+                                  _lat.text = point.latitude.toStringAsFixed(4);
+                                  _lng.text = point.longitude.toStringAsFixed(4);
+                                });
+                              },
+                            ),
+                            Positioned(
+                              top: 8,
+                              left: 8,
+                              child: ElevatedButton.icon(
+                                onPressed: _openLocationPicker,
+                                icon: const Icon(Icons.fullscreen_rounded,
+                                    size: 16),
+                                label: const Text('Full Screen',
+                                    style: TextStyle(
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.w700)),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: AppColors.navy,
+                                  foregroundColor: Colors.white,
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 8, vertical: 4),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  elevation: 2,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+
                     Row(
                       children: [
                         Expanded(
@@ -717,6 +814,7 @@ class _GarageProfileFormScreenState extends State<GarageProfileFormScreen> {
                             controller: _lat,
                             keyboardType: const TextInputType.numberWithOptions(
                                 decimal: true),
+                            onChanged: (_) => setState(() {}),
                             decoration: InputDecoration(
                               labelText: 'Latitude',
                               filled: true,
@@ -734,6 +832,7 @@ class _GarageProfileFormScreenState extends State<GarageProfileFormScreen> {
                             controller: _lng,
                             keyboardType: const TextInputType.numberWithOptions(
                                 decimal: true),
+                            onChanged: (_) => setState(() {}),
                             decoration: InputDecoration(
                               labelText: 'Longitude',
                               filled: true,

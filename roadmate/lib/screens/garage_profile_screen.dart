@@ -5,7 +5,7 @@ import '../models/garage_profile.dart';
 import '../services/auth_service.dart';
 import '../services/garage_service.dart';
 import '../theme/app_colors.dart';
-import '../widgets/mini_map_illustration.dart';
+import '../widgets/real_map_widget.dart';
 import '../widgets/roadmate_top_bar.dart';
 import '../widgets/state_message.dart';
 import 'garage_profile_form_screen.dart';
@@ -641,13 +641,18 @@ class _GarageProfileScreenState extends State<GarageProfileScreen> {
                   ),
                 ],
                 const SizedBox(height: 12),
-                // Mini Map Preview Illustration
+                // Real Map Preview
                 ClipRRect(
-                  borderRadius: BorderRadius.circular(12),
-                  child: const SizedBox(
-                    height: 120,
+                  borderRadius: BorderRadius.circular(14),
+                  child: SizedBox(
                     width: double.infinity,
-                    child: MiniMapIllustration(),
+                    height: 190,
+                    child: RealMapWidget(
+                      latitude: profile.latitude ?? 6.9271,
+                      longitude: profile.longitude ?? 79.8612,
+                      initialZoom: 15.0,
+                      isInteractive: true,
+                    ),
                   ),
                 ),
               ],
