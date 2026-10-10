@@ -4,6 +4,8 @@ import '../config/firebase_state.dart';
 import '../models/app_user.dart';
 import '../services/auth_service.dart';
 import '../services/emergency_contact_service.dart';
+import '../services/garage_service.dart';
+import '../services/mechanic_service_service.dart';
 import '../services/vehicle_service.dart';
 import '../theme/app_colors.dart';
 import '../widgets/roadmate_top_bar.dart';
@@ -11,11 +13,13 @@ import '../widgets/striped_placeholder.dart';
 import 'change_password_screen.dart';
 import 'coming_soon_screen.dart';
 import 'emergency_contacts_screen.dart';
+import 'garage_profile_screen.dart';
 import 'mechanic_transaction_history_screen.dart';
 import 'onboarding_screen.dart';
 import 'payment_history_screen.dart';
 import 'payment_methods_screen.dart';
 import 'saved_vehicles_screen.dart';
+import 'services_offered_screen.dart';
 
 /// Profile: photo, name, role and a menu (view mode); "Personal
 /// Information" opens the name/phone edit mode. Vehicles live in
@@ -27,6 +31,8 @@ class ProfileScreen extends StatefulWidget {
   /// Injectable for tests/previews; default to the real services.
   final VehicleService? vehicleService;
   final EmergencyContactService? contactService;
+  final MechanicServiceService? mechanicServiceService;
+  final GarageService? garageService;
 
   const ProfileScreen({
     super.key,
@@ -34,6 +40,8 @@ class ProfileScreen extends StatefulWidget {
     this.authService,
     this.vehicleService,
     this.contactService,
+    this.mechanicServiceService,
+    this.garageService,
   });
 
   @override
@@ -190,15 +198,24 @@ class _ProfileScreenState extends State<ProfileScreen> {
             title: 'Personal Information',
             onTap: () => setState(() => _editing = true),
           ),
-          if (widget.user.role == AppRole.mechanic)
+          if (widget.user.role == AppRole.mechanic) ...[
             _MenuRow(
               icon: Icons.build_outlined,
               title: 'Services Offered',
-              onTap: () => _push(const ComingSoonScreen(
-                title: 'Services Offered',
-                icon: Icons.build_outlined,
+              onTap: () => _push(ServicesOfferedScreen(
+                uid: widget.user.uid,
+                service: widget.mechanicServiceService,
               )),
             ),
+            _MenuRow(
+              icon: Icons.garage_outlined,
+              title: 'Garage & Workshop Details',
+              onTap: () => _push(GarageProfileScreen(
+                uid: widget.user.uid,
+                service: widget.garageService,
+              )),
+            ),
+          ],
           if (_isDriver)
             _MenuRow(
               icon: Icons.directions_car_outlined,
