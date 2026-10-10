@@ -262,27 +262,98 @@ class _GarageProfileScreenState extends State<GarageProfileScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Hero Banner Card
+          // Garage Header Card (Clean, Modern, Arranged without blue container)
           Container(
-            padding: const EdgeInsets.all(18),
+            padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                colors: [AppColors.navy, AppColors.navyDark],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-              borderRadius: BorderRadius.circular(18),
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: AppColors.fieldFill, width: 1.5),
               boxShadow: [
                 BoxShadow(
-                  color: AppColors.navy.withValues(alpha: 0.15),
-                  blurRadius: 10,
-                  offset: const Offset(0, 4),
+                  color: Colors.black.withOpacity(0.04),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
                 ),
               ],
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Garage Icon Badge
+                    Container(
+                      width: 48,
+                      height: 48,
+                      decoration: BoxDecoration(
+                        color: AppColors.orange.withOpacity(0.12),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: const Icon(
+                        Icons.storefront_rounded,
+                        color: AppColors.orange,
+                        size: 26,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            profile.garageName,
+                            style: const TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w800,
+                              color: AppColors.navy,
+                            ),
+                          ),
+                          const SizedBox(height: 3),
+                          if (profile.registrationNumber.isNotEmpty)
+                            Text(
+                              'Reg: ${profile.registrationNumber}',
+                              style: const TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                                color: AppColors.greyText,
+                              ),
+                            )
+                          else
+                            const Text(
+                              'Registered Workshop',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: AppColors.greyText,
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                    // Edit Profile Button
+                    IconButton(
+                      onPressed: () => _openEdit(profile),
+                      tooltip: 'Edit Garage Details',
+                      icon: Container(
+                        padding: const EdgeInsets.all(6),
+                        decoration: BoxDecoration(
+                          color: AppColors.fieldFill,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: const Icon(
+                          Icons.edit_outlined,
+                          color: AppColors.navy,
+                          size: 18,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                const Divider(height: 1, color: AppColors.fieldFill),
+                const SizedBox(height: 10),
+                // Status Pill & Operating Summary Row
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
@@ -291,60 +362,54 @@ class _GarageProfileScreenState extends State<GarageProfileScreen> {
                           horizontal: 10, vertical: 4),
                       decoration: BoxDecoration(
                         color: profile.isOpen
-                            ? const Color(0xFF22B573)
-                            : Colors.redAccent,
+                            ? const Color(0xFF22B573).withOpacity(0.12)
+                            : Colors.redAccent.withOpacity(0.12),
                         borderRadius: BorderRadius.circular(20),
+                        border: Border.all(
+                          color: profile.isOpen
+                              ? const Color(0xFF22B573).withOpacity(0.3)
+                              : Colors.redAccent.withOpacity(0.3),
+                        ),
                       ),
                       child: Row(
+                        mainAxisSize: MainAxisSize.min,
                         children: [
                           Icon(
                             profile.isOpen
                                 ? Icons.check_circle_rounded
                                 : Icons.cancel_rounded,
-                            size: 14,
-                            color: Colors.white,
+                            size: 13,
+                            color: profile.isOpen
+                                ? const Color(0xFF1B8A57)
+                                : Colors.redAccent,
                           ),
                           const SizedBox(width: 4),
                           Text(
                             profile.isOpen ? 'OPEN NOW' : 'CLOSED',
-                            style: const TextStyle(
-                              fontSize: 11,
+                            style: TextStyle(
+                              fontSize: 10.5,
                               fontWeight: FontWeight.w800,
-                              color: Colors.white,
+                              color: profile.isOpen
+                                  ? const Color(0xFF1B8A57)
+                                  : Colors.redAccent,
                               letterSpacing: 0.5,
                             ),
                           ),
                         ],
                       ),
                     ),
-                    IconButton(
-                      icon: const Icon(Icons.edit_note_rounded,
-                          color: Colors.white, size: 26),
-                      onPressed: () => _openEdit(profile),
-                      tooltip: 'Edit Garage Details',
+                    Text(
+                      profile.is24Hours
+                          ? 'Open 24/7'
+                          : profile.operatingHours,
+                      style: const TextStyle(
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.greyText,
+                      ),
                     ),
                   ],
                 ),
-                const SizedBox(height: 10),
-                Text(
-                  profile.garageName,
-                  style: const TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.w800,
-                    color: Colors.white,
-                  ),
-                ),
-                if (profile.registrationNumber.isNotEmpty) ...[
-                  const SizedBox(height: 4),
-                  Text(
-                    'Reg: ${profile.registrationNumber}',
-                    style: const TextStyle(
-                      fontSize: 12.5,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.white70,
-                    ),
-                  ),
-                ],
               ],
             ),
           ),
