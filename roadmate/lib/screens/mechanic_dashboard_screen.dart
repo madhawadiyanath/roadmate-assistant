@@ -744,79 +744,51 @@ class _MechHeroCard extends StatelessWidget {
   }
 }
 
-/// Small flat mechanic figure for the hero card.
+/// Professional photo for the mechanic hero card.
 class _MechanicArt extends StatelessWidget {
   const _MechanicArt();
 
+  static const _photo = 'assets/images/mechanic_hero.jpg';
+
   @override
   Widget build(BuildContext context) {
-    return CustomPaint(
-      painter: _MechanicArtPainter(),
-      child: const SizedBox.expand(),
+    return Container(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: Colors.white.withValues(alpha: 0.15),
+          width: 1.5,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.25),
+            blurRadius: 8,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(15),
+        child: Image.asset(
+          _photo,
+          fit: BoxFit.cover,
+          errorBuilder: (_, _, _) => Container(
+            decoration: BoxDecoration(
+              color: const Color(0xFF16325C),
+              borderRadius: BorderRadius.circular(15),
+            ),
+            child: const Center(
+              child: Icon(
+                Icons.car_repair_rounded,
+                color: AppColors.orange,
+                size: 40,
+              ),
+            ),
+          ),
+        ),
+      ),
     );
   }
-}
-
-class _MechanicArtPainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final w = size.width;
-    final h = size.height;
-    final skin = Paint()..color = const Color(0xFFF0C8A0);
-    final shirt = Paint()..color = const Color(0xFF2F7DE1);
-    final vest = Paint()..color = const Color(0xFFFF8A1E);
-    final pants = Paint()..color = const Color(0xFF1A2340);
-
-    // Legs
-    canvas.drawRRect(
-      RRect.fromLTRBR(w * 0.38, h * 0.60, w * 0.48, h * 0.95,
-          const Radius.circular(4)),
-      pants,
-    );
-    canvas.drawRRect(
-      RRect.fromLTRBR(w * 0.52, h * 0.60, w * 0.62, h * 0.95,
-          const Radius.circular(4)),
-      pants,
-    );
-    // Torso + vest
-    canvas.drawRRect(
-      RRect.fromLTRBR(w * 0.32, h * 0.30, w * 0.68, h * 0.64,
-          const Radius.circular(10)),
-      shirt,
-    );
-    canvas.drawRRect(
-      RRect.fromLTRBR(w * 0.38, h * 0.30, w * 0.62, h * 0.64,
-          const Radius.circular(6)),
-      vest,
-    );
-    // Arm waving
-    canvas.drawLine(
-      Offset(w * 0.66, h * 0.36),
-      Offset(w * 0.90, h * 0.18),
-      Paint()
-        ..color = const Color(0xFF2F7DE1)
-        ..strokeWidth = w * 0.09
-        ..strokeCap = StrokeCap.round,
-    );
-    canvas.drawCircle(Offset(w * 0.90, h * 0.16), w * 0.06, skin);
-    // Head + cap
-    canvas.drawCircle(Offset(w * 0.50, h * 0.18), w * 0.11, skin);
-    canvas.drawArc(
-      Rect.fromCenter(
-          center: Offset(w * 0.50, h * 0.17),
-          width: w * 0.26,
-          height: w * 0.26),
-      3.14,
-      3.14,
-      false,
-      Paint()
-        ..color = const Color(0xFF0A2A66)
-        ..style = PaintingStyle.fill,
-    );
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
 
 class _StatCard extends StatelessWidget {
