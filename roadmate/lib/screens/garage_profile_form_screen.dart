@@ -18,6 +18,80 @@ const _availableFacilities = [
   '24/7 Mobile Recovery Unit',
 ];
 
+class _PresetWorkshopPhoto {
+  final String title;
+  final String category;
+  final String url;
+  const _PresetWorkshopPhoto({
+    required this.title,
+    required this.category,
+    required this.url,
+  });
+}
+
+const _workshopPresets = <_PresetWorkshopPhoto>[
+  _PresetWorkshopPhoto(
+    title: 'Main Workshop & Hoist Bay',
+    category: 'Workshop Bay',
+    url:
+        'https://images.unsplash.com/photo-1613214149922-f1809c99b414?w=800&auto=format&fit=crop',
+  ),
+  _PresetWorkshopPhoto(
+    title: 'Engine Diagnostics & Tuning',
+    category: 'Diagnostics',
+    url:
+        'https://images.unsplash.com/photo-1486006920555-c77dce18193b?w=800&auto=format&fit=crop',
+  ),
+  _PresetWorkshopPhoto(
+    title: 'Precision Tools & Equipment',
+    category: 'Tools',
+    url:
+        'https://images.unsplash.com/photo-1580273916550-e323be2ae537?w=800&auto=format&fit=crop',
+  ),
+  _PresetWorkshopPhoto(
+    title: 'Hydraulic Lift Station',
+    category: 'Workshop Bay',
+    url:
+        'https://images.unsplash.com/photo-1517524008697-84bbe3c3fd98?w=800&auto=format&fit=crop',
+  ),
+  _PresetWorkshopPhoto(
+    title: 'Tire Changer & Wheel Balancer',
+    category: 'Tires',
+    url:
+        'https://images.unsplash.com/photo-1503376780353-7e6692767b70?w=800&auto=format&fit=crop',
+  ),
+  _PresetWorkshopPhoto(
+    title: 'Air Conditioning & Electrical Bay',
+    category: 'Electrical',
+    url:
+        'https://images.unsplash.com/photo-1625047509168-a7026f36de04?w=800&auto=format&fit=crop',
+  ),
+  _PresetWorkshopPhoto(
+    title: 'Customer Reception & Lounge',
+    category: 'Lounge',
+    url:
+        'https://images.unsplash.com/photo-1524758631624-e2822e304c36?w=800&auto=format&fit=crop',
+  ),
+  _PresetWorkshopPhoto(
+    title: '24/7 Roadside Recovery Truck',
+    category: 'Fleet',
+    url:
+        'https://images.unsplash.com/photo-1563720223185-11003d516935?w=800&auto=format&fit=crop',
+  ),
+  _PresetWorkshopPhoto(
+    title: 'Modern Workshop Exterior',
+    category: 'Exterior',
+    url:
+        'https://images.unsplash.com/photo-1508974239320-0a029497e820?w=800&auto=format&fit=crop',
+  ),
+  _PresetWorkshopPhoto(
+    title: 'Body Repair & Spray Booth',
+    category: 'Body Work',
+    url:
+        'https://images.unsplash.com/photo-1619642751034-765dfdf7c58e?w=800&auto=format&fit=crop',
+  ),
+];
+
 /// Form to setup or edit Garage / Workshop details.
 class GarageProfileFormScreen extends StatefulWidget {
   final String uid;
@@ -145,6 +219,334 @@ class _GarageProfileFormScreenState extends State<GarageProfileFormScreen> {
     } finally {
       if (mounted) setState(() => _saving = false);
     }
+  }
+
+  void _openPhotoGalleryPicker() {
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (modalCtx, setModalState) {
+            return Container(
+              height: MediaQuery.of(context).size.height * 0.85,
+              decoration: const BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+              ),
+              child: Column(
+                children: [
+                  const SizedBox(height: 12),
+                  // Drag handle
+                  Container(
+                    width: 44,
+                    height: 5,
+                    decoration: BoxDecoration(
+                      color: Colors.black12,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  // Header
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    child: Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: AppColors.orange.withOpacity(0.12),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: const Icon(Icons.photo_library_rounded,
+                              color: AppColors.orange, size: 22),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text(
+                                'Workshop Photo Gallery',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w700,
+                                  color: AppColors.navy,
+                                ),
+                              ),
+                              Text(
+                                '${_imageUrls.length} photo(s) selected for your garage',
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  color: AppColors.greyText,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        IconButton(
+                          onPressed: () => Navigator.pop(ctx),
+                          icon: const Icon(Icons.close_rounded,
+                              color: AppColors.navy),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const Divider(height: 20),
+                  // Gallery grid
+                  Expanded(
+                    child: GridView.builder(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 8),
+                      gridDelegate:
+                          const SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: 2,
+                        crossAxisSpacing: 12,
+                        mainAxisSpacing: 12,
+                        childAspectRatio: 1.22,
+                      ),
+                      itemCount: _workshopPresets.length,
+                      itemBuilder: (context, idx) {
+                        final item = _workshopPresets[idx];
+                        final isSelected = _imageUrls.contains(item.url);
+                        return GestureDetector(
+                          onTap: () {
+                            setState(() {
+                              if (isSelected) {
+                                _imageUrls.remove(item.url);
+                              } else {
+                                _imageUrls.add(item.url);
+                              }
+                            });
+                            setModalState(() {});
+                          },
+                          child: AnimatedContainer(
+                            duration: const Duration(milliseconds: 200),
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(14),
+                              border: Border.all(
+                                color: isSelected
+                                    ? AppColors.orange
+                                    : Colors.black12,
+                                width: isSelected ? 2.5 : 1,
+                              ),
+                              boxShadow: [
+                                if (isSelected)
+                                  BoxShadow(
+                                    color: AppColors.orange.withOpacity(0.25),
+                                    blurRadius: 8,
+                                    offset: const Offset(0, 3),
+                                  ),
+                              ],
+                            ),
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(12),
+                              child: Stack(
+                                fit: StackFit.expand,
+                                children: [
+                                  Image.network(
+                                    item.url,
+                                    fit: BoxFit.cover,
+                                    errorBuilder: (_, __, ___) => Container(
+                                      color: AppColors.fieldFill,
+                                      child: const Icon(
+                                        Icons.broken_image_rounded,
+                                        color: AppColors.greyText,
+                                      ),
+                                    ),
+                                  ),
+                                  // Gradient overlay
+                                  Container(
+                                    decoration: const BoxDecoration(
+                                      gradient: LinearGradient(
+                                        begin: Alignment.topCenter,
+                                        end: Alignment.bottomCenter,
+                                        colors: [
+                                          Colors.transparent,
+                                          Colors.black87,
+                                        ],
+                                        stops: [0.45, 1.0],
+                                      ),
+                                    ),
+                                  ),
+                                  // Title & category
+                                  Positioned(
+                                    left: 8,
+                                    right: 8,
+                                    bottom: 8,
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(
+                                              horizontal: 6, vertical: 2),
+                                          decoration: BoxDecoration(
+                                            color: AppColors.orange,
+                                            borderRadius:
+                                                BorderRadius.circular(6),
+                                          ),
+                                          child: Text(
+                                            item.category,
+                                            style: const TextStyle(
+                                              color: Colors.white,
+                                              fontSize: 9,
+                                              fontWeight: FontWeight.w700,
+                                            ),
+                                          ),
+                                        ),
+                                        const SizedBox(height: 3),
+                                        Text(
+                                          item.title,
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: const TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 11,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  // Checkbox badge
+                                  Positioned(
+                                    top: 8,
+                                    right: 8,
+                                    child: Container(
+                                      padding: const EdgeInsets.all(4),
+                                      decoration: BoxDecoration(
+                                        color: isSelected
+                                            ? AppColors.orange
+                                            : Colors.black45,
+                                        shape: BoxShape.circle,
+                                      ),
+                                      child: Icon(
+                                        isSelected
+                                            ? Icons.check
+                                            : Icons.add,
+                                        color: Colors.white,
+                                        size: 14,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                  // Direct URL Bar inside modal for maximum flexibility
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: AppColors.pageBg,
+                      border: Border(
+                        top: BorderSide(color: Colors.grey.shade200),
+                      ),
+                    ),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Or paste a custom image URL',
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.greyText,
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: TextField(
+                                controller: _imageUrlController,
+                                decoration: InputDecoration(
+                                  hintText: 'https://...',
+                                  prefixIcon: const Icon(
+                                      Icons.link_rounded,
+                                      color: AppColors.navy,
+                                      size: 18),
+                                  filled: true,
+                                  fillColor: Colors.white,
+                                  contentPadding: const EdgeInsets.symmetric(
+                                      horizontal: 12, vertical: 10),
+                                  border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(10),
+                                    borderSide: BorderSide(
+                                        color: Colors.grey.shade300),
+                                  ),
+                                  enabledBorder: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(10),
+                                    borderSide: BorderSide(
+                                        color: Colors.grey.shade300),
+                                  ),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            ElevatedButton(
+                              onPressed: () {
+                                final url = _imageUrlController.text.trim();
+                                if (url.isNotEmpty) {
+                                  setState(() {
+                                    if (!_imageUrls.contains(url)) {
+                                      _imageUrls.add(url);
+                                    }
+                                    _imageUrlController.clear();
+                                  });
+                                  setModalState(() {});
+                                }
+                              },
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: AppColors.navy,
+                                foregroundColor: Colors.white,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 16, vertical: 12),
+                              ),
+                              child: const Text('Add'),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 10),
+                        SizedBox(
+                          width: double.infinity,
+                          child: ElevatedButton(
+                            onPressed: () => Navigator.pop(ctx),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppColors.orange,
+                              foregroundColor: Colors.white,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              padding: const EdgeInsets.symmetric(vertical: 12),
+                            ),
+                            child: Text(
+                              'Done (${_imageUrls.length} Selected)',
+                              style:
+                                  const TextStyle(fontWeight: FontWeight.w700),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
   }
 
   @override
@@ -435,7 +837,7 @@ class _GarageProfileFormScreenState extends State<GarageProfileFormScreen> {
                     ),
                     const SizedBox(height: 20),
 
-                    // Workshop Photos Gallery
+                    // Workshop Photos Dropzone & Gallery Selector
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
@@ -447,94 +849,211 @@ class _GarageProfileFormScreenState extends State<GarageProfileFormScreen> {
                             color: AppColors.navy,
                           ),
                         ),
-                        TextButton.icon(
-                          onPressed: () {
-                            setState(() {
-                              _imageUrls = [
-                                'https://images.unsplash.com/photo-1613214149922-f1809c99b414?w=600&auto=format&fit=crop',
-                                'https://images.unsplash.com/photo-1486006920555-c77dce18193b?w=600&auto=format&fit=crop',
-                                'https://images.unsplash.com/photo-1580273916550-e323be2ae537?w=600&auto=format&fit=crop',
-                              ];
-                            });
-                          },
-                          icon: const Icon(Icons.auto_awesome,
-                              size: 16, color: AppColors.orange),
-                          label: const Text(
-                            'Sample Photos',
-                            style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w700,
-                              color: AppColors.orange,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 6),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: TextField(
-                            controller: _imageUrlController,
-                            decoration: InputDecoration(
-                              hintText: 'Paste Image URL (e.g. https://...)',
-                              prefixIcon: const Icon(Icons.image_outlined,
-                                  color: AppColors.navy),
-                              filled: true,
-                              fillColor: AppColors.fieldFill,
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(12),
-                                borderSide: BorderSide.none,
+                        if (_imageUrls.isNotEmpty)
+                          TextButton(
+                            onPressed: () => setState(() => _imageUrls.clear()),
+                            child: const Text(
+                              'Clear All',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.redAccent,
+                                fontWeight: FontWeight.w600,
                               ),
                             ),
                           ),
-                        ),
-                        const SizedBox(width: 8),
-                        ElevatedButton(
-                          onPressed: () {
-                            final url = _imageUrlController.text.trim();
-                            if (url.isNotEmpty) {
-                              setState(() {
-                                _imageUrls.add(url);
-                                _imageUrlController.clear();
-                              });
-                            }
-                          },
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: AppColors.navy,
-                            foregroundColor: Colors.white,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 16, vertical: 14),
-                          ),
-                          child: const Text('Add'),
-                        ),
                       ],
                     ),
+                    const SizedBox(height: 8),
+
+                    // Drag & Drop / Photo Gallery Selector Box
+                    InkWell(
+                      onTap: _openPhotoGalleryPicker,
+                      borderRadius: BorderRadius.circular(16),
+                      child: Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.symmetric(
+                            vertical: 22, horizontal: 16),
+                        decoration: BoxDecoration(
+                          color: AppColors.fieldFill.withOpacity(0.7),
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(
+                            color: AppColors.navy.withOpacity(0.2),
+                            width: 1.5,
+                          ),
+                        ),
+                        child: Column(
+                          children: [
+                            Container(
+                              width: 54,
+                              height: 54,
+                              decoration: BoxDecoration(
+                                color: AppColors.orange.withOpacity(0.12),
+                                shape: BoxShape.circle,
+                              ),
+                              child: const Icon(
+                                Icons.cloud_upload_outlined,
+                                color: AppColors.orange,
+                                size: 28,
+                              ),
+                            ),
+                            const SizedBox(height: 10),
+                            const Text(
+                              'Drag & Drop photos or select from gallery',
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w700,
+                                color: AppColors.navy,
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
+                            const SizedBox(height: 4),
+                            const Text(
+                              'Select service bays, hoist, diagnostics & lounge photos',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: AppColors.greyText,
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
+                            const SizedBox(height: 14),
+                            Wrap(
+                              spacing: 8,
+                              runSpacing: 8,
+                              alignment: WrapAlignment.center,
+                              children: [
+                                ElevatedButton.icon(
+                                  onPressed: _openPhotoGalleryPicker,
+                                  icon: const Icon(Icons.photo_library_outlined,
+                                      size: 16),
+                                  label: const Text('Select from Photo Gallery'),
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: AppColors.navy,
+                                    foregroundColor: Colors.white,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(10),
+                                    ),
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 16, vertical: 10),
+                                  ),
+                                ),
+                                OutlinedButton.icon(
+                                  onPressed: () {
+                                    setState(() {
+                                      _imageUrls = [
+                                        'https://images.unsplash.com/photo-1613214149922-f1809c99b414?w=800&auto=format&fit=crop',
+                                        'https://images.unsplash.com/photo-1486006920555-c77dce18193b?w=800&auto=format&fit=crop',
+                                        'https://images.unsplash.com/photo-1580273916550-e323be2ae537?w=800&auto=format&fit=crop',
+                                      ];
+                                    });
+                                    _snack('Loaded 3 showcase photos');
+                                  },
+                                  icon: const Icon(Icons.auto_awesome,
+                                      size: 15, color: AppColors.orange),
+                                  label: const Text(
+                                    'Auto Presets',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w700,
+                                      color: AppColors.orange,
+                                    ),
+                                  ),
+                                  style: OutlinedButton.styleFrom(
+                                    side: const BorderSide(
+                                        color: AppColors.orange),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(10),
+                                    ),
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 12, vertical: 10),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+
+                    // Selected photos horizontal carousel
                     if (_imageUrls.isNotEmpty) ...[
-                      const SizedBox(height: 12),
+                      const SizedBox(height: 14),
+                      Row(
+                        children: [
+                          Text(
+                            'Selected Photos (${_imageUrls.length})',
+                            style: const TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.navy,
+                            ),
+                          ),
+                          const Spacer(),
+                          const Text(
+                            '1st photo is Cover Photo',
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: AppColors.greyText,
+                              fontStyle: FontStyle.italic,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
                       SizedBox(
-                        height: 90,
+                        height: 100,
                         child: ListView.separated(
                           scrollDirection: Axis.horizontal,
-                          itemCount: _imageUrls.length,
-                          separatorBuilder: (_, __) => const SizedBox(width: 10),
+                          itemCount: _imageUrls.length + 1,
+                          separatorBuilder: (_, __) =>
+                              const SizedBox(width: 10),
                           itemBuilder: (context, idx) {
+                            if (idx == _imageUrls.length) {
+                              // Add More button tile
+                              return InkWell(
+                                onTap: _openPhotoGalleryPicker,
+                                borderRadius: BorderRadius.circular(12),
+                                child: Container(
+                                  width: 90,
+                                  height: 100,
+                                  decoration: BoxDecoration(
+                                    color: AppColors.fieldFill,
+                                    borderRadius: BorderRadius.circular(12),
+                                    border: Border.all(color: Colors.black12),
+                                  ),
+                                  child: const Column(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Icon(Icons.add_photo_alternate_rounded,
+                                          color: AppColors.navy, size: 24),
+                                      SizedBox(height: 4),
+                                      Text(
+                                        'Add More',
+                                        style: TextStyle(
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.w600,
+                                          color: AppColors.navy,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              );
+                            }
+
                             final url = _imageUrls[idx];
+                            final isCover = idx == 0;
                             return Stack(
                               children: [
                                 ClipRRect(
-                                  borderRadius: BorderRadius.circular(10),
+                                  borderRadius: BorderRadius.circular(12),
                                   child: Image.network(
                                     url,
-                                    width: 110,
-                                    height: 90,
+                                    width: 120,
+                                    height: 100,
                                     fit: BoxFit.cover,
                                     errorBuilder: (_, __, ___) => Container(
-                                      width: 110,
-                                      height: 90,
+                                      width: 120,
+                                      height: 100,
                                       color: AppColors.fieldFill,
                                       child: const Icon(
                                         Icons.broken_image_rounded,
@@ -543,9 +1062,31 @@ class _GarageProfileFormScreenState extends State<GarageProfileFormScreen> {
                                     ),
                                   ),
                                 ),
+                                if (isCover)
+                                  Positioned(
+                                    bottom: 6,
+                                    left: 6,
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 6, vertical: 2),
+                                      decoration: BoxDecoration(
+                                        color: AppColors.orange,
+                                        borderRadius: BorderRadius.circular(6),
+                                      ),
+                                      child: const Text(
+                                        'COVER',
+                                        style: TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 9,
+                                          fontWeight: FontWeight.w800,
+                                          letterSpacing: 0.5,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
                                 Positioned(
-                                  top: 4,
-                                  right: 4,
+                                  top: 5,
+                                  right: 5,
                                   child: GestureDetector(
                                     onTap: () {
                                       setState(() {
@@ -553,14 +1094,14 @@ class _GarageProfileFormScreenState extends State<GarageProfileFormScreen> {
                                       });
                                     },
                                     child: Container(
-                                      padding: const EdgeInsets.all(3),
+                                      padding: const EdgeInsets.all(4),
                                       decoration: const BoxDecoration(
                                         color: Colors.black54,
                                         shape: BoxShape.circle,
                                       ),
                                       child: const Icon(
                                         Icons.close,
-                                        size: 14,
+                                        size: 13,
                                         color: Colors.white,
                                       ),
                                     ),
