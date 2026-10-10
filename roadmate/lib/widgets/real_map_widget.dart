@@ -214,8 +214,8 @@ class _RealMapWidgetState extends State<RealMapWidget> {
 
           // OpenStreetMap Attribution
           Positioned(
-            right: 6,
-            bottom: 4,
+            left: 8,
+            bottom: 6,
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
               decoration: BoxDecoration(
