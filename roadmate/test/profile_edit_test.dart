@@ -222,7 +222,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Services Offered'), findsOneWidget);
     expect(find.text('Emergency Towing'), findsOneWidget);
-    expect(find.text('Add Service'), findsOneWidget);
+    expect(find.byIcon(Icons.add_rounded), findsOneWidget);
 
     await tester.tap(find.byTooltip('Back').last);
     await tester.pumpAndSettle();
