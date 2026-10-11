@@ -51,13 +51,20 @@ class _RealMapWidgetState extends State<RealMapWidget> {
     if (oldWidget.latitude != widget.latitude ||
         oldWidget.longitude != widget.longitude) {
       _controller.move(
-        LatLng(
-          widget.latitude.clamp(-90.0, 90.0),
-          widget.longitude.clamp(-180.0, 180.0),
-        ),
+        _safeCenter,
         _currentZoom,
       );
     }
+  }
+
+  LatLng get _safeCenter {
+    double lat = widget.latitude;
+    double lng = widget.longitude;
+    if (lat == 0.0 && lng == 0.0) {
+      lat = 6.9271;
+      lng = 79.8612;
+    }
+    return LatLng(lat.clamp(-90.0, 90.0), lng.clamp(-180.0, 180.0));
   }
 
   void _zoomIn() {
@@ -65,10 +72,7 @@ class _RealMapWidgetState extends State<RealMapWidget> {
       _currentZoom = (_currentZoom + 1).clamp(3.0, 19.0);
     });
     _controller.move(
-      LatLng(
-        widget.latitude.clamp(-90.0, 90.0),
-        widget.longitude.clamp(-180.0, 180.0),
-      ),
+      _safeCenter,
       _currentZoom,
     );
   }
@@ -78,20 +82,14 @@ class _RealMapWidgetState extends State<RealMapWidget> {
       _currentZoom = (_currentZoom - 1).clamp(3.0, 19.0);
     });
     _controller.move(
-      LatLng(
-        widget.latitude.clamp(-90.0, 90.0),
-        widget.longitude.clamp(-180.0, 180.0),
-      ),
+      _safeCenter,
       _currentZoom,
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    final center = LatLng(
-      widget.latitude.clamp(-90.0, 90.0),
-      widget.longitude.clamp(-180.0, 180.0),
-    );
+    final center = _safeCenter;
 
     return ClipRRect(
       borderRadius: BorderRadius.circular(14),

@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_map/flutter_map.dart';
+import 'package:latlong2/latlong.dart';
 
 import '../models/app_user.dart';
 import '../models/service_request.dart';
@@ -28,6 +30,10 @@ class LocationScreen extends StatefulWidget {
 
 class _LocationScreenState extends State<LocationScreen> {
   final _search = TextEditingController(text: '452 Galle Road, Colombo 03');
+  final MapController _mapController = MapController();
+  double _lat = 6.8920; // 452 Galle Road, Colombo 03
+  double _lng = 79.8550;
+  double _currentZoom = 15.0;
   bool _locked = true;
   bool _locating = false;
   bool _creating = false;
@@ -51,8 +57,11 @@ class _LocationScreenState extends State<LocationScreen> {
     setState(() {
       _locating = false;
       _locked = true;
+      _lat = 6.9271; // Colombo City Centre
+      _lng = 79.8612;
       _search.text = 'Highland Expressway, Mile Post 42';
     });
+    _mapController.move(LatLng(_lat, _lng), _currentZoom);
     _snack('GPS locked • High precision (±3m)');
   }
 
@@ -190,7 +199,24 @@ class _LocationScreenState extends State<LocationScreen> {
                   borderRadius: BorderRadius.circular(16),
                   child: Stack(
                     children: [
-                      const Positioned.fill(child: MiniMapIllustration()),
+                      Positioned.fill(
+                        child: MiniMapIllustration(
+                          latitude: _lat,
+                          longitude: _lng,
+                          initialZoom: _currentZoom,
+                          mapController: _mapController,
+                          isInteractive: true,
+                          onTap: (point) {
+                            setState(() {
+                              _lat = point.latitude;
+                              _lng = point.longitude;
+                              _locked = true;
+                              _search.text =
+                                  'Selected (${point.latitude.toStringAsFixed(4)}, ${point.longitude.toStringAsFixed(4)})';
+                            });
+                          },
+                        ),
+                      ),
                       // Zoom buttons
                       Positioned(
                         right: 10,
@@ -198,14 +224,32 @@ class _LocationScreenState extends State<LocationScreen> {
                         child: Column(
                           children: [
                             _ZoomBtn(
-                                icon: Icons.add,
-                                onTap: () =>
-                                    _snack('Zoom in — map preview')),
+                              icon: Icons.add,
+                              onTap: () {
+                                setState(() {
+                                  _currentZoom =
+                                      (_currentZoom + 1).clamp(3.0, 19.0);
+                                });
+                                _mapController.move(
+                                  LatLng(_lat, _lng),
+                                  _currentZoom,
+                                );
+                              },
+                            ),
                             const SizedBox(height: 6),
                             _ZoomBtn(
-                                icon: Icons.remove,
-                                onTap: () =>
-                                    _snack('Zoom out — map preview')),
+                              icon: Icons.remove,
+                              onTap: () {
+                                setState(() {
+                                  _currentZoom =
+                                      (_currentZoom - 1).clamp(3.0, 19.0);
+                                });
+                                _mapController.move(
+                                  LatLng(_lat, _lng),
+                                  _currentZoom,
+                                );
+                              },
+                            ),
                           ],
                         ),
                       ),
