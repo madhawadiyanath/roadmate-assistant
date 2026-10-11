@@ -1,15 +1,52 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_map/flutter_map.dart';
+import 'package:latlong2/latlong.dart' hide Path;
+import 'real_map_widget.dart';
 
-/// Stylised map card (no API key needed): blocks, highways, streets,
-/// road labels and a centre pin. Swap with google_maps_flutter later.
+/// Interactive Real Map card using OpenStreetMap tiles.
+/// Retains full backwards-compatibility with existing call sites.
 class MiniMapIllustration extends StatelessWidget {
-  const MiniMapIllustration({super.key});
+  final double latitude;
+  final double longitude;
+  final double initialZoom;
+  final bool isInteractive;
+  final String? markerLabel;
+  final bool showZoomControls;
+  final MapController? mapController;
+  final ValueChanged<LatLng>? onTap;
+
+  final bool useIllustrationFallback;
+
+  const MiniMapIllustration({
+    super.key,
+    this.latitude = 6.9271,
+    this.longitude = 79.8612,
+    this.initialZoom = 15.0,
+    this.isInteractive = true,
+    this.markerLabel,
+    this.showZoomControls = false,
+    this.mapController,
+    this.onTap,
+    this.useIllustrationFallback = false,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return CustomPaint(
-      painter: _MiniMapPainter(),
-      child: const SizedBox.expand(),
+    if (useIllustrationFallback) {
+      return CustomPaint(
+        painter: _MiniMapPainter(),
+        child: const SizedBox.expand(),
+      );
+    }
+    return RealMapWidget(
+      latitude: latitude,
+      longitude: longitude,
+      initialZoom: initialZoom,
+      isInteractive: isInteractive,
+      markerLabel: markerLabel,
+      showZoomControls: showZoomControls,
+      mapController: mapController,
+      onTap: onTap,
     );
   }
 }
