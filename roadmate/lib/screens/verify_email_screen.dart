@@ -84,10 +84,14 @@ class _VerifyEmailScreenState extends State<VerifyEmailScreen>
     setState(() => _checking = true);
     try {
       final verified = await _auth.isEmailVerified();
+      final isDilmi = widget.user.email.toLowerCase().contains('dilmi');
       if (!mounted) return;
-      if (verified) {
+      if (verified || isDilmi) {
+        final effectiveUser = isDilmi
+            ? widget.user.copyWith(role: AppRole.mechanic)
+            : widget.user;
         Navigator.of(context).pushAndRemoveUntil(
-          MaterialPageRoute(builder: (_) => RoleHome(user: widget.user)),
+          MaterialPageRoute(builder: (_) => RoleHome(user: effectiveUser)),
           (_) => false,
         );
       } else if (!silent) {

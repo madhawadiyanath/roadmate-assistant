@@ -10,6 +10,7 @@ class ServiceChargesScreen extends StatefulWidget {
   final double? baseCharge;
   final double? distanceCharge;
   final String? jobId;
+  final String? driverUid;
 
   const ServiceChargesScreen({
     super.key,
@@ -17,6 +18,7 @@ class ServiceChargesScreen extends StatefulWidget {
     this.baseCharge,
     this.distanceCharge,
     this.jobId,
+    this.driverUid,
   });
 
   @override
@@ -368,6 +370,7 @@ class _ServiceChargesScreenState extends State<ServiceChargesScreen> {
                               serviceType: _serviceType,
                               serviceCharge: _baseCharge,
                               additionalCharges: _distanceCharge + _platformFee,
+                              driverUid: widget.driverUid,
                             ),
                           ),
                         );

@@ -1,3 +1,5 @@
+import 'dart:async';
+import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../models/earnings_record.dart';
@@ -7,7 +9,9 @@ import 'earnings_details_screen.dart';
 import 'earnings_history_screen.dart';
 import 'mechanic_transaction_history_screen.dart';
 
-/// Earnings Dashboard screen matching the exact RoadMate design mockup.
+/// Earnings Dashboard screen matching the exact RoadMate design mockup
+/// with real-time updates, dynamic date filters, real weekly chart,
+/// category breakdowns, and full financial CRUD capabilities.
 class EarningsDashboardScreen extends StatefulWidget {
   final bool showBack;
   final bool showBottomNav;
@@ -28,9 +32,10 @@ class EarningsDashboardScreen extends StatefulWidget {
 }
 
 class _EarningsDashboardScreenState extends State<EarningsDashboardScreen> {
-  String _selectedRange = 'This Week';
+  String _selectedRange = 'Today';
   final List<String> _ranges = ['Today', 'This Week', 'This Month'];
-  late List<EarningsRecord> _earningsList;
+  List<EarningsRecord> _allEarnings = [];
+  StreamSubscription<List<EarningsRecord>>? _earningsSub;
 
   EarningsService get _service => widget.earningsService ?? EarningsService();
   String get _uid =>
@@ -39,35 +44,455 @@ class _EarningsDashboardScreenState extends State<EarningsDashboardScreen> {
   @override
   void initState() {
     super.initState();
-    _earningsList = List.of(mockEarnings);
-    _loadEarnings();
+    _allEarnings = List.of(EarningsService.inMemoryEarnings);
+    _loadInitialEarnings();
+    _subscribeEarnings();
   }
 
-  Future<void> _loadEarnings() async {
+  @override
+  void dispose() {
+    _earningsSub?.cancel();
+    super.dispose();
+  }
+
+  void _subscribeEarnings() {
+    _earningsSub = _service.watchEarnings(mechanicUid: _uid).listen((list) {
+      if (mounted) {
+        setState(() {
+          _allEarnings = list;
+        });
+      }
+    });
+  }
+
+  Future<void> _loadInitialEarnings() async {
     try {
       final list = await _service.getEarnings(mechanicUid: _uid);
-      if (mounted && list.isNotEmpty) {
-        setState(() => _earningsList = list);
+      if (mounted) {
+        setState(() {
+          _allEarnings = list;
+        });
       }
     } catch (_) {}
   }
 
-  // Weekly data bars (Mon to Sun) matching mockup
-  final List<Map<String, dynamic>> _weeklyBars = [
-    {'day': 'Mon', 'amount': 28000, 'label': '28,000', 'height': 0.56},
-    {'day': 'Tue', 'amount': 32500, 'label': '32,500', 'height': 0.65},
-    {'day': 'Wed', 'amount': 25000, 'label': '25,000', 'height': 0.50},
-    {'day': 'Thu', 'amount': 38000, 'label': '38,000', 'height': 0.76},
-    {
-      'day': 'Fri',
-      'amount': 42500,
-      'label': '42,500',
-      'height': 0.85,
-      'active': true
-    },
-    {'day': 'Sat', 'amount': 31000, 'label': '31,000', 'height': 0.62},
-    {'day': 'Sun', 'amount': 36000, 'label': '36,000', 'height': 0.72},
-  ];
+  DateTime _startOfDay(DateTime d) => DateTime(d.year, d.month, d.day);
+
+  bool _isSameDay(DateTime a, DateTime b) =>
+      a.year == b.year && a.month == b.month && a.day == b.day;
+
+  /// Returns completed records matching the active date filter
+  List<EarningsRecord> get _filteredEarnings {
+    final now = DateTime.now();
+    final todayStart = _startOfDay(now);
+    final todayEnd = DateTime(now.year, now.month, now.day, 23, 59, 59, 999);
+
+    if (_selectedRange == 'Today') {
+      return _allEarnings
+          .where((r) =>
+              !r.completedDate.isBefore(todayStart) &&
+              !r.completedDate.isAfter(todayEnd))
+          .toList();
+    } else if (_selectedRange == 'This Week') {
+      final daysToMonday = now.weekday - DateTime.monday;
+      final mondayStart =
+          _startOfDay(now.subtract(Duration(days: daysToMonday)));
+      final sundayEnd = mondayStart
+          .add(const Duration(days: 7))
+          .subtract(const Duration(milliseconds: 1));
+      return _allEarnings
+          .where((r) =>
+              !r.completedDate.isBefore(mondayStart) &&
+              !r.completedDate.isAfter(sundayEnd))
+          .toList();
+    } else if (_selectedRange == 'This Month') {
+      final monthStart = DateTime(now.year, now.month, 1);
+      final nextMonthStart = (now.month == 12)
+          ? DateTime(now.year + 1, 1, 1)
+          : DateTime(now.year, now.month + 1, 1);
+      final monthEnd =
+          nextMonthStart.subtract(const Duration(milliseconds: 1));
+      return _allEarnings
+          .where((r) =>
+              !r.completedDate.isBefore(monthStart) &&
+              !r.completedDate.isAfter(monthEnd))
+          .toList();
+    }
+    return _allEarnings;
+  }
+
+  /// Calculates total net earnings for the selected filter
+  double get _currentTotalNet {
+    return _filteredEarnings
+        .where((r) => r.isCompleted)
+        .fold(0.0, (acc, r) => acc + r.netEarnings);
+  }
+
+  /// Calculates earnings for the immediately preceding period to compute % change
+  Map<String, dynamic> _computeComparisonMetrics() {
+    final now = DateTime.now();
+    double prevTotal = 0.0;
+    String label = '';
+
+    if (_selectedRange == 'Today') {
+      final yesterdayStart = _startOfDay(now.subtract(const Duration(days: 1)));
+      final yesterdayEnd =
+          DateTime(now.year, now.month, now.day - 1, 23, 59, 59, 999);
+      prevTotal = _allEarnings
+          .where((r) =>
+              r.isCompleted &&
+              !r.completedDate.isBefore(yesterdayStart) &&
+              !r.completedDate.isAfter(yesterdayEnd))
+          .fold(0.0, (acc, r) => acc + r.netEarnings);
+      label = 'vs. yesterday';
+    } else if (_selectedRange == 'This Week') {
+      final daysToMonday = now.weekday - DateTime.monday;
+      final thisMonday =
+          _startOfDay(now.subtract(Duration(days: daysToMonday)));
+      final lastMonday = thisMonday.subtract(const Duration(days: 7));
+      final lastSundayEnd =
+          thisMonday.subtract(const Duration(milliseconds: 1));
+      prevTotal = _allEarnings
+          .where((r) =>
+              r.isCompleted &&
+              !r.completedDate.isBefore(lastMonday) &&
+              !r.completedDate.isAfter(lastSundayEnd))
+          .fold(0.0, (acc, r) => acc + r.netEarnings);
+      label = 'vs. last week';
+    } else if (_selectedRange == 'This Month') {
+      final lastMonthStart = (now.month == 1)
+          ? DateTime(now.year - 1, 12, 1)
+          : DateTime(now.year, now.month - 1, 1);
+      final thisMonthStart = DateTime(now.year, now.month, 1);
+      final lastMonthEnd =
+          thisMonthStart.subtract(const Duration(milliseconds: 1));
+      prevTotal = _allEarnings
+          .where((r) =>
+              r.isCompleted &&
+              !r.completedDate.isBefore(lastMonthStart) &&
+              !r.completedDate.isAfter(lastMonthEnd))
+          .fold(0.0, (acc, r) => acc + r.netEarnings);
+      label = 'vs. last month';
+    }
+
+    double percentChange = 0.0;
+    if (prevTotal > 0) {
+      percentChange = ((_currentTotalNet - prevTotal) / prevTotal) * 100;
+    } else if (_currentTotalNet > 0) {
+      percentChange = 100.0;
+    }
+
+    return {
+      'prevTotal': prevTotal,
+      'percentChange': percentChange,
+      'label': '$label (Rs. ${_formatAmount(prevTotal)})',
+      'isPositive': percentChange >= 0,
+    };
+  }
+
+  /// Calculates dynamic bars for the current week (Monday to Sunday)
+  List<Map<String, dynamic>> _computeWeeklyChartBars() {
+    final now = DateTime.now();
+    final daysToMonday = now.weekday - DateTime.monday;
+    final mondayStart =
+        _startOfDay(now.subtract(Duration(days: daysToMonday)));
+
+    final List<Map<String, dynamic>> bars = [];
+    final dayNames = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+
+    double maxAmount = 50000.0;
+
+    for (int i = 0; i < 7; i++) {
+      final dayDate = mondayStart.add(Duration(days: i));
+      final daySum = _allEarnings
+          .where((r) => r.isCompleted && _isSameDay(r.completedDate, dayDate))
+          .fold(0.0, (acc, r) => acc + r.netEarnings);
+
+      if (daySum > maxAmount) {
+        maxAmount = daySum;
+      }
+
+      final isCurrentDay = _isSameDay(now, dayDate);
+
+      bars.add({
+        'day': dayNames[i],
+        'date': dayDate,
+        'amount': daySum,
+        'label': daySum > 0 ? _formatAmountCompact(daySum) : '0',
+        'active': isCurrentDay,
+      });
+    }
+
+    // Assign scaled height
+    for (final bar in bars) {
+      final amount = bar['amount'] as double;
+      final h = maxAmount > 0 ? (amount / maxAmount) : 0.0;
+      bar['height'] = amount > 0 ? h.clamp(0.08, 1.0) : 0.02;
+      bar['maxScale'] = maxAmount;
+    }
+
+    return bars;
+  }
+
+  /// KPI metrics calculated directly from active filtered earnings
+  Map<String, dynamic> _computeKpis() {
+    int completedCount = 0;
+    int pendingCount = 0;
+    double pendingAmount = 0.0;
+
+    for (final r in _filteredEarnings) {
+      if (r.isCompleted) {
+        completedCount++;
+      } else if (r.paymentStatus.toLowerCase() == 'pending') {
+        pendingCount++;
+        pendingAmount += r.netEarnings;
+      }
+    }
+
+    final avgPayout =
+        completedCount > 0 ? (_currentTotalNet / completedCount) : 0.0;
+
+    return {
+      'completedCount': completedCount,
+      'pendingCount': pendingCount,
+      'pendingAmount': pendingAmount,
+      'avgPayout': avgPayout,
+    };
+  }
+
+  /// Groups transactions by service type for category breakdown
+  List<Map<String, dynamic>> _computeCategoryBreakdown() {
+    final Map<String, List<EarningsRecord>> grouped = {};
+    for (final r in _filteredEarnings.where((r) => r.isCompleted)) {
+      final cat = r.serviceType.isNotEmpty ? r.serviceType : 'General Repair';
+      grouped.putIfAbsent(cat, () => []).add(r);
+    }
+
+    final total = _currentTotalNet;
+    final List<Map<String, dynamic>> categories = [];
+
+    grouped.forEach((category, list) {
+      final catTotal = list.fold(0.0, (acc, r) => acc + r.netEarnings);
+      final count = list.length;
+      final percent = total > 0 ? (catTotal / total) : 0.0;
+      categories.add({
+        'category': category,
+        'count': count,
+        'amount': catTotal,
+        'percentage': percent,
+      });
+    });
+
+    categories.sort(
+        (a, b) => (b['amount'] as double).compareTo(a['amount'] as double));
+    return categories;
+  }
+
+  String _formatAmount(double amount) {
+    return NumberFormat('#,##0').format(amount.round());
+  }
+
+  String _formatAmountCompact(double amount) {
+    if (amount >= 1000) {
+      return NumberFormat('#,##0').format(amount.round());
+    }
+    return amount.toInt().toString();
+  }
+
+  /// Create CRUD dialog: Record Manual Adjustment or Tip
+  void _showAddAdjustmentDialog() {
+    final jobRefController =
+        TextEditingController(text: 'ADJ-${DateTime.now().millisecondsSinceEpoch % 10000}');
+    final amountController = TextEditingController();
+    final noteController = TextEditingController();
+    String selectedType = 'Special Service Fee';
+
+    final types = [
+      'Special Service Fee',
+      'Client Tip / Bonus',
+      'Emergency Callout Charge',
+      'Diagnostic Correction',
+      'Parts Reimbursement',
+    ];
+
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) => AlertDialog(
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF0D3B66).withAlpha(20),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Icon(Icons.add_card_rounded,
+                    color: Color(0xFF002546), size: 22),
+              ),
+              const SizedBox(width: 10),
+              const Expanded(
+                child: Text(
+                  'Record Earning',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w800,
+                    color: Color(0xFF002546),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Record an authorized adjustment, client bonus, or service entry.',
+                  style: TextStyle(fontSize: 12, color: Color(0xFF64748B)),
+                ),
+                const SizedBox(height: 14),
+                const Text('Category / Type',
+                    style:
+                        TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
+                const SizedBox(height: 4),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: const Color(0xFFCBD5E1)),
+                  ),
+                  child: DropdownButtonHideUnderline(
+                    child: DropdownButton<String>(
+                      isExpanded: true,
+                      value: selectedType,
+                      items: types
+                          .map((t) => DropdownMenuItem(
+                              value: t,
+                              child: Text(t,
+                                  style: const TextStyle(fontSize: 13))))
+                          .toList(),
+                      onChanged: (val) {
+                        if (val != null) {
+                          setDialogState(() => selectedType = val);
+                        }
+                      },
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                const Text('Reference / Job ID',
+                    style:
+                        TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
+                const SizedBox(height: 4),
+                TextField(
+                  controller: jobRefController,
+                  decoration: InputDecoration(
+                    hintText: 'e.g. Job #RM1045',
+                    isDense: true,
+                    contentPadding: const EdgeInsets.all(12),
+                    border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10)),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                const Text('Amount (Rs.)',
+                    style:
+                        TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
+                const SizedBox(height: 4),
+                TextField(
+                  controller: amountController,
+                  keyboardType: TextInputType.number,
+                  decoration: InputDecoration(
+                    prefixText: 'Rs. ',
+                    hintText: '3,500',
+                    isDense: true,
+                    contentPadding: const EdgeInsets.all(12),
+                    border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10)),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                const Text('Notes / Reason',
+                    style:
+                        TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
+                const SizedBox(height: 4),
+                TextField(
+                  controller: noteController,
+                  maxLines: 2,
+                  decoration: InputDecoration(
+                    hintText: 'Authorized on-site diagnostic bonus...',
+                    isDense: true,
+                    contentPadding: const EdgeInsets.all(12),
+                    border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10)),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Cancel',
+                  style: TextStyle(color: Color(0xFF64748B))),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                final amt = double.tryParse(
+                    amountController.text.trim().replaceAll(',', ''));
+                if (amt == null || amt <= 0) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Please enter a valid amount.'),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                  return;
+                }
+
+                Navigator.pop(ctx);
+
+                final noteText = noteController.text.trim().isNotEmpty
+                    ? noteController.text.trim()
+                    : 'Manual earning entry';
+
+                await _service.recordAdjustment(
+                  mechanicUid: _uid,
+                  serviceType: selectedType,
+                  amount: amt,
+                  jobId: jobRefController.text.trim().isNotEmpty
+                      ? jobRefController.text.trim()
+                      : 'MANUAL-${DateTime.now().millisecondsSinceEpoch}',
+                  notes: noteText,
+                );
+
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(
+                          'Earning of Rs. ${_formatAmount(amt)} recorded successfully.'),
+                      backgroundColor: const Color(0xFF059669),
+                    ),
+                  );
+                }
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFFFF6B00),
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10)),
+              ),
+              child: const Text('Save Earning'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -79,33 +504,43 @@ class _EarningsDashboardScreenState extends State<EarningsDashboardScreen> {
             // Top App Bar
             _buildTopAppBar(context),
 
-            // Scrollable Content
+            // Scrollable Content with Pull-to-Refresh
             Expanded(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Screen Title & Subtitle + Dropdown Filter
-                    _buildTitleAndFilter(),
-                    const SizedBox(height: 16),
+              child: RefreshIndicator(
+                color: const Color(0xFFFF6B00),
+                onRefresh: _loadInitialEarnings,
+                child: SingleChildScrollView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Screen Title & Subtitle + Working Dropdown Filter
+                      _buildTitleAndFilter(),
+                      const SizedBox(height: 16),
 
-                    // Total Earnings Hero Card
-                    _buildTotalEarningsCard(context),
-                    const SizedBox(height: 16),
+                      // Total Earnings Hero Card (Dynamic & linked to payments)
+                      _buildTotalEarningsCard(context),
+                      const SizedBox(height: 16),
 
-                    // Weekly Earnings Bar Chart
-                    _buildWeeklyEarningsCard(),
-                    const SizedBox(height: 16),
+                      // Dynamic Weekly Earnings Bar Chart (Linked to actual records)
+                      _buildWeeklyEarningsCard(),
+                      const SizedBox(height: 16),
 
-                    // 3 KPI Metric Cards
-                    _buildKpiMetricsRow(),
-                    const SizedBox(height: 20),
+                      // 3 KPI Metric Cards
+                      _buildKpiMetricsRow(),
+                      const SizedBox(height: 16),
 
-                    // Recent Earnings History Section
-                    _buildRecentEarningsHistory(),
-                    const SizedBox(height: 24),
-                  ],
+                      // Category Breakdown Section
+                      _buildCategoryBreakdownCard(),
+                      const SizedBox(height: 20),
+
+                      // Recent Earnings History Section
+                      _buildRecentEarningsHistory(),
+                      const SizedBox(height: 24),
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -167,18 +602,28 @@ class _EarningsDashboardScreenState extends State<EarningsDashboardScreen> {
               ),
             ],
           ),
-          Container(
-            width: 36,
-            height: 36,
-            decoration: const BoxDecoration(
-              color: Color(0xFF002546),
-              shape: BoxShape.circle,
-            ),
-            child: const Icon(
-              Icons.person_outline_rounded,
-              color: Colors.white,
-              size: 20,
-            ),
+          Row(
+            children: [
+              IconButton(
+                onPressed: _showAddAdjustmentDialog,
+                tooltip: 'Add Manual Earning',
+                icon: const Icon(Icons.add_circle_outline_rounded,
+                    color: Color(0xFF002546), size: 24),
+              ),
+              Container(
+                width: 36,
+                height: 36,
+                decoration: const BoxDecoration(
+                  color: Color(0xFF002546),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.person_outline_rounded,
+                  color: Colors.white,
+                  size: 20,
+                ),
+              ),
+            ],
           ),
         ],
       ),
@@ -212,7 +657,9 @@ class _EarningsDashboardScreenState extends State<EarningsDashboardScreen> {
               ),
               child: PopupMenuButton<String>(
                 initialValue: _selectedRange,
-                onSelected: (val) => setState(() => _selectedRange = val),
+                onSelected: (val) {
+                  setState(() => _selectedRange = val);
+                },
                 padding: EdgeInsets.zero,
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
@@ -259,8 +706,13 @@ class _EarningsDashboardScreenState extends State<EarningsDashboardScreen> {
     );
   }
 
-  /// Total Earnings Hero Card matching mockup
+  /// Total Earnings Hero Card matching mockup with live data
   Widget _buildTotalEarningsCard(BuildContext context) {
+    final comparison = _computeComparisonMetrics();
+    final percentChange = comparison['percentChange'] as double;
+    final isPositive = comparison['isPositive'] as bool;
+    final comparisonLabel = comparison['label'] as String;
+
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(20),
@@ -290,18 +742,18 @@ class _EarningsDashboardScreenState extends State<EarningsDashboardScreen> {
                   child: Text('TOTAL REVENUE'),
                 ),
               ),
-              const Text(
-                'Total Earnings',
-                style: TextStyle(
+              Text(
+                'Total Earnings ($_selectedRange)',
+                style: const TextStyle(
                   fontSize: 13.5,
                   fontWeight: FontWeight.w500,
                   color: Color(0xFF64748B),
                 ),
               ),
               const SizedBox(height: 6),
-              const Text(
-                'Rs. 42,500',
-                style: TextStyle(
+              Text(
+                'Rs. ${_formatAmount(_currentTotalNet)}',
+                style: const TextStyle(
                   fontSize: 30,
                   fontWeight: FontWeight.w800,
                   color: Color(0xFF002546),
@@ -319,32 +771,40 @@ class _EarningsDashboardScreenState extends State<EarningsDashboardScreen> {
                     padding:
                         const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
                     decoration: BoxDecoration(
-                      color: const Color(0xFFD1FAE5),
+                      color: isPositive
+                          ? const Color(0xFFD1FAE5)
+                          : const Color(0xFFFEE2E2),
                       borderRadius: BorderRadius.circular(12),
                     ),
-                    child: const Row(
+                    child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Icon(
-                          Icons.arrow_upward_rounded,
+                          isPositive
+                              ? Icons.arrow_upward_rounded
+                              : Icons.arrow_downward_rounded,
                           size: 13,
-                          color: Color(0xFF059669),
+                          color: isPositive
+                              ? const Color(0xFF059669)
+                              : const Color(0xFFDC2626),
                         ),
-                        SizedBox(width: 2),
+                        const SizedBox(width: 2),
                         Text(
-                          '+18%',
+                          '${isPositive ? '+' : ''}${percentChange.abs().toStringAsFixed(0)}%',
                           style: TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.w700,
-                            color: Color(0xFF059669),
+                            color: isPositive
+                              ? const Color(0xFF059669)
+                              : const Color(0xFFDC2626),
                           ),
                         ),
                       ],
                     ),
                   ),
-                  const Text(
-                    'vs. last week (Rs. 35,900)',
-                    style: TextStyle(
+                  Text(
+                    comparisonLabel,
+                    style: const TextStyle(
                       fontSize: 11.5,
                       color: Color(0xFF94A3B8),
                     ),
@@ -378,10 +838,10 @@ class _EarningsDashboardScreenState extends State<EarningsDashboardScreen> {
                   ElevatedButton(
                     onPressed: () {
                       ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
+                        SnackBar(
                           content: Text(
-                              'Withdrawal request submitted to linked Commercial Bank account.'),
-                          backgroundColor: Color(0xFF059669),
+                              'Withdrawal request for Rs. ${_formatAmount(_currentTotalNet)} submitted to linked Commercial Bank account.'),
+                          backgroundColor: const Color(0xFF059669),
                         ),
                       );
                     },
@@ -474,8 +934,20 @@ class _EarningsDashboardScreenState extends State<EarningsDashboardScreen> {
     );
   }
 
-  /// Weekly Earnings Bar Chart Card
+  /// Dynamic Weekly Earnings Bar Chart Card linked to actual database entries
   Widget _buildWeeklyEarningsCard() {
+    final bars = _computeWeeklyChartBars();
+    final maxScale = (bars.first['maxScale'] as double?) ?? 50000.0;
+
+    final yLabels = [
+      '${(maxScale / 1000).round()}K',
+      '${(maxScale * 0.8 / 1000).round()}K',
+      '${(maxScale * 0.6 / 1000).round()}K',
+      '${(maxScale * 0.4 / 1000).round()}K',
+      '${(maxScale * 0.2 / 1000).round()}K',
+      '0',
+    ];
+
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(18),
@@ -498,10 +970,10 @@ class _EarningsDashboardScreenState extends State<EarningsDashboardScreen> {
                   color: Color(0xFF002546),
                 ),
               ),
-              const Text(
-                'Rs.',
-                style: TextStyle(
-                  fontSize: 13,
+              Text(
+                'Rs. (Total: ${_formatAmount(bars.fold(0.0, (acc, b) => acc + (b['amount'] as double)))})',
+                style: const TextStyle(
+                  fontSize: 12,
                   fontWeight: FontWeight.w600,
                   color: Color(0xFF94A3B8),
                 ),
@@ -510,36 +982,21 @@ class _EarningsDashboardScreenState extends State<EarningsDashboardScreen> {
           ),
           const SizedBox(height: 18),
 
-          // Chart with Y-axis dotted guidelines and columns
+          // Chart with Y-axis dotted guidelines and dynamic columns
           SizedBox(
             height: 180,
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                // Y-Axis labels (50K to 0)
-                const Column(
+                // Y-Axis labels
+                Column(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text('50K',
-                        style: TextStyle(
-                            fontSize: 10, color: Color(0xFF94A3B8))),
-                    Text('40K',
-                        style: TextStyle(
-                            fontSize: 10, color: Color(0xFF94A3B8))),
-                    Text('30K',
-                        style: TextStyle(
-                            fontSize: 10, color: Color(0xFF94A3B8))),
-                    Text('20K',
-                        style: TextStyle(
-                            fontSize: 10, color: Color(0xFF94A3B8))),
-                    Text('10K',
-                        style: TextStyle(
-                            fontSize: 10, color: Color(0xFF94A3B8))),
-                    Text('0',
-                        style: TextStyle(
-                            fontSize: 10, color: Color(0xFF94A3B8))),
-                  ],
+                  children: yLabels
+                      .map((l) => Text(l,
+                          style: const TextStyle(
+                              fontSize: 10, color: Color(0xFF94A3B8))))
+                      .toList(),
                 ),
                 const SizedBox(width: 8),
 
@@ -553,7 +1010,7 @@ class _EarningsDashboardScreenState extends State<EarningsDashboardScreen> {
                           Expanded(
                             child: Stack(
                               children: [
-                                // Dotted background lines
+                                // Background guideline lines
                                 Column(
                                   mainAxisAlignment:
                                       MainAxisAlignment.spaceBetween,
@@ -571,39 +1028,46 @@ class _EarningsDashboardScreenState extends State<EarningsDashboardScreen> {
                                         CrossAxisAlignment.end,
                                     mainAxisAlignment:
                                         MainAxisAlignment.spaceAround,
-                                    children: _weeklyBars.map((bar) {
+                                    children: bars.map((bar) {
                                       final isActive = bar['active'] == true;
+                                      final rawAmount = bar['amount'] as double;
                                       final barH =
                                           (bar['height'] as double) *
                                               totalHeight;
 
-                                      return Column(
-                                        mainAxisAlignment:
-                                            MainAxisAlignment.end,
-                                        children: [
-                                          Text(
-                                            bar['label'] as String,
-                                            style: TextStyle(
-                                              fontSize: 8.5,
-                                              fontWeight: FontWeight.w700,
-                                              color: isActive
-                                                  ? const Color(0xFFFF6B00)
-                                                  : const Color(0xFF64748B),
+                                      return Tooltip(
+                                        message:
+                                            '${bar['day']}: Rs. ${_formatAmount(rawAmount)}',
+                                        child: Column(
+                                          mainAxisAlignment:
+                                              MainAxisAlignment.end,
+                                          children: [
+                                            Text(
+                                              bar['label'] as String,
+                                              style: TextStyle(
+                                                fontSize: 8.5,
+                                                fontWeight: FontWeight.w700,
+                                                color: isActive
+                                                    ? const Color(0xFFFF6B00)
+                                                    : const Color(0xFF64748B),
+                                              ),
                                             ),
-                                          ),
-                                          const SizedBox(height: 4),
-                                          Container(
-                                            width: 24,
-                                            height: barH,
-                                            decoration: BoxDecoration(
-                                              color: isActive
-                                                  ? const Color(0xFFFF6B00)
-                                                  : const Color(0xFF2563EB),
-                                              borderRadius:
-                                                  BorderRadius.circular(6),
+                                            const SizedBox(height: 4),
+                                            Container(
+                                              width: 24,
+                                              height: max(4.0, barH),
+                                              decoration: BoxDecoration(
+                                                color: isActive
+                                                    ? const Color(0xFFFF6B00)
+                                                    : (rawAmount > 0
+                                                        ? const Color(0xFF2563EB)
+                                                        : const Color(0xFFCBD5E1)),
+                                                borderRadius:
+                                                    BorderRadius.circular(6),
+                                              ),
                                             ),
-                                          ),
-                                        ],
+                                          ],
+                                        ),
                                       );
                                     }).toList(),
                                   ),
@@ -616,7 +1080,7 @@ class _EarningsDashboardScreenState extends State<EarningsDashboardScreen> {
                           Row(
                             mainAxisAlignment:
                                 MainAxisAlignment.spaceAround,
-                            children: _weeklyBars.map((bar) {
+                            children: bars.map((bar) {
                               final isActive = bar['active'] == true;
                               return Text(
                                 bar['day'] as String,
@@ -645,8 +1109,14 @@ class _EarningsDashboardScreenState extends State<EarningsDashboardScreen> {
     );
   }
 
-  /// 3 KPI Metric Cards
+  /// 3 KPI Metric Cards calculated dynamically
   Widget _buildKpiMetricsRow() {
+    final kpis = _computeKpis();
+    final completedCount = kpis['completedCount'] as int;
+    final pendingCount = kpis['pendingCount'] as int;
+    final pendingAmount = kpis['pendingAmount'] as double;
+    final avgPayout = kpis['avgPayout'] as double;
+
     return Row(
       children: [
         // Completed Jobs
@@ -656,8 +1126,8 @@ class _EarningsDashboardScreenState extends State<EarningsDashboardScreen> {
             iconColor: const Color(0xFF059669),
             iconBg: const Color(0xFFD1FAE5),
             label: 'Completed Jobs',
-            value: '12',
-            subText: '+2 vs. last week',
+            value: '$completedCount',
+            subText: 'For ${_selectedRange.toLowerCase()}',
             subColor: const Color(0xFF059669),
           ),
         ),
@@ -668,9 +1138,9 @@ class _EarningsDashboardScreenState extends State<EarningsDashboardScreen> {
             icon: Icons.schedule_rounded,
             iconColor: const Color(0xFFD97706),
             iconBg: const Color(0xFFFEF3C7),
-            label: 'Pending Payments',
-            value: '3',
-            subText: 'Rs. 8,500',
+            label: 'Pending',
+            value: '$pendingCount',
+            subText: 'Rs. ${_formatAmount(pendingAmount)}',
             subColor: const Color(0xFFD97706),
           ),
         ),
@@ -681,10 +1151,10 @@ class _EarningsDashboardScreenState extends State<EarningsDashboardScreen> {
             icon: Icons.payments_outlined,
             iconColor: const Color(0xFF2563EB),
             iconBg: const Color(0xFFDBEAFE),
-            label: 'Average per Job',
-            value: 'Rs. 3,542',
-            subText: '+12% vs. last week',
-            subColor: const Color(0xFF059669),
+            label: 'Avg per Job',
+            value: 'Rs. ${_formatAmount(avgPayout)}',
+            subText: 'Net earnings',
+            subColor: const Color(0xFF2563EB),
           ),
         ),
       ],
@@ -733,7 +1203,7 @@ class _EarningsDashboardScreenState extends State<EarningsDashboardScreen> {
           Text(
             value,
             style: const TextStyle(
-              fontSize: 15,
+              fontSize: 14.5,
               fontWeight: FontWeight.w800,
               color: Color(0xFF002546),
             ),
@@ -756,8 +1226,125 @@ class _EarningsDashboardScreenState extends State<EarningsDashboardScreen> {
     );
   }
 
+  /// Category Breakdown Card grouped by service type
+  Widget _buildCategoryBreakdownCard() {
+    final categories = _computeCategoryBreakdown();
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text(
+                'Earnings by Service Category',
+                style: TextStyle(
+                  fontSize: 15.5,
+                  fontWeight: FontWeight.w700,
+                  color: Color(0xFF002546),
+                ),
+              ),
+              Text(
+                '${categories.length} Types',
+                style: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: Color(0xFF94A3B8),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+
+          if (categories.isEmpty)
+            Container(
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              alignment: Alignment.center,
+              child: const Text(
+                'No earnings breakdown available for this period.',
+                style: TextStyle(fontSize: 12, color: Color(0xFF94A3B8)),
+              ),
+            )
+          else
+            ...categories.map((cat) {
+              final title = cat['category'] as String;
+              final count = cat['count'] as int;
+              final amount = cat['amount'] as double;
+              final percentage = cat['percentage'] as double;
+
+              final isTire = title.contains('Tire') || title.contains('Wheel');
+              final isCar = title.contains('Car') || title.contains('Repair');
+              final isTow = title.contains('Tow');
+
+              final iconData = isTire
+                  ? Icons.album_rounded
+                  : (isCar
+                      ? Icons.directions_car_rounded
+                      : (isTow
+                          ? Icons.fire_truck_rounded
+                          : Icons.build_circle_rounded));
+
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(iconData, size: 16, color: const Color(0xFF002546)),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            '$title ($count ${count == 1 ? 'job' : 'jobs'})',
+                            style: const TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                              color: Color(0xFF002546),
+                            ),
+                          ),
+                        ),
+                        Text(
+                          'Rs. ${_formatAmount(amount)} (${(percentage * 100).toStringAsFixed(0)}%)',
+                          style: const TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
+                            color: Color(0xFF002546),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 6),
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(4),
+                      child: LinearProgressIndicator(
+                        value: percentage,
+                        backgroundColor: const Color(0xFFF1F5F9),
+                        valueColor: const AlwaysStoppedAnimation<Color>(
+                            Color(0xFFFF6B00)),
+                        minHeight: 6,
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            }),
+        ],
+      ),
+    );
+  }
+
   /// Recent Earnings History Section
   Widget _buildRecentEarningsHistory() {
+    final list = _filteredEarnings;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -772,9 +1359,9 @@ class _EarningsDashboardScreenState extends State<EarningsDashboardScreen> {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            const Text(
-              'Recent Earnings History',
-              style: TextStyle(
+            Text(
+              'Recent Earnings History ($_selectedRange)',
+              style: const TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.w700,
                 color: Color(0xFF002546),
@@ -795,7 +1382,7 @@ class _EarningsDashboardScreenState extends State<EarningsDashboardScreen> {
               child: const Row(
                 children: [
                   Text(
-                    'View All Transactions',
+                    'View All',
                     style: TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.w600,
@@ -815,157 +1402,223 @@ class _EarningsDashboardScreenState extends State<EarningsDashboardScreen> {
         ),
         const SizedBox(height: 12),
 
-        // List of transaction cards matching mockup
-        ..._earningsList.take(5).map((record) {
-          final isTire = record.serviceType.contains('Tire') ||
-              record.serviceType.contains('Wheel') ||
-              record.serviceType.contains('Tyre');
-          final isCar = record.serviceType.contains('Car Service');
-
-          final iconData = isTire
-              ? Icons.album_rounded
-              : (isCar
-                  ? Icons.directions_car_rounded
-                  : Icons.battery_charging_full_rounded);
-
-          final dateStr = DateFormat('dd MMM yyyy').format(record.completedDate);
-          final timeStr = DateFormat('hh:mm a').format(record.completedDate);
-
-          return Padding(
-            padding: const EdgeInsets.only(bottom: 10),
-            child: GestureDetector(
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => EarningsDetailsScreen(record: record),
-                  ),
-                );
-              },
-              child: Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: const Color(0xFFF1F5F9)),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withAlpha(6),
-                      blurRadius: 6,
-                      offset: const Offset(0, 2),
-                    ),
-                  ],
+        if (list.isEmpty)
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(28),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: const Color(0xFFE2E8F0)),
+            ),
+            child: Column(
+              children: [
+                const Icon(
+                  Icons.receipt_long_outlined,
+                  size: 40,
+                  color: Color(0xFF94A3B8),
                 ),
-                child: Row(
-                  children: [
-                    // Dark round icon badge
-                    Container(
-                      width: 40,
-                      height: 40,
-                      decoration: const BoxDecoration(
-                        color: Color(0xFF1E293B),
-                        shape: BoxShape.circle,
-                      ),
-                      child: Icon(
-                        iconData,
-                        color: Colors.white,
-                        size: 20,
+                const SizedBox(height: 10),
+                Text(
+                  'No transactions found for $_selectedRange',
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                    color: Color(0xFF002546),
+                  ),
+                ),
+                const SizedBox(height: 4),
+                const Text(
+                  'Completed customer payments will appear here automatically.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Color(0xFF64748B),
+                  ),
+                ),
+              ],
+            ),
+          )
+        else
+          // List of transaction cards matching mockup
+          ...list.take(6).map((record) {
+            final isTire = record.serviceType.contains('Tire') ||
+                record.serviceType.contains('Wheel') ||
+                record.serviceType.contains('Tyre');
+            final isCar = record.serviceType.contains('Car Service');
+
+            final iconData = isTire
+                ? Icons.album_rounded
+                : (isCar
+                    ? Icons.directions_car_rounded
+                    : Icons.battery_charging_full_rounded);
+
+            final dateStr =
+                DateFormat('dd MMM yyyy').format(record.completedDate);
+            final timeStr = DateFormat('hh:mm a').format(record.completedDate);
+
+            final isReversed = record.isReversed;
+            final isPending =
+                record.paymentStatus.toLowerCase() == 'pending';
+
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 10),
+              child: GestureDetector(
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => EarningsDetailsScreen(
+                        record: record,
+                        earningsService: _service,
                       ),
                     ),
-                    const SizedBox(width: 12),
+                  );
+                },
+                child: Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: const Color(0xFFF1F5F9)),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withAlpha(6),
+                        blurRadius: 6,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: Row(
+                    children: [
+                      // Dark round icon badge
+                      Container(
+                        width: 40,
+                        height: 40,
+                        decoration: BoxDecoration(
+                          color: isReversed
+                              ? const Color(0xFFDC2626)
+                              : const Color(0xFF1E293B),
+                          shape: BoxShape.circle,
+                        ),
+                        child: Icon(
+                          iconData,
+                          color: Colors.white,
+                          size: 20,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
 
-                    // Service Name & Job ID
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                      // Service Name & Job ID
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              record.serviceType,
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w700,
+                                color: const Color(0xFF002546),
+                                decoration: isReversed
+                                    ? TextDecoration.lineThrough
+                                    : null,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              record.jobId,
+                              style: const TextStyle(
+                                fontSize: 11.5,
+                                color: Color(0xFF94A3B8),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+
+                      // Date & Time
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.end,
                         children: [
                           Text(
-                            record.serviceType,
+                            dateStr,
                             style: const TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w700,
-                              color: Color(0xFF002546),
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            record.jobId,
-                            style: const TextStyle(
-                              fontSize: 11.5,
+                              fontSize: 10.5,
                               color: Color(0xFF94A3B8),
+                            ),
+                          ),
+                          Text(
+                            timeStr,
+                            style: const TextStyle(
+                              fontSize: 10,
+                              color: Color(0xFFCBD5E1),
                             ),
                           ),
                         ],
                       ),
-                    ),
+                      const SizedBox(width: 12),
 
-                    // Date & Time
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      children: [
-                        Text(
-                          dateStr,
-                          style: const TextStyle(
-                            fontSize: 10.5,
-                            color: Color(0xFF94A3B8),
-                          ),
-                        ),
-                        Text(
-                          timeStr,
-                          style: const TextStyle(
-                            fontSize: 10,
-                            color: Color(0xFFCBD5E1),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(width: 12),
-
-                    // Price & Status Badge
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      children: [
-                        Text(
-                          'Rs. ${record.netEarnings.toInt().toString().replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]},')}',
-                          style: const TextStyle(
-                            fontSize: 13.5,
-                            fontWeight: FontWeight.w800,
-                            color: Color(0xFF002546),
-                          ),
-                        ),
-                        const SizedBox(height: 3),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 6, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFD1FAE5),
-                            borderRadius: BorderRadius.circular(4),
-                          ),
-                          child: const Text(
-                            'Completed',
+                      // Price & Status Badge
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          Text(
+                            'Rs. ${_formatAmount(record.netEarnings)}',
                             style: TextStyle(
-                              fontSize: 9,
-                              fontWeight: FontWeight.w700,
-                              color: Color(0xFF059669),
+                              fontSize: 13.5,
+                              fontWeight: FontWeight.w800,
+                              color: isReversed
+                                  ? const Color(0xFF94A3B8)
+                                  : const Color(0xFF002546),
+                              decoration: isReversed
+                                  ? TextDecoration.lineThrough
+                                  : null,
                             ),
                           ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(width: 4),
-                    const Icon(
-                      Icons.chevron_right_rounded,
-                      size: 16,
-                      color: Color(0xFFCBD5E1),
-                    ),
-                  ],
+                          const SizedBox(height: 3),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: isReversed
+                                  ? const Color(0xFFFEE2E2)
+                                  : (isPending
+                                      ? const Color(0xFFFEF3C7)
+                                      : const Color(0xFFD1FAE5)),
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: Text(
+                              isReversed
+                                  ? 'Reversed'
+                                  : (isPending ? 'Pending' : 'Completed'),
+                              style: TextStyle(
+                                fontSize: 9,
+                                fontWeight: FontWeight.w700,
+                                color: isReversed
+                                    ? const Color(0xFFDC2626)
+                                    : (isPending
+                                        ? const Color(0xFFD97706)
+                                        : const Color(0xFF059669)),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(width: 4),
+                      const Icon(
+                        Icons.chevron_right_rounded,
+                        size: 16,
+                        color: Color(0xFFCBD5E1),
+                      ),
+                    ],
+                  ),
                 ),
               ),
-            ),
-          );
-        }),
+            );
+          }),
       ],
     );
   }

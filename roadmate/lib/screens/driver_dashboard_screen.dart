@@ -21,6 +21,7 @@ import 'profile_screen.dart';
 import 'request_history_screen.dart';
 import 'saved_vehicles_screen.dart';
 import 'select_service_screen.dart';
+import 'service_charges_screen.dart';
 import 'track_request_screen.dart';
 
 /// Driver home after login — matches the RoadMate dashboard design:
@@ -506,6 +507,21 @@ class _HomeTab extends StatelessWidget {
           ),
           const SizedBox(height: 12),
 
+          // Pricing & Standard Rates
+          _PricingBanner(
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => ServiceChargesScreen(
+                    driverUid: user.uid,
+                  ),
+                ),
+              );
+            },
+          ),
+          const SizedBox(height: 12),
+
           // Registered vehicle
           _VehicleCard(
             user: user,
@@ -807,6 +823,80 @@ class _QuickCard extends StatelessWidget {
               style: const TextStyle(
                 fontSize: 11,
                 color: AppColors.greyText,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _PricingBanner extends StatelessWidget {
+  final VoidCallback onTap;
+  const _PricingBanner({required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: const Color(0xFFEDF1F7), width: 1.2),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 42,
+              height: 42,
+              decoration: BoxDecoration(
+                color: AppColors.navy.withValues(alpha: 0.08),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: const Icon(
+                Icons.price_check_rounded,
+                color: AppColors.navy,
+                size: 24,
+              ),
+            ),
+            const SizedBox(width: 12),
+            const Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Standard Rates & Pricing',
+                    style: TextStyle(
+                      fontSize: 14.5,
+                      fontWeight: FontWeight.w800,
+                      color: AppColors.navyDark,
+                    ),
+                  ),
+                  SizedBox(height: 2),
+                  Text(
+                    'Guaranteed rates, charge breakdown & payment',
+                    style: TextStyle(
+                      fontSize: 11.5,
+                      color: AppColors.greyText,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Container(
+              width: 28,
+              height: 28,
+              decoration: const BoxDecoration(
+                color: AppColors.fieldFill,
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(
+                Icons.arrow_forward_ios_rounded,
+                size: 13,
+                color: AppColors.navy,
               ),
             ),
           ],

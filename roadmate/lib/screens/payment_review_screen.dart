@@ -13,7 +13,6 @@ import '../services/payment_service.dart';
 import '../theme/app_colors.dart';
 import 'request_success_screen.dart';
 import 'payment_methods_screen.dart';
-import 'service_charges_screen.dart';
 
 /// Step 3b of the driver flow: review the charges and pick how to pay
 /// before the request is sent. (Rating happens later, once the job is
@@ -442,24 +441,6 @@ class _PaymentReviewScreenState extends State<PaymentReviewScreen> {
                         fontSize: 12.5,
                         fontWeight: FontWeight.w700,
                         color: AppColors.orange,
-                      ),
-                    ),
-                  ),
-                  GestureDetector(
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => const ServiceChargesScreen(),
-                        ),
-                      );
-                    },
-                    child: const Text(
-                      'View Pricing Rates',
-                      style: TextStyle(
-                        fontSize: 12.5,
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.greyText,
                       ),
                     ),
                   ),

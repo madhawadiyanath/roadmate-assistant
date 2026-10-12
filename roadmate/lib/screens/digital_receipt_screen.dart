@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../models/payment_transaction.dart';
+import '../services/auth_service.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_typography.dart';
 import '../widgets/payment_widgets.dart';
@@ -143,12 +144,20 @@ class DigitalReceiptScreen extends StatelessWidget {
                                         style: AppTypography.labelSm(
                                             color: AppColors.onSurfaceVariant)),
                                     const SizedBox(height: 4),
-                                    Text('Nimal Perera',
-                                        style: AppTypography.titleMd(
-                                            color: AppColors.primary)),
-                                    Text('+94 77 123 4567',
-                                        style: AppTypography.bodySm(
-                                            color: AppColors.slateText)),
+                                    Text(
+                                      (AuthService().currentUser?.name.trim().isNotEmpty == true)
+                                          ? AuthService().currentUser!.name
+                                          : 'Nimal Perera',
+                                      style: AppTypography.titleMd(
+                                          color: AppColors.primary),
+                                    ),
+                                    Text(
+                                      (AuthService().currentUser?.phone.trim().isNotEmpty == true)
+                                          ? AuthService().currentUser!.phone
+                                          : '+94 77 123 4567',
+                                      style: AppTypography.bodySm(
+                                          color: AppColors.slateText),
+                                    ),
                                   ],
                                 ),
                               ),

@@ -109,7 +109,7 @@ class PaymentTransaction {
 
   factory PaymentTransaction.fromMap(Map<String, dynamic> data, String id) {
     DateTime parsedDate = DateTime.now();
-    final dtVal = data['dateTime'];
+    final dtVal = data['dateTime'] ?? data['createdAt'];
     if (dtVal is Timestamp) {
       parsedDate = dtVal.toDate();
     } else if (dtVal is String) {
@@ -117,21 +117,30 @@ class PaymentTransaction {
     }
 
     return PaymentTransaction(
-      transactionId: data['transactionId'] as String? ?? id,
-      jobId: data['jobId'] as String? ?? '',
-      serviceType: data['serviceType'] as String? ?? '',
-      serviceProvider: data['serviceProvider'] as String? ?? '',
+      transactionId: data['transactionId'] as String? ??
+          (data['refCode'] as String? ?? id),
+      jobId: data['jobId'] as String? ??
+          (data['requestId'] as String? ?? ''),
+      serviceType: data['serviceType'] as String? ??
+          (data['type'] as String? ?? ''),
+      serviceProvider: data['serviceProvider'] as String? ??
+          (data['payeeName'] as String? ?? ''),
       serviceCharge: (data['serviceCharge'] as num?)?.toDouble() ?? 0.0,
-      additionalCharges: (data['additionalCharges'] as num?)?.toDouble() ?? 0.0,
+      additionalCharges:
+          (data['additionalCharges'] as num?)?.toDouble() ?? 0.0,
       platformFee: (data['platformFee'] as num?)?.toDouble() ?? 0.0,
-      totalAmount: (data['totalAmount'] as num?)?.toDouble() ?? 0.0,
-      paymentMethod: data['paymentMethod'] as String? ?? 'Card',
+      totalAmount: (data['totalAmount'] as num?)?.toDouble() ??
+          ((data['amount'] as num?)?.toDouble() ?? 0.0),
+      paymentMethod: data['paymentMethod'] as String? ??
+          (data['method'] as String? ?? 'Card'),
       status: TransactionStatus.fromString(data['status'] as String?),
       dateTime: parsedDate,
-      customerName: data['customerName'] as String? ?? '',
+      customerName: data['customerName'] as String? ??
+          (data['payerName'] as String? ?? ''),
       vehicleInfo: data['vehicleInfo'] as String? ?? '',
       distance: (data['distance'] as num?)?.toDouble() ?? 0.0,
-      driverUid: data['driverUid'] as String? ?? '',
+      driverUid: data['driverUid'] as String? ??
+          (data['payerUid'] as String? ?? ''),
     );
   }
 

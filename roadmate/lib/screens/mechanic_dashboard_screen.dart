@@ -11,6 +11,8 @@ import '../services/notification_service.dart';
 import '../services/payment_service.dart';
 import '../theme/app_colors.dart';
 import '../widgets/notification_widgets.dart';
+import '../models/earnings_record.dart';
+import '../services/earnings_service.dart';
 import 'chat_screen.dart';
 import 'earnings_dashboard_screen.dart';
 import 'garage_profile_screen.dart';
@@ -128,6 +130,27 @@ class _MechanicDashboardScreenState extends State<MechanicDashboardScreen> {
       if (next == RequestStatus.completed) {
         // Cash collected on site → settle this job's transactions.
         await (widget.paymentService ?? PaymentService()).collectCash(r.id);
+
+        // Record mechanic earnings for completed service
+        final earningsService = EarningsService();
+        final fee = r.totalFee > 0 ? r.totalFee : 2500.0;
+        final platformFee = fee * 0.1;
+        final netEarnings = fee - platformFee;
+        final txnId = 'TXN-${r.id.hashCode.abs()}';
+
+        await earningsService.recordEarning(EarningsRecord(
+          jobId: r.id,
+          transactionId: txnId,
+          serviceType: r.type.label,
+          customerName: r.driverName,
+          serviceCharge: fee,
+          platformFee: platformFee,
+          netEarnings: netEarnings,
+          paymentStatus: 'Completed',
+          completedDate: DateTime.now(),
+          mechanicUid: _user.uid,
+          notes: 'Completed on-site job: ${r.type.label}',
+        ));
       }
       if (!mounted) return;
       _snack(next == RequestStatus.completed

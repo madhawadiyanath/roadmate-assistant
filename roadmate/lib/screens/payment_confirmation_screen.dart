@@ -5,6 +5,7 @@ import '../theme/app_colors.dart';
 import '../theme/app_typography.dart';
 import '../widgets/payment_widgets.dart';
 import 'digital_receipt_screen.dart';
+import 'payment_history_screen.dart';
 
 /// Payment Confirmation screen matching the Stitch design.
 class PaymentConfirmationScreen extends StatelessWidget {
@@ -194,6 +195,27 @@ class PaymentConfirmationScreen extends StatelessWidget {
                       icon: Icons.home_rounded,
                       onPressed: () {
                         Navigator.popUntil(context, (route) => route.isFirst);
+                      },
+                    ),
+                    const SizedBox(height: 12),
+
+                    // View Payment History button
+                    TextButton.icon(
+                      icon: const Icon(Icons.history_rounded,
+                          size: 18, color: AppColors.primary),
+                      label: Text(
+                        'View Payment History',
+                        style: AppTypography.labelMd(color: AppColors.primary),
+                      ),
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => PaymentHistoryScreen(
+                              driverUid: transaction.driverUid,
+                            ),
+                          ),
+                        );
                       },
                     ),
                     const SizedBox(height: 24),

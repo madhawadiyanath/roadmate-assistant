@@ -18,6 +18,8 @@ class MakePaymentScreen extends StatefulWidget {
   final String? providerName;
   final double? serviceCharge;
   final double? additionalCharges;
+  final String? driverUid;
+  final String? mechanicUid;
 
   const MakePaymentScreen({
     super.key,
@@ -26,6 +28,8 @@ class MakePaymentScreen extends StatefulWidget {
     this.providerName,
     this.serviceCharge,
     this.additionalCharges,
+    this.driverUid,
+    this.mechanicUid,
   });
 
   @override
@@ -233,6 +237,7 @@ class _MakePaymentScreenState extends State<MakePaymentScreen> {
   }
 
   Future<void> _handlePayment() async {
+    if (_processing) return;
     if (_isInsufficientBalance) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -271,6 +276,11 @@ class _MakePaymentScreenState extends State<MakePaymentScreen> {
     final txnId =
         'TXN-${10000000 + DateTime.now().millisecondsSinceEpoch % 90000000}';
 
+    final currentUser = AuthService().currentUser;
+    final effectiveDriverUid = widget.driverUid ?? (currentUser?.uid.trim() ?? '');
+    final currentUserName = currentUser?.name.trim() ?? '';
+    final customerName = currentUserName.isNotEmpty ? currentUserName : 'Driver';
+
     final tx = PaymentTransaction(
       transactionId: txnId,
       jobId: _jobId,
@@ -284,6 +294,9 @@ class _MakePaymentScreenState extends State<MakePaymentScreen> {
           ? '${selectedMethod.brand} •••• ${selectedMethod.last4}'
           : selectedMethod.label,
       status: TransactionStatus.completed,
+      driverUid: effectiveDriverUid,
+      customerName: customerName,
+      vehicleInfo: 'Standard Vehicle',
     );
 
     // Save to PaymentService (Firestore + in-memory)
@@ -293,8 +306,9 @@ class _MakePaymentScreenState extends State<MakePaymentScreen> {
     final earning = EarningsRecord(
       jobId: _jobId,
       transactionId: txnId,
+      mechanicUid: widget.mechanicUid ?? '',
       serviceType: _serviceType,
-      customerName: 'Driver',
+      customerName: customerName,
       serviceCharge: _baseCharge,
       platformFee: _additionalCharge > 0 ? (_additionalCharge * 0.2) : 200,
       netEarnings: _baseCharge,

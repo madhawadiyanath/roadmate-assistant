@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 import '../config/firebase_state.dart';
@@ -34,6 +35,12 @@ class PaymentService {
   /// Fallback in-memory store for mock or offline sessions
   static final List<PaymentTransaction> _inMemoryTransactions =
       List.of(mockTransactions);
+  static final StreamController<List<PaymentTransaction>> _txnsController =
+      StreamController<List<PaymentTransaction>>.broadcast();
+
+  /// Read-only snapshot of current in-memory transactions
+  static List<PaymentTransaction> get inMemoryTransactions =>
+      List.unmodifiable(_inMemoryTransactions);
 
   // ===================== MODERN PAYMENT METHODS =====================
 
@@ -197,6 +204,7 @@ class PaymentService {
     _inMemoryTransactions.insert(0, transaction);
     mockTransactions.removeWhere((t) => t.transactionId == transaction.transactionId);
     mockTransactions.insert(0, transaction);
+    _txnsController.add(List.of(_inMemoryTransactions));
 
     if (!isLiveDb) return;
 
@@ -209,8 +217,14 @@ class PaymentService {
 
   /// Get list of transactions (newest first).
   Future<List<PaymentTransaction>> getTransactions({String driverUid = ''}) async {
+    final inMemoryMatches = _inMemoryTransactions.where((t) {
+      if (driverUid.isEmpty) return true;
+      return t.driverUid.isEmpty || t.driverUid == driverUid;
+    }).toList();
+
     if (!isLiveDb) {
-      return List.of(_inMemoryTransactions);
+      inMemoryMatches.sort((a, b) => b.dateTime.compareTo(a.dateTime));
+      return inMemoryMatches;
     }
 
     try {
@@ -219,22 +233,47 @@ class PaymentService {
         query = query.where('driverUid', isEqualTo: driverUid);
       }
       final snap = await query.limit(50).get();
-      if (snap.docs.isEmpty) {
-        return List.of(_inMemoryTransactions);
+      final remoteList = snap.docs.map(PaymentTransaction.fromDoc).toList();
+
+      final Map<String, PaymentTransaction> merged = {};
+      for (final tx in inMemoryMatches) {
+        merged[tx.transactionId] = tx;
       }
-      final list = snap.docs.map(PaymentTransaction.fromDoc).toList();
+      for (final tx in remoteList) {
+        merged[tx.transactionId] = tx;
+      }
+
+      final list = merged.values.toList();
       list.sort((a, b) => b.dateTime.compareTo(a.dateTime));
       return list;
     } catch (e) {
       debugPrint('PaymentService: Error getting transactions: $e');
-      return List.of(_inMemoryTransactions);
+      inMemoryMatches.sort((a, b) => b.dateTime.compareTo(a.dateTime));
+      return inMemoryMatches;
     }
   }
 
   /// Stream transactions live.
   Stream<List<PaymentTransaction>> watchTransactions({String driverUid = ''}) {
     if (!isLiveDb) {
-      return Stream.value(List.of(_inMemoryTransactions));
+      final inMemoryMatches = _inMemoryTransactions.where((t) {
+        if (driverUid.isEmpty) return true;
+        return t.driverUid.isEmpty || t.driverUid == driverUid;
+      }).toList();
+      inMemoryMatches.sort((a, b) => b.dateTime.compareTo(a.dateTime));
+
+      return Stream<List<PaymentTransaction>>.multi((controller) {
+        controller.add(List.of(inMemoryMatches));
+        final sub = _txnsController.stream.listen((allInMemory) {
+          final matches = allInMemory.where((t) {
+            if (driverUid.isEmpty) return true;
+            return t.driverUid.isEmpty || t.driverUid == driverUid;
+          }).toList();
+          matches.sort((a, b) => b.dateTime.compareTo(a.dateTime));
+          controller.add(matches);
+        });
+        controller.onCancel = () => sub.cancel();
+      });
     }
 
     Query<Map<String, dynamic>> query = _transactions;
@@ -242,10 +281,21 @@ class PaymentService {
       query = query.where('driverUid', isEqualTo: driverUid);
     }
     return query.limit(50).snapshots().map((snap) {
-      if (snap.docs.isEmpty) {
-        return List.of(_inMemoryTransactions);
+      final remoteList = snap.docs.map(PaymentTransaction.fromDoc).toList();
+      final inMemoryMatches = _inMemoryTransactions.where((t) {
+        if (driverUid.isEmpty) return true;
+        return t.driverUid.isEmpty || t.driverUid == driverUid;
+      }).toList();
+
+      final Map<String, PaymentTransaction> merged = {};
+      for (final tx in inMemoryMatches) {
+        merged[tx.transactionId] = tx;
       }
-      final list = snap.docs.map(PaymentTransaction.fromDoc).toList();
+      for (final tx in remoteList) {
+        merged[tx.transactionId] = tx;
+      }
+
+      final list = merged.values.toList();
       list.sort((a, b) => b.dateTime.compareTo(a.dateTime));
       return list;
     });
@@ -358,6 +408,7 @@ class PaymentService {
     _inMemoryTransactions.insert(0, pt);
     mockTransactions.removeWhere((t) => t.transactionId == doc.id);
     mockTransactions.insert(0, pt);
+    _txnsController.add(List.of(_inMemoryTransactions));
 
     return doc.id;
   }

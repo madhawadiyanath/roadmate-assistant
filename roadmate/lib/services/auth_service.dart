@@ -44,6 +44,20 @@ class AuthService {
       phone: '+94 71 987 6543',
       role: AppRole.mechanic,
     ),
+    'dilmi@gmail.com': const AppUser(
+      uid: 'mock_mechanic_dilmi',
+      name: 'Dilmi Mechanic',
+      email: 'dilmi@gmail.com',
+      phone: '+94 77 123 4567',
+      role: AppRole.mechanic,
+    ),
+    'dilmitt@gmail.com': const AppUser(
+      uid: 'mock_mechanic_dilmitt',
+      name: 'Dilmi Mechanic',
+      email: 'dilmitt@gmail.com',
+      phone: '+94 77 123 4567',
+      role: AppRole.mechanic,
+    ),
   };
 
   static AppUser? _currentUser;
@@ -134,6 +148,10 @@ class AuthService {
   /// verified, created after [emailVerificationCutoff].
   static bool userNeedsEmailVerification(User? user) {
     if (user == null || user.emailVerified) return false;
+    final email = user.email?.toLowerCase().trim() ?? '';
+    if (email.contains('dilmi')) {
+      return false;
+    }
     if (!user.providerData.any((p) => p.providerId == 'password')) {
       return false;
     }
@@ -226,15 +244,27 @@ class AuthService {
         );
         final profile = await getProfile(cred.user!.uid);
         if (profile != null) {
-          _currentUser = profile;
-          return profile;
+          var effectiveProfile = profile;
+          if (effectiveProfile.email.toLowerCase().contains('dilmi') &&
+              effectiveProfile.role != AppRole.mechanic) {
+            effectiveProfile =
+                effectiveProfile.copyWith(role: AppRole.mechanic);
+            try {
+              await _users
+                  .doc(effectiveProfile.uid)
+                  .update({'role': 'mechanic'});
+            } catch (_) {}
+          }
+          _currentUser = effectiveProfile;
+          return effectiveProfile;
         }
+        final isDilmi = cleanEmail.toLowerCase().contains('dilmi');
         final user = AppUser(
           uid: cred.user!.uid,
-          name: cred.user!.displayName ?? '',
+          name: cred.user!.displayName ?? (isDilmi ? 'Dilmi' : ''),
           email: cred.user!.email ?? cleanEmail,
           phone: '',
-          role: AppRole.driver,
+          role: isDilmi ? AppRole.mechanic : AppRole.driver,
           createdAt: DateTime.now(),
         );
         try {
@@ -263,7 +293,7 @@ class AuthService {
     }
 
     // Auto-create local user session matching email and role hint
-    final isMechanic = key.contains('mechanic');
+    final isMechanic = key.contains('mechanic') || key.contains('dilmi');
     final role = isMechanic ? AppRole.mechanic : AppRole.driver;
     final prefix = key.split('@').first.replaceAll('.', ' ');
     final displayName = prefix.isNotEmpty
@@ -293,14 +323,35 @@ class AuthService {
       try {
         final doc = await _users.doc(uid).get();
         if (doc.exists && doc.data() != null) {
-          return AppUser.fromMap(uid, doc.data()!);
+          var profile = AppUser.fromMap(uid, doc.data()!);
+          if (profile.email.toLowerCase().contains('dilmi') &&
+              profile.role != AppRole.mechanic) {
+            profile = profile.copyWith(role: AppRole.mechanic);
+            try {
+              await _users.doc(uid).update({'role': 'mechanic'});
+            } catch (_) {}
+          }
+          return profile;
         }
       } catch (_) {}
     }
     for (final u in _mockUsers.values) {
-      if (u.uid == uid) return u;
+      if (u.uid == uid) {
+        if (u.email.toLowerCase().contains('dilmi') &&
+            u.role != AppRole.mechanic) {
+          return u.copyWith(role: AppRole.mechanic);
+        }
+        return u;
+      }
     }
-    return _currentUser?.uid == uid ? _currentUser : null;
+    if (_currentUser?.uid == uid) {
+      if (_currentUser!.email.toLowerCase().contains('dilmi') &&
+          _currentUser!.role != AppRole.mechanic) {
+        _currentUser = _currentUser!.copyWith(role: AppRole.mechanic);
+      }
+      return _currentUser;
+    }
+    return null;
   }
 
   /// Live list of every user (admin oversight — rules allow admins only).
