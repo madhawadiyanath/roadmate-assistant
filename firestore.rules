@@ -73,6 +73,18 @@ service cloud.firestore {
       match /paymentMethods/{methodId} {
         allow read, write: if signedIn() && request.auth.uid == uid;
       }
+
+      // Services offered by mechanic/garage — public read, owner write.
+      match /services/{serviceId} {
+        allow read: if signedIn();
+        allow write: if signedIn() && request.auth.uid == uid;
+      }
+
+      // Garage business profile & operating details — public read, owner write.
+      match /garageProfile/{profileId} {
+        allow read: if signedIn();
+        allow write: if signedIn() && request.auth.uid == uid;
+      }
     }
 
     // Money movements. Payer creates on submit; payee collects cash;

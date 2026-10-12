@@ -13,9 +13,11 @@ import '../theme/app_colors.dart';
 import '../widgets/notification_widgets.dart';
 import 'chat_screen.dart';
 import 'earnings_dashboard_screen.dart';
+import 'garage_profile_screen.dart';
 import 'job_details_screen.dart';
 import 'notifications_screen.dart';
 import 'profile_screen.dart';
+import 'services_offered_screen.dart';
 
 /// Mechanic home matching the RoadMate design:
 /// greeting + online pill, hero card, live stat grid, earnings,
@@ -372,43 +374,48 @@ class _MechHomeTab extends StatelessWidget {
           const _MechHeroCard(),
           const SizedBox(height: 14),
 
-          // Live stat grid (demo numbers until Firebase connects)
+          // Live stat row (all 4 metrics in one single line)
           if (!firebaseReady)
-            GridView.count(
-              crossAxisCount: 2,
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              mainAxisSpacing: 10,
-              crossAxisSpacing: 10,
-              childAspectRatio: 1.55,
-              children: const [
-                _StatCard(
-                  value: '3',
-                  label: 'New Requests',
-                  icon: Icons.shield_outlined,
-                  iconBg: Color(0xFFFFEDE0),
-                  iconColor: AppColors.orange,
+            const Row(
+              children: [
+                Expanded(
+                  child: _StatCard(
+                    value: '4',
+                    label: 'Requests',
+                    icon: Icons.shield_outlined,
+                    iconBg: Color(0xFFFFEDE0),
+                    iconColor: AppColors.orange,
+                  ),
                 ),
-                _StatCard(
-                  value: '1',
-                  label: 'Active Job',
-                  icon: Icons.work_outline_rounded,
-                  iconBg: Color(0xFFE3EEFF),
-                  iconColor: Color(0xFF2F7DE1),
+                SizedBox(width: 8),
+                Expanded(
+                  child: _StatCard(
+                    value: '5',
+                    label: 'Active',
+                    icon: Icons.work_outline_rounded,
+                    iconBg: Color(0xFFE3EEFF),
+                    iconColor: Color(0xFF2F7DE1),
+                  ),
                 ),
-                _StatCard(
-                  value: '12',
-                  label: 'Completed',
-                  icon: Icons.check_circle_outline_rounded,
-                  iconBg: Color(0xFFE6F7EE),
-                  iconColor: Color(0xFF22B573),
+                SizedBox(width: 8),
+                Expanded(
+                  child: _StatCard(
+                    value: '16',
+                    label: 'Completed',
+                    icon: Icons.check_circle_outline_rounded,
+                    iconBg: Color(0xFFE6F7EE),
+                    iconColor: Color(0xFF22B573),
+                  ),
                 ),
-                _StatCard(
-                  value: '—',
-                  label: 'No ratings yet',
-                  icon: Icons.star_rounded,
-                  iconBg: Color(0xFFFFF3DC),
-                  iconColor: AppColors.orange,
+                SizedBox(width: 8),
+                Expanded(
+                  child: _StatCard(
+                    value: '—',
+                    label: 'Rating',
+                    icon: Icons.star_rounded,
+                    iconBg: Color(0xFFFFF3DC),
+                    iconColor: Color(0xFFF59E0B),
+                  ),
                 ),
               ],
             )
@@ -432,43 +439,48 @@ class _MechHomeTab extends StatelessWidget {
                           (r) => r.status == RequestStatus.completed)
                       .length;
                   final rating = RatingSummary.from(myJobs);
-                  return GridView.count(
-                    crossAxisCount: 2,
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    mainAxisSpacing: 10,
-                    crossAxisSpacing: 10,
-                    childAspectRatio: 1.55,
+                  return Row(
                     children: [
-                      _StatCard(
-                        value: '$pendingCount',
-                        label: 'New Requests',
-                        icon: Icons.shield_outlined,
-                        iconBg: const Color(0xFFFFEDE0),
-                        iconColor: AppColors.orange,
+                      Expanded(
+                        child: _StatCard(
+                          value: '$pendingCount',
+                          label: 'Requests',
+                          icon: Icons.shield_outlined,
+                          iconBg: const Color(0xFFFFEDE0),
+                          iconColor: AppColors.orange,
+                        ),
                       ),
-                      _StatCard(
-                        value: '$activeCount',
-                        label: 'Active Job',
-                        icon: Icons.work_outline_rounded,
-                        iconBg: const Color(0xFFE3EEFF),
-                        iconColor: const Color(0xFF2F7DE1),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: _StatCard(
+                          value: '$activeCount',
+                          label: 'Active',
+                          icon: Icons.work_outline_rounded,
+                          iconBg: const Color(0xFFE3EEFF),
+                          iconColor: const Color(0xFF2F7DE1),
+                        ),
                       ),
-                      _StatCard(
-                        value: '$completedCount',
-                        label: 'Completed',
-                        icon: Icons.check_circle_outline_rounded,
-                        iconBg: const Color(0xFFE6F7EE),
-                        iconColor: const Color(0xFF22B573),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: _StatCard(
+                          value: '$completedCount',
+                          label: 'Completed',
+                          icon: Icons.check_circle_outline_rounded,
+                          iconBg: const Color(0xFFE6F7EE),
+                          iconColor: const Color(0xFF22B573),
+                        ),
                       ),
-                      _StatCard(
-                        value: rating.averageText,
-                        label: rating.hasRatings
-                            ? 'Rating (${rating.count})'
-                            : 'No ratings yet',
-                        icon: Icons.star_rounded,
-                        iconBg: const Color(0xFFFFF3DC),
-                        iconColor: AppColors.orange,
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: _StatCard(
+                          value: rating.averageText,
+                          label: rating.hasRatings
+                              ? '★ ${rating.count}'
+                              : 'Rating',
+                          icon: Icons.star_rounded,
+                          iconBg: const Color(0xFFFFF3DC),
+                          iconColor: const Color(0xFFF59E0B),
+                        ),
                       ),
                     ],
                   );
@@ -535,8 +547,122 @@ class _MechHomeTab extends StatelessWidget {
               ),
             ),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 20),
+
+          // Garage Management shortcuts
+          const Text(
+            'Garage Management',
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w800,
+              color: AppColors.navy,
+            ),
+          ),
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              Expanded(
+                child: _QuickManageCard(
+                  title: 'Services Offered',
+                  subtitle: 'Manage fees & list',
+                  icon: Icons.build_circle_rounded,
+                  color: AppColors.orange,
+                  onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => ServicesOfferedScreen(uid: mechanicUid),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: _QuickManageCard(
+                  title: 'Garage Profile',
+                  subtitle: 'Hours & location',
+                  icon: Icons.storefront_rounded,
+                  color: const Color(0xFF2F7DE1),
+                  onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => GarageProfileScreen(uid: mechanicUid),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 20),
         ],
+      ),
+    );
+  }
+}
+
+class _QuickManageCard extends StatelessWidget {
+  final String title;
+  final String subtitle;
+  final IconData icon;
+  final Color color;
+  final VoidCallback onTap;
+
+  const _QuickManageCard({
+    required this.title,
+    required this.subtitle,
+    required this.icon,
+    required this.color,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(14),
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: AppColors.fieldFill, width: 1.2),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.02),
+              blurRadius: 6,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: color.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Icon(icon, color: color, size: 20),
+            ),
+            const SizedBox(height: 10),
+            Text(
+              title,
+              style: const TextStyle(
+                fontSize: 13.5,
+                fontWeight: FontWeight.w800,
+                color: AppColors.navy,
+              ),
+            ),
+            const SizedBox(height: 2),
+            Text(
+              subtitle,
+              style: const TextStyle(
+                fontSize: 11,
+                color: AppColors.greyText,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -569,128 +695,87 @@ class _GainPill extends StatelessWidget {
 class _MechHeroCard extends StatelessWidget {
   const _MechHeroCard();
 
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: AppColors.navy,
-        borderRadius: BorderRadius.circular(18),
-      ),
-      child: const Row(
-        children: [
-          Expanded(
-            flex: 5,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  "Let's keep\nSri Lanka moving!",
-                  style: TextStyle(
-                    fontSize: 19,
-                    fontWeight: FontWeight.w800,
-                    height: 1.3,
-                    color: Colors.white,
-                  ),
-                ),
-                SizedBox(height: 6),
-                Text(
-                  'Accept requests and help drivers in need.',
-                  style: TextStyle(
-                    fontSize: 12.5,
-                    color: Colors.white70,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          SizedBox(width: 8),
-          Expanded(
-            flex: 3,
-            child: SizedBox(
-              height: 96,
-              child: _MechanicArt(),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-/// Small flat mechanic figure for the hero card.
-class _MechanicArt extends StatelessWidget {
-  const _MechanicArt();
+  static const _photo = 'assets/images/mechanic_hero.jpg';
 
   @override
   Widget build(BuildContext context) {
-    return CustomPaint(
-      painter: _MechanicArtPainter(),
-      child: const SizedBox.expand(),
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(18),
+      child: SizedBox(
+        height: 150,
+        width: double.infinity,
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            Image.asset(
+              _photo,
+              fit: BoxFit.cover,
+              errorBuilder: (_, _, _) => Container(
+                color: AppColors.navy,
+              ),
+            ),
+            // Gradient overlay for high text contrast
+            Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.centerLeft,
+                  end: Alignment.centerRight,
+                  colors: [
+                    const Color(0xFF0A2A66).withValues(alpha: 0.94),
+                    const Color(0xFF0A2A66).withValues(alpha: 0.70),
+                    const Color(0xFF0A2A66).withValues(alpha: 0.25),
+                  ],
+                  stops: const [0.0, 0.58, 1.0],
+                ),
+              ),
+            ),
+            const FractionallySizedBox(
+              widthFactor: 0.72,
+              alignment: Alignment.centerLeft,
+              child: Padding(
+                padding: EdgeInsets.all(18),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      'ROADSIDE PARTNER',
+                      style: TextStyle(
+                        fontSize: 10.5,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 0.8,
+                        color: AppColors.orange,
+                      ),
+                    ),
+                    SizedBox(height: 5),
+                    Text(
+                      "Let's keep\nSri Lanka moving!",
+                      style: TextStyle(
+                        fontSize: 19,
+                        fontWeight: FontWeight.w800,
+                        height: 1.25,
+                        color: Colors.white,
+                      ),
+                    ),
+                    SizedBox(height: 5),
+                    Text(
+                      'Accept requests and help drivers in need.',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 12.5,
+                        color: Colors.white70,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
-}
-
-class _MechanicArtPainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final w = size.width;
-    final h = size.height;
-    final skin = Paint()..color = const Color(0xFFF0C8A0);
-    final shirt = Paint()..color = const Color(0xFF2F7DE1);
-    final vest = Paint()..color = const Color(0xFFFF8A1E);
-    final pants = Paint()..color = const Color(0xFF1A2340);
-
-    // Legs
-    canvas.drawRRect(
-      RRect.fromLTRBR(w * 0.38, h * 0.60, w * 0.48, h * 0.95,
-          const Radius.circular(4)),
-      pants,
-    );
-    canvas.drawRRect(
-      RRect.fromLTRBR(w * 0.52, h * 0.60, w * 0.62, h * 0.95,
-          const Radius.circular(4)),
-      pants,
-    );
-    // Torso + vest
-    canvas.drawRRect(
-      RRect.fromLTRBR(w * 0.32, h * 0.30, w * 0.68, h * 0.64,
-          const Radius.circular(10)),
-      shirt,
-    );
-    canvas.drawRRect(
-      RRect.fromLTRBR(w * 0.38, h * 0.30, w * 0.62, h * 0.64,
-          const Radius.circular(6)),
-      vest,
-    );
-    // Arm waving
-    canvas.drawLine(
-      Offset(w * 0.66, h * 0.36),
-      Offset(w * 0.90, h * 0.18),
-      Paint()
-        ..color = const Color(0xFF2F7DE1)
-        ..strokeWidth = w * 0.09
-        ..strokeCap = StrokeCap.round,
-    );
-    canvas.drawCircle(Offset(w * 0.90, h * 0.16), w * 0.06, skin);
-    // Head + cap
-    canvas.drawCircle(Offset(w * 0.50, h * 0.18), w * 0.11, skin);
-    canvas.drawArc(
-      Rect.fromCenter(
-          center: Offset(w * 0.50, h * 0.17),
-          width: w * 0.26,
-          height: w * 0.26),
-      3.14,
-      3.14,
-      false,
-      Paint()
-        ..color = const Color(0xFF0A2A66)
-        ..style = PaintingStyle.fill,
-    );
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
 
 class _StatCard extends StatelessWidget {
@@ -709,48 +794,75 @@ class _StatCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    String displayLabel = label;
+    if (label.toLowerCase().contains('request')) {
+      displayLabel = 'Requests';
+    } else if (label.toLowerCase().contains('active')) {
+      displayLabel = 'Active';
+    } else if (label.toLowerCase().contains('complete')) {
+      displayLabel = 'Completed';
+    } else if (label.toLowerCase().contains('rating')) {
+      displayLabel = 'Rating';
+    }
+
     return Container(
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 4),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFFEDF1F7), width: 1.2),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: const Color(0xFFE8EEF5),
+          width: 1.2,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF0F172A).withValues(alpha: 0.035),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
-      child: Row(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        mainAxisAlignment: MainAxisAlignment.center,
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           Container(
-            width: 42,
-            height: 42,
+            width: 36,
+            height: 36,
             decoration: BoxDecoration(
               color: iconBg,
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(11),
+              border: Border.all(
+                color: iconColor.withValues(alpha: 0.18),
+                width: 1,
+              ),
             ),
-            child: Icon(icon, color: iconColor, size: 22),
+            child: Icon(icon, color: iconColor, size: 18),
           ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  value,
-                  style: const TextStyle(
-                    fontSize: 19,
-                    fontWeight: FontWeight.w800,
-                    color: AppColors.navyDark,
-                  ),
-                ),
-                Text(
-                  label,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    fontSize: 11,
-                    color: AppColors.greyText,
-                  ),
-                ),
-              ],
+          const SizedBox(height: 8),
+          Text(
+            value,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              fontSize: 17,
+              fontWeight: FontWeight.w800,
+              color: AppColors.navyDark,
+              letterSpacing: -0.3,
+            ),
+          ),
+          const SizedBox(height: 3),
+          Text(
+            displayLabel,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              fontSize: 10.5,
+              fontWeight: FontWeight.w600,
+              color: Color(0xFF64748B),
+              letterSpacing: 0.1,
             ),
           ),
         ],

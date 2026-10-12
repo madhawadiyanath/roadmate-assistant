@@ -6,7 +6,7 @@ import '../services/assistance_service.dart';
 import '../services/auth_service.dart';
 import '../services/chat_service.dart';
 import '../theme/app_colors.dart';
-import '../widgets/mini_map_illustration.dart';
+import '../widgets/real_map_widget.dart';
 import 'chat_screen.dart';
 
 /// Full details of one incoming job. Opened by tapping a job card.
@@ -382,7 +382,7 @@ class _JobDetailsScreenState extends State<JobDetailsScreen> {
 
               // Map card
               Container(
-                height: 170,
+                height: 185,
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(16),
                   border:
@@ -392,8 +392,16 @@ class _JobDetailsScreenState extends State<JobDetailsScreen> {
                   borderRadius: BorderRadius.circular(16),
                   child: Stack(
                     children: [
-                      const Positioned.fill(
-                          child: MiniMapIllustration()),
+                      Positioned.fill(
+                        child: RealMapWidget(
+                          latitude: r.latitude ?? 6.9271,
+                          longitude: r.longitude ?? 79.8612,
+                          initialZoom: 15.0,
+                          isInteractive: true,
+                          showZoomControls: true,
+                          markerLabel: r.address.isNotEmpty ? r.address : null,
+                        ),
+                      ),
                       Positioned(
                         right: 10,
                         bottom: 10,
@@ -405,6 +413,13 @@ class _JobDetailsScreenState extends State<JobDetailsScreen> {
                             decoration: BoxDecoration(
                               color: AppColors.navy,
                               borderRadius: BorderRadius.circular(10),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withValues(alpha: 0.25),
+                                  blurRadius: 6,
+                                  offset: const Offset(0, 2),
+                                ),
+                              ],
                             ),
                             child: const Row(
                               children: [
