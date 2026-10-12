@@ -18,6 +18,8 @@ class ConfirmRequestScreen extends StatefulWidget {
   final AppUser user;
   final AssistanceType serviceType;
   final String address;
+  final double? latitude;
+  final double? longitude;
   final AssistanceService? assistanceService;
   final VehicleService? vehicleService;
 
@@ -26,6 +28,8 @@ class ConfirmRequestScreen extends StatefulWidget {
     required this.user,
     required this.serviceType,
     required this.address,
+    this.latitude,
+    this.longitude,
     this.assistanceService,
     this.vehicleService,
   });
@@ -81,6 +85,8 @@ class _ConfirmRequestScreenState extends State<ConfirmRequestScreen> {
           user: widget.user,
           serviceType: widget.serviceType,
           address: widget.address,
+          latitude: widget.latitude,
+          longitude: widget.longitude,
           assistanceService: widget.assistanceService,
           vehicleService: widget.vehicleService,
         ),

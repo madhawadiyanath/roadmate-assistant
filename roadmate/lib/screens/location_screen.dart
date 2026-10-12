@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:latlong2/latlong.dart';
 
 import '../models/app_user.dart';
@@ -34,6 +35,8 @@ class _LocationScreenState extends State<LocationScreen> {
   double _lat = 6.8920; // 452 Galle Road, Colombo 03
   double _lng = 79.8550;
   double _currentZoom = 15.0;
+  double? _latitude;
+  double? _longitude;
   bool _locked = true;
   bool _locating = false;
   bool _creating = false;
@@ -48,21 +51,56 @@ class _LocationScreenState extends State<LocationScreen> {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
   }
 
-  /// Simulated high-precision GPS lock.
-  /// TODO: swap with geolocator + reverse-geocode for live coordinates.
   Future<void> _useCurrentLocation() async {
     setState(() => _locating = true);
-    await Future.delayed(const Duration(milliseconds: 900));
-    if (!mounted) return;
-    setState(() {
-      _locating = false;
-      _locked = true;
-      _lat = 6.9271; // Colombo City Centre
-      _lng = 79.8612;
-      _search.text = 'Highland Expressway, Mile Post 42';
-    });
-    _mapController.move(LatLng(_lat, _lng), _currentZoom);
-    _snack('GPS locked • High precision (±3m)');
+    try {
+      final serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!serviceEnabled) {
+        if (!mounted) return;
+        _snack('Location is turned off. Please enable GPS/location services to use your current location.');
+        return;
+      }
+
+      var permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+      }
+
+      if (permission == LocationPermission.denied ||
+          permission == LocationPermission.deniedForever) {
+        if (!mounted) return;
+        _snack(
+          permission == LocationPermission.deniedForever
+              ? 'Location permission is permanently denied. Please allow it in Settings to use your current location.'
+              : 'Location permission is required to use your current location.',
+        );
+        return;
+      }
+
+      final position = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.high,
+      );
+
+      if (!mounted) return;
+      setState(() {
+        _latitude = position.latitude;
+        _longitude = position.longitude;
+        _locked = true;
+        _lat = position.latitude;
+        _lng = position.longitude;
+        _search.text =
+            '${position.latitude.toStringAsFixed(6)}, ${position.longitude.toStringAsFixed(6)}';
+      });
+      _mapController.move(LatLng(_lat, _lng), _currentZoom);
+      _snack(
+        'GPS locked • ${position.latitude.toStringAsFixed(5)}, ${position.longitude.toStringAsFixed(5)}',
+      );
+    } catch (_) {
+      if (!mounted) return;
+      _snack('Unable to fetch your current location. Please try again.');
+    } finally {
+      if (mounted) setState(() => _locating = false);
+    }
   }
 
   /// Step 3: review everything on the Confirm page.
@@ -82,6 +120,8 @@ class _LocationScreenState extends State<LocationScreen> {
             user: widget.user,
             serviceType: widget.serviceType,
             address: address,
+            latitude: _latitude,
+            longitude: _longitude,
             assistanceService: widget.assistanceService,
           ),
         ),

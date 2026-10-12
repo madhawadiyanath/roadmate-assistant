@@ -23,6 +23,8 @@ class PaymentReviewScreen extends StatefulWidget {
   final AppUser user;
   final AssistanceType serviceType;
   final String address;
+  final double? latitude;
+  final double? longitude;
   final AssistanceService? assistanceService;
   final VehicleService? vehicleService;
   final PaymentService? paymentService;
@@ -32,6 +34,8 @@ class PaymentReviewScreen extends StatefulWidget {
     required this.user,
     required this.serviceType,
     required this.address,
+    this.latitude,
+    this.longitude,
     this.assistanceService,
     this.vehicleService,
     this.paymentService,
@@ -72,6 +76,8 @@ class _PaymentReviewScreenState extends State<PaymentReviewScreen> {
         driverName: widget.user.name,
         type: widget.serviceType,
         address: widget.address,
+        latitude: widget.latitude,
+        longitude: widget.longitude,
         paymentMethod: _method,
         totalFee: fee.total,
         vehicle: vehicle?.name ?? '',
